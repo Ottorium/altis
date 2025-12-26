@@ -1,4 +1,5 @@
 mod app;
+mod navbar;
 
 use app::App;
 
