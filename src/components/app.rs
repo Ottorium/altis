@@ -1,4 +1,5 @@
-use crate::navbar::*;
+use crate::components::navbar::*;
+use crate::components::settings::*;
 use yew::prelude::*;
 
 #[function_component(App)]
@@ -15,6 +16,8 @@ pub fn app() -> Html {
         Tab::Messages => html! { <MessagesComponent /> },
         Tab::Absences => html! { <AbsencesComponent /> },
         Tab::Settings => html! { <SettingsComponent /> },
+        Tab::Letto => html! { <LettoComponent /> },
+        Tab::Book2Eat => html! { <Book2EatComponent /> },
     };
 
     html! {
@@ -38,5 +41,7 @@ fn messages() -> Html { html! { <div>{"Messages View"}</div> } }
 #[function_component(AbsencesComponent)]
 fn absences() -> Html { html! { <div>{"Absences View"}</div> } }
 
-#[function_component(SettingsComponent)]
-fn settings() -> Html { html! { <div>{"Settings View"}</div> } }
+#[function_component(LettoComponent)]
+fn letto() -> Html { html! { <div>{"Letto View"}</div> } }
+#[function_component(Book2EatComponent)]
+fn book2eat() -> Html { html! { <div>{"Settings View"}</div> } }
