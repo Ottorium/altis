@@ -1,3 +1,9 @@
 pub mod app;
 mod navbar;
 mod settings;
+mod timetable;
+mod absences;
+mod messages;
+mod letto;
+mod book2eat;
+mod auth_wrapper;

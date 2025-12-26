@@ -32,27 +32,27 @@ pub fn navbar(props: &NavProps) -> Html {
     html! {
         <>
             // DESKTOP SIDEBAR
-            <nav class="d-none d-md-flex vh-100 bg-dark border-end border-secondary border-opacity-25 p-4 flex-column justify-content-between sticky-top"
-                 style="min-width: 240px; width: 240px;">
+            <nav class="d-none d-md-flex vh-100 shadow p-4 flex-column justify-content-between sticky-top"
+                 style="min-width: 240px; width: 240px; background-color: #1a1a1a; border-right: 1px solid rgba(255,255,255,0.05);">
                 <div class="d-flex flex-column">
                     <div class="mb-3">
                         <span class="fs-3 fw-bold text-primary px-2">{"Altis"}</span>
                     </div>
 
-                    <ul class="nav nav-pills flex-column gap-1 border-top border-primary border-opacity-100 pt-4">
+                    <ul class="nav nav-pills flex-column gap-1 border-top border-white border-opacity-10 pt-4">
                         {for main_tabs.into_iter().map(|(tab, label)| {
                             render_nav_item(tab.clone(), label, props)
                         })}
                     </ul>
                 </div>
-                <div class="nav nav-pills flex-column gap-1 border-top border-primary border-opacity-100 pt-4">
+                <div class="nav nav-pills flex-column gap-1 border-top border-white border-opacity-10 pt-4">
                     {render_nav_item(Tab::Settings, "Settings", props)}
                 </div>
             </nav>
 
             // MOBILE BOTTOM NAV
-            <nav class="d-md-none fixed-bottom bg-dark border-top border-secondary border-opacity-25 px-2">
-                <div class="d-flex justify-content-around">
+            <nav class="d-md-none fixed-bottom px-2 shadow-lg" style="background-color: #1a1a1a; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1050;">
+                <div class="d-flex justify-content-around py-2">
                     {for main_tabs_mobile.into_iter().map(|(tab, label)| {
                         render_mobile_nav_item(tab, label, props)
                     })}

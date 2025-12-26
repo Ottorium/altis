@@ -4,6 +4,7 @@
     --bs-secondary: #AEB6BF !important;
     --bs-secondary-rgb: 174, 182, 191 !important;
     --bs-warning: #fa8a44 !important;
+    --bs-warning-rgb: 250, 138, 68 !important;
 }
 
 .selected-gradient {

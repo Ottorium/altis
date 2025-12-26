@@ -1,9 +1,16 @@
+use crate::components::absences::*;
+use crate::components::auth_wrapper::AuthWrapper;
+use crate::components::book2eat::*;
+use crate::components::letto::*;
+use crate::components::messages::*;
 use crate::components::navbar::*;
 use crate::components::settings::*;
+use crate::components::timetable::*;
 use yew::prelude::*;
 
 #[function_component(App)]
 pub fn app() -> Html {
+
     let active_tab = use_state(|| Tab::Timetable);
 
     let on_nav_change = {
@@ -13,8 +20,8 @@ pub fn app() -> Html {
 
     let content = match *active_tab {
         Tab::Timetable => html! { <TimetableComponent /> },
-        Tab::Messages => html! { <MessagesComponent /> },
-        Tab::Absences => html! { <AbsencesComponent /> },
+        Tab::Messages => html! { <AuthWrapper><MessagesComponent /></AuthWrapper> },
+        Tab::Absences => html! { <AuthWrapper><AbsencesComponent /></AuthWrapper> },
         Tab::Settings => html! { <SettingsComponent /> },
         Tab::Letto => html! { <LettoComponent /> },
         Tab::Book2Eat => html! { <Book2EatComponent /> },
@@ -24,24 +31,10 @@ pub fn app() -> Html {
         <>
             <div class="d-flex flex-column flex-md-row">
                 <NavBar active_tab={(*active_tab).clone()} on_change={on_nav_change} />
-                <main class="flex-grow-1 p-4 mb-5 mb-md-0">
+                <main class="flex-grow-1 mb-5 mb-md-0">
                     {content}
                 </main>
             </div>
         </>
     }
 }
-
-#[function_component(TimetableComponent)]
-fn timetable() -> Html { html! { <div>{"Timetable View"}</div> } }
-
-#[function_component(MessagesComponent)]
-fn messages() -> Html { html! { <div>{"Messages View"}</div> } }
-
-#[function_component(AbsencesComponent)]
-fn absences() -> Html { html! { <div>{"Absences View"}</div> } }
-
-#[function_component(LettoComponent)]
-fn letto() -> Html { html! { <div>{"Letto View"}</div> } }
-#[function_component(Book2EatComponent)]
-fn book2eat() -> Html { html! { <div>{"Settings View"}</div> } }
