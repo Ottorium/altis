@@ -4,6 +4,9 @@ target = "./index.html"
 [watch]
 ignore = ["./src-tauri"]
 
+[tools]
+sass = "1.76.0"
+
 [serve]
 port = 2222
 open = false
