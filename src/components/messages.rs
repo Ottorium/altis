@@ -4,7 +4,7 @@ use yew::prelude::*;
 pub fn messages() -> Html {
     html! {
         <>
-            <p>{ "Welcome!" }</p>
+            <p>{ "Messages View" }</p>
         </>
     }
 }

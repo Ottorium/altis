@@ -4,7 +4,7 @@ use yew::prelude::*;
 pub fn absences() -> Html {
     html! {
         <>
-            <p>{ "Welcome!" }</p>
+            <p>{ "Absences View" }</p>
         </>
     }
 }
