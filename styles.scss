@@ -5,10 +5,8 @@ $warning:   #fa8a44;
 @import "./node_modules/bootstrap/scss/bootstrap.scss";
 
 .selected-gradient {
-    background: linear-gradient(
-                    to right,
-                    rgba(255, 221, 103, 0.25) 0%,
-                    rgba(255, 221, 103, 0) 100%
-    );
-    border-left: 4px solid $primary;
+  background: linear-gradient(to right, rgba(255, 221, 103, 0.25) 0%, rgba(255, 221, 103, 0) 100%) !important;
+  border-left: none !important;
+  box-shadow: inset 4px 0 0 0 #fac444 !important;
+  border-radius: 5px !important;
 }

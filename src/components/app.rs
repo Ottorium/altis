@@ -43,9 +43,9 @@ pub fn app() -> Html {
 
     html! {
         <>
-            <div class="d-flex flex-column flex-md-row">
+            <div class="d-flex flex-column flex-md-row min-vh-100 bg-dark text-white">
                 <NavBar active_tab={(*active_tab).clone()} on_change={on_nav_change} />
-                <main class="flex-grow-1 mb-5 mb-md-0 bg-dark text-white">
+                <main class="flex-grow-1 mb-5 mb-md-0">
                     {content}
                 </main>
             </div>

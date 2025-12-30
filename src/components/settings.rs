@@ -12,9 +12,14 @@ pub fn settings() -> Html {
 
     let saved_settings = PersistenceManager::get_settings().ok();
 
+    let (school_val, user_val, secret_val) = match saved_settings {
+        Some(s) => (s.school_name, s.username, s.auth_secret),
+        None => ("".to_string(), "".to_string(), "".to_string()),
+    };
+
     let error_message = use_state(|| None::<String>);
 
-    let onclick = {
+    let save = {
         let username_ref = username_ref.clone();
         let secret_ref = secret_ref.clone();
         let school_ref = school_ref.clone();
@@ -50,10 +55,15 @@ pub fn settings() -> Html {
         })
     };
 
-    let (school_val, user_val, secret_val) = match saved_settings {
-        Some(s) => (s.school_name, s.username, s.auth_secret),
-        None => ("".to_string(), "".to_string(), "".to_string()),
+
+    let secret_visible = use_state(|| false);
+    let on_toggle_secret = {
+        let secret_visible = secret_visible.clone();
+        Callback::from(move |_| secret_visible.set(!*secret_visible))
     };
+
+    let secret_input_type = if *secret_visible { "text" } else { "password" };
+    let secret_icon_class = if *secret_visible { "bi bi-eye text-primary" } else { "bi bi-eye-slash text-secondary" };
 
     html! {
         <div class="container-fluid bg-dark vh-100 d-flex align-items-center justify-content-center border-0 w-100 h-100" data-bs-theme="dark">
@@ -71,9 +81,14 @@ pub fn settings() -> Html {
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">{"Secret:"}</label>
-                                <input ref={secret_ref} type="password" value={secret_val} placeholder="Secret" class="form-control" />
+                                <div class="input-group">
+                                    <input ref={secret_ref} type={secret_input_type} value={secret_val} placeholder="Secret" class="form-control"/>
+                                    <button class="btn btn-dark btn-custom-toggle" style="border-color: #495057;" type="button" onclick={on_toggle_secret}>
+                                        <i class={secret_icon_class}></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button {onclick} class="btn btn-primary w-100">{"Save"}</button>
+                            <button onclick={save} class="btn btn-primary w-100 fw-bold">{"Save"}</button>
                             {
                                 if let Some(msg) = &*error_message {
                                     html! { <div class="text-danger mt-2 small text-center">{ msg }</div> }

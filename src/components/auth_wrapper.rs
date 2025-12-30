@@ -69,7 +69,7 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
                             </div>
                         }) }
 
-                        <button class="btn btn-primary w-100 py-2 shadow-sm" {onclick}>
+                        <button class="btn btn-primary w-100 py-2 shadow-sm fw-bold" {onclick}>
                             <i class="bi bi-arrow-clockwise me-2"></i>
                             {"Retry Connection"}
                         </button>

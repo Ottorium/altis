@@ -39,13 +39,13 @@ pub fn navbar(props: &NavProps) -> Html {
                         <span class="fs-3 fw-bold text-primary px-2">{"Altis"}</span>
                     </div>
 
-                    <ul class="nav nav-pills flex-column gap-1 border-top border-white border-opacity-10 pt-4">
+                    <ul class="nav nav-pills flex-column gap-1 border-top border-primary border-opacity-100 pt-4">
                         {for main_tabs.into_iter().map(|(tab, label)| {
                             render_nav_item(tab.clone(), label, props)
                         })}
                     </ul>
                 </div>
-                <div class="nav nav-pills flex-column gap-1 border-top border-white border-opacity-10 pt-4">
+                <div class="nav nav-pills flex-column gap-1 border-top border-primary border-opacity-100 pt-4">
                     {render_nav_item(Tab::Settings, "Settings", props)}
                 </div>
             </nav>
