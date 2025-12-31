@@ -1,5 +1,5 @@
 use crate::persistence_manager::*;
-use crate::untis_client::UntisClient;
+use crate::authorization_untis_client;
 use log::error;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -79,7 +79,7 @@ pub fn settings() -> Html {
             let secret_for_async = secret_str.clone();
 
             wasm_bindgen_futures::spawn_local(async move {
-                let res = UntisClient::get_session_into_cookies(
+                let res = authorization_untis_client::get_session_into_cookies(
                     school_for_async,
                     user_for_async,
                     secret_for_async

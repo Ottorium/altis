@@ -1,5 +1,5 @@
 use crate::persistence_manager::PersistenceManager;
-use crate::untis_client::UntisClient;
+use crate::authorization_untis_client;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -11,7 +11,7 @@ pub struct AuthWrapperProps {
 
 #[function_component(AuthWrapper)]
 pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
-    let session = use_state(|| UntisClient::is_authenticated());
+    let session = use_state(|| authorization_untis_client::is_authenticated());
     let error = use_state(|| Option::<String>::None);
 
     let onclick = {
@@ -20,12 +20,12 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
             let (session, error) = (session.clone(), error.clone());
             error.set(None);
             spawn_local(async move {
-                if UntisClient::is_authenticated() {
+                if authorization_untis_client::is_authenticated() {
                     return session.set(true);
                 }
 
                 match PersistenceManager::get_settings() {
-                    Ok(s) => match UntisClient::get_session_into_cookies(
+                    Ok(s) => match authorization_untis_client::get_session_into_cookies(
                         s.school_name,
                         s.username,
                         s.auth_secret,

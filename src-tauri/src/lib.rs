@@ -1,23 +1,25 @@
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde_json::Value;
+use reqwest::{header::{HeaderMap, HeaderName, HeaderValue}, Method};
 use std::collections::HashMap;
 
 #[derive(serde::Serialize)]
-#[allow(dead_code)]
 struct ProxyResponse {
     headers: HashMap<String, Vec<String>>,
-    body: Value,
+    body: String,
 }
 
 #[tauri::command]
 async fn proxy(
+    method: String,
     url: String,
     headers: HashMap<String, Vec<String>>,
-    body: Value,
+    body: String,
 ) -> Result<ProxyResponse, String> {
     let client = reqwest::Client::new();
-    let mut header_map = HeaderMap::new();
 
+    let http_method = Method::from_bytes(method.to_uppercase().as_bytes())
+        .map_err(|_| format!("Invalid HTTP method: {}", method))?;
+
+    let mut header_map = HeaderMap::new();
     for (key, values) in headers {
         if let Ok(name) = HeaderName::from_bytes(key.as_bytes()) {
             for value_str in values {
@@ -28,9 +30,9 @@ async fn proxy(
         }
     }
 
-    let res = client.post(&url)
+    let res = client.request(http_method, &url)
         .headers(header_map)
-        .json(&body)
+        .body(body)
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -45,11 +47,9 @@ async fn proxy(
         }
     }
 
-    let body_json: Value = res.json().await.map_err(|e| e.to_string())?;
-
     Ok(ProxyResponse {
         headers: resp_headers,
-        body: body_json,
+        body: res.text().await.map_err(|e| e.to_string())?,
     })
 }
 

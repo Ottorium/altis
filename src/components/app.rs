@@ -1,4 +1,4 @@
-use wasm_bindgen_futures::spawn_local;
+use crate::authorization_untis_client;
 use crate::components::absences::*;
 use crate::components::auth_wrapper::AuthWrapper;
 use crate::components::book2eat::*;
@@ -7,9 +7,9 @@ use crate::components::messages::*;
 use crate::components::navbar::*;
 use crate::components::settings::*;
 use crate::components::timetable::*;
-use yew::prelude::*;
 use crate::persistence_manager::PersistenceManager;
-use crate::untis_client::UntisClient;
+use wasm_bindgen_futures::spawn_local;
+use yew::prelude::*;
 
 #[function_component(App)]
 pub fn app() -> Html {
@@ -22,7 +22,7 @@ pub fn app() -> Html {
     };
 
     let content = match *active_tab {
-        Tab::Timetable => html! { <TimetableComponent /> },
+        Tab::Timetable => html! { <AuthWrapper><TimetableComponent /></AuthWrapper> },
         Tab::Messages => html! { <AuthWrapper><MessagesComponent /></AuthWrapper> },
         Tab::Absences => html! { <AuthWrapper><AbsencesComponent /></AuthWrapper> },
         Tab::Settings => html! { <SettingsComponent /> },
@@ -32,7 +32,7 @@ pub fn app() -> Html {
 
     if let Some(s) = PersistenceManager::get_settings().ok() {
         spawn_local(async move {
-            let _ = UntisClient::get_session_into_cookies(
+            let _ = authorization_untis_client::get_session_into_cookies(
                 s.school_name,
                 s.username,
                 s.auth_secret,
@@ -46,7 +46,9 @@ pub fn app() -> Html {
             <div class="d-flex flex-column flex-md-row min-vh-100 bg-dark text-white">
                 <NavBar active_tab={(*active_tab).clone()} on_change={on_nav_change} />
                 <main class="flex-grow-1 mb-5 mb-md-0">
-                    {content}
+                    <Suspense fallback={html! { <p>{"Loading..."}</p> }}>
+                        {content}
+                    </Suspense>
                 </main>
             </div>
         </>

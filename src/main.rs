@@ -1,8 +1,11 @@
 
 mod components;
 mod request_proxy;
-mod untis_client;
+mod authorization_untis_client;
 mod persistence_manager;
+mod untis_client;
+mod untis_week;
+mod data_models;
 
 use components::app::App;
 

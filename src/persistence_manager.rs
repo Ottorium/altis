@@ -24,16 +24,36 @@ impl PersistenceManager {
         String::new()
     }
 
-    pub fn get_auth_cookies() -> String {
-        Self::get_all_cookies()
-            .split(';')
-            .map(|s| s.trim())
-            .filter(|s| {
-                let key = s.split('=').next().unwrap_or("");
-                ["JSESSIONID", "Tenant-Id", "schoolname"].contains(&key)
-            })
-            .collect::<Vec<_>>()
-            .join("; ")
+    pub fn get_cookies() -> Option<Cookies> {
+        let raw_cookies = Self::get_all_cookies();
+
+        let mut jsessionid = None;
+        let mut tenant_id = None;
+        let mut school_name = None;
+
+        for cookie in raw_cookies.split(';') {
+            let mut parts = cookie.splitn(2, '=');
+            let key = parts.next().unwrap_or("").trim();
+            let val = parts.next().unwrap_or("").trim().to_string();
+
+            match key {
+                "JSESSIONID" => jsessionid = Some(val),
+                "Tenant-Id" => tenant_id = Some(val),
+                "schoolname" => school_name = Some(val),
+                _ => {}
+            }
+        }
+
+        match (jsessionid, tenant_id, school_name) {
+            (Some(jsessionid), Some(tenant_id), Some(school_name)) => {
+                Some(Cookies {
+                    jsessionid,
+                    tenant_id,
+                    school_name_base32: school_name,
+                })
+            }
+            _ => None,
+        }
     }
 
     pub fn save_settings(settings: &Settings) -> Result<(), String> {
@@ -66,5 +86,21 @@ impl PersistenceManager {
             .map_err(|_| "LocalStorage access denied (check permissions)")?
             .ok_or("LocalStorage is not available in this environment")?;
         Ok(storage)
+    }
+}
+
+#[derive(Default, Clone, PartialEq, Debug)]
+pub struct Cookies {
+    pub jsessionid: String,
+    pub tenant_id: String,
+    pub school_name_base32: String,
+}
+
+impl Cookies {
+    pub fn to_header_value(&self) -> String {
+        format!(
+            "JSESSIONID={}; Tenant-Id={}; schoolname={}",
+            self.jsessionid, self.tenant_id, self.school_name_base32
+        )
     }
 }
