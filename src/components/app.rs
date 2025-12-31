@@ -3,6 +3,7 @@ use crate::components::absences::*;
 use crate::components::auth_wrapper::AuthWrapper;
 use crate::components::book2eat::*;
 use crate::components::letto::*;
+use crate::components::loading::*;
 use crate::components::messages::*;
 use crate::components::navbar::*;
 use crate::components::settings::*;
@@ -46,7 +47,7 @@ pub fn app() -> Html {
             <div class="d-flex flex-column flex-md-row min-vh-100 bg-dark text-white">
                 <NavBar active_tab={(*active_tab).clone()} on_change={on_nav_change} />
                 <main class="flex-grow-1 mb-5 mb-md-0">
-                    <Suspense fallback={html! { <p>{"Loading..."}</p> }}>
+                    <Suspense fallback={html! { <LoadingComponent /> }}>
                         {content}
                     </Suspense>
                 </main>
