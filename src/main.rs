@@ -6,6 +6,7 @@ mod persistence_manager;
 mod untis_client;
 mod untis_week;
 mod data_models;
+mod teacher_table_generator;
 
 use components::app::App;
 

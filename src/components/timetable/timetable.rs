@@ -1,5 +1,6 @@
-use crate::data_models::clean_models::clean_models::Class;
-use crate::untis_client;
+use crate::components::timetable::timetable_render::TimeTableRender;
+use crate::data_models::clean_models::clean_models::{Entity, WeekTimeTable};
+use crate::teacher_table_generator::get_all_timetables;
 use crate::untis_week::Week;
 use web_sys::HtmlSelectElement;
 use yew::prelude::*;
@@ -14,14 +15,14 @@ pub fn timetable() -> HtmlResult {
     let res = {
         let reload_trigger = reload_trigger.clone();
         use_future_with(*reload_trigger, |_| async move {
-            untis_client::get_classes(Week::current()).await
+            get_all_timetables(Week::current()).await
         })?
     };
 
-    if let Ok((classes, Some(id))) = &*res && selected_name.is_none() {
-        let initial = classes.iter()
-            .find(|c| c.id == *id)
-            .map(|c| c.name.clone());
+    if let Ok((map, Some(id))) = &*res && selected_name.is_none() {
+        let initial = map.keys().find(|e| {
+            if let Entity::Class(c) = e { c.id == *id } else { false }
+        }).map(|e| get_entity_name(e));
 
         if let Some(name) = initial {
             selected_name.set(Some(name));
@@ -39,16 +40,29 @@ pub fn timetable() -> HtmlResult {
 
     match &*res {
         Err(err) => Ok(html! { <div class="alert alert-danger m-3">{ err }</div> }),
-        Ok((classes, _preselected_id)) => {
-            let active_class = classes.iter()
-                .find(|c| Some(c.name.clone()) == *selected_name)
-                .or(classes.first());
+        Ok((map, _)) => {
+            let mut filtered_items: Vec<(&Entity, &WeekTimeTable)> = map.iter()
+                .filter(|(entity, _)| match (category.as_str(), entity) {
+                    ("Class", Entity::Class(_)) => true,
+                    ("Teacher", Entity::Teacher(_)) => true,
+                    ("Room", Entity::Room(_)) => true,
+                    _ => false,
+                })
+                .collect();
+
+            filtered_items.sort_by(|(a, _), (b, _)| get_entity_name(a).cmp(&get_entity_name(b)));
+
+            let active_item = filtered_items.iter()
+                .find(|(e, _)| Some(get_entity_name(e)) == *selected_name)
+                .or(filtered_items.first());
 
             let on_category_change = {
                 let category = category.clone();
+                let selected_name = selected_name.clone();
                 Callback::from(move |e: Event| {
                     let val = e.target_unchecked_into::<HtmlSelectElement>().value();
                     category.set(val);
+                    selected_name.set(None);
                 })
             };
 
@@ -77,11 +91,13 @@ pub fn timetable() -> HtmlResult {
                                 class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon"
                                 onchange={on_entity_change}
                             >
-                                {for classes.iter().map(|c| html! {
-                                    <option value={c.name.clone()}
-                                            selected={active_class.map(|a| &a.name == &c.name).unwrap_or(false)}>
-                                        { &c.name }
-                                    </option>
+                                {for filtered_items.iter().map(|(entity, _)| {
+                                    let name = get_entity_name(entity);
+                                    html! {
+                                        <option value={name.clone()} selected={active_item.map(|(e, _)| get_entity_name(e) == name).unwrap_or(false)}>
+                                            { name }
+                                        </option>
+                                    }
                                 })}
                             </select>
 
@@ -97,8 +113,8 @@ pub fn timetable() -> HtmlResult {
                     </div>
 
                     <div class="flex-grow-1 m-1">
-                        if let Some(class) = active_class {
-                            <ClassDetail class={class.clone()} />
+                        if let Some((_, timetable)) = active_item {
+                            <TimeTableRender timetable={(*timetable).clone()} />
                         } else {
                             <p class="text-light"> {"No selection made"} </p>
                         }
@@ -109,29 +125,11 @@ pub fn timetable() -> HtmlResult {
     }
 }
 
-#[derive(Properties, PartialEq, Clone)]
-pub struct ClassDetailProps {
-    pub class: Class,
-}
-
-#[function_component(ClassDetail)]
-fn class_detail(props: &ClassDetailProps) -> HtmlResult {
-
-    let timetable_res = use_future_with(props.class.clone(), |class| async move {
-        untis_client::get_timetable(Week::current_plus(1), (*class).clone()).await
-    })?;
-
-    match &*timetable_res {
-        Err(err) => Ok(html! {
-            <div class="alert alert-warning m-3">{ format!("Failed to load timetable: {}", err) }</div>
-        }),
-        Ok(timetable) => {
-            Ok(html! {
-                <pre>
-                    //{ format!("{:#?}", timetable) }
-                    { timetable.to_string_pretty(true, true, false, true, false) }
-                </pre>
-            })
-        }
+fn get_entity_name(entity: &Entity) -> String {
+    match entity {
+        Entity::Class(c) => c.name.clone(),
+        Entity::Teacher(t) => t.short_name.clone(),
+        Entity::Room(r) => r.name.clone(),
+        Entity::Subject(s) => s.short_name.clone(),
     }
 }

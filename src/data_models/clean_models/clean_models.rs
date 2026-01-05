@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
 pub struct Class {
     pub id: i32,
     pub name: String,
@@ -12,7 +12,7 @@ pub struct Class {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
 pub struct Department {
     pub id: i32,
     pub short_name: String,
@@ -21,7 +21,7 @@ pub struct Department {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
 pub struct Teacher {
     pub id: Option<i32>, // we only have the id if it's a class teacher
     pub short_name: String,
@@ -30,13 +30,13 @@ pub struct Teacher {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
 pub struct Room {
     pub name: String,
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
 pub struct Subject {
     pub short_name: String,
     pub long_name: String,
@@ -69,7 +69,7 @@ pub struct LessonBlock {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, PartialEq, Debug, Serialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Hash, Eq)]
 pub enum Entity {
     Teacher(Teacher),
     Class(Class),

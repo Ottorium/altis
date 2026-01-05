@@ -7,7 +7,7 @@ use crate::components::loading::*;
 use crate::components::messages::*;
 use crate::components::navbar::*;
 use crate::components::settings::*;
-use crate::components::timetable::*;
+use crate::components::timetable::timetable::*;
 use crate::persistence_manager::PersistenceManager;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;

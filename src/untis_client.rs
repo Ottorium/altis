@@ -3,6 +3,7 @@ use crate::data_models::clean_models::clean_models::*;
 use crate::data_models::response_models::response_models::*;
 use crate::persistence_manager::PersistenceManager;
 use crate::untis_week::Week;
+use futures::future::join_all;
 use std::collections::HashMap;
 
 pub fn school_name() -> Result<String, String> {
@@ -68,4 +69,30 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, St
         .collect();
 
     Ok(WeekTimeTable { days: day_tables })
+}
+
+pub async fn get_multiple_timetables(
+    week: Week,
+    classes: &Vec<Class>,
+) -> Result<HashMap<Class, WeekTimeTable>, String> {
+    let tasks = classes.iter().map(|class| {
+        let week_clone = week.clone();
+        let class_clone = class.clone();
+        async move {
+            let result = get_timetable(week_clone, class_clone.clone()).await;
+            (class_clone, result)
+        }
+    });
+
+    let results = join_all(tasks).await;
+
+    let mut map = HashMap::new();
+    for (class, result) in results {
+        match result {
+            Ok(timetable) => { map.insert(class, timetable); }
+            Err(e) => return Err(format!("Could not get timetable for class {}: {}", class.id, e)),
+        }
+    }
+
+    Ok(map)
 }
