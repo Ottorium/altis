@@ -33,7 +33,7 @@ pub fn navbar(props: &NavProps) -> Html {
         <>
             // DESKTOP SIDEBAR
             <nav class="d-none d-md-flex vh-100 shadow p-4 flex-column justify-content-between sticky-top"
-                 style="min-width: 240px; width: 240px; background-color: #1a1a1a; border-right: 1px solid rgba(255,255,255,0.05);">
+                 style="min-width: 240px; width: 240px; background-color: #1a1a1a; border-right: 1px solid #1e1e1e;">
                 <div class="d-flex flex-column">
                     <div class="mb-3">
                         <span class="fs-3 fw-bold text-primary px-2">{"Altis"}</span>
