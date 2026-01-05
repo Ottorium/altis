@@ -8,6 +8,8 @@ use yew::suspense::use_future_with;
 #[function_component(TimetableComponent)]
 pub fn timetable() -> HtmlResult {
     let reload_trigger = use_state(|| 0);
+    let category = use_state(|| "Class".to_string());
+    let selected_name = use_state(|| None::<String>);
 
     let res = {
         let reload_trigger = reload_trigger.clone();
@@ -16,22 +18,31 @@ pub fn timetable() -> HtmlResult {
         })?
     };
 
+    if let Ok((classes, Some(id))) = &*res && selected_name.is_none() {
+        let initial = classes.iter()
+            .find(|c| c.id == *id)
+            .map(|c| c.name.clone());
+
+        if let Some(name) = initial {
+            selected_name.set(Some(name));
+        }
+    }
+
     let on_reload = {
         let reload_trigger = reload_trigger.clone();
+        let selected_name = selected_name.clone();
         Callback::from(move |_| {
+            selected_name.set(None);
             reload_trigger.set(*reload_trigger + 1);
         })
     };
 
-    let category = use_state(|| "Class".to_string());
-    let selected_name = use_state(|| None::<String>);
-
     match &*res {
         Err(err) => Ok(html! { <div class="alert alert-danger m-3">{ err }</div> }),
-        Ok(data) => {
-            let active_class = data.iter()
+        Ok((classes, _preselected_id)) => {
+            let active_class = classes.iter()
                 .find(|c| Some(c.name.clone()) == *selected_name)
-                .or(data.first());
+                .or(classes.first());
 
             let on_category_change = {
                 let category = category.clone();
@@ -66,7 +77,7 @@ pub fn timetable() -> HtmlResult {
                                 class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon"
                                 onchange={on_entity_change}
                             >
-                                {for data.iter().map(|c| html! {
+                                {for classes.iter().map(|c| html! {
                                     <option value={c.name.clone()}
                                             selected={active_class.map(|a| &a.name == &c.name).unwrap_or(false)}>
                                         { &c.name }
@@ -104,13 +115,23 @@ pub struct ClassDetailProps {
 }
 
 #[function_component(ClassDetail)]
-fn class_detail(props: &ClassDetailProps) -> Html {
-    let class = &props.class;
-    html! {
-        <div class="class-detail-card">
-            <div class="detail-content">
-                <pre>{ format!("{:#?}", class) }</pre>
-            </div>
-        </div>
+fn class_detail(props: &ClassDetailProps) -> HtmlResult {
+
+    let timetable_res = use_future_with(props.class.clone(), |class| async move {
+        untis_client::get_timetable(Week::current_plus(1), (*class).clone()).await
+    })?;
+
+    match &*timetable_res {
+        Err(err) => Ok(html! {
+            <div class="alert alert-warning m-3">{ format!("Failed to load timetable: {}", err) }</div>
+        }),
+        Ok(timetable) => {
+            Ok(html! {
+                <pre>
+                    //{ format!("{:#?}", timetable) }
+                    { timetable.to_string_pretty(true, true, false, true, false) }
+                </pre>
+            })
+        }
     }
 }

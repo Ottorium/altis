@@ -1,5 +1,6 @@
 use chrono::{Datelike, Duration};
 
+#[derive(Clone, Debug)]
 pub struct Week {
     pub start: String,
     pub end: String,

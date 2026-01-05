@@ -1,8 +1,12 @@
 use serde::Deserialize;
+use crate::data_models::response_models::timetable_stuff::UntisDayEntry;
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UntisResponse {
+    pub format: Option<i32>,
+    pub days: Option<Vec<UntisDayEntry>>,
     pub resource_type: Option<String>,
     pub pre_selected: Option<UntisPreSelected>,
     pub buildings: Option<Vec<serde_json::Value>>,
@@ -16,6 +20,7 @@ pub struct UntisResponse {
     pub subjects: Option<Vec<serde_json::Value>>,
     pub students: Option<Vec<serde_json::Value>>,
     pub teachers: Option<Vec<serde_json::Value>>,
+    pub errors: Option<Vec<serde_json::Value>>,
 }
 
 #[allow(dead_code)]
