@@ -1,8 +1,8 @@
+use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
 use crate::data_models::clean_models::clean_models::{Entity, WeekTimeTable};
 use crate::teacher_table_generator::get_all_timetables;
 use crate::untis_week::Week;
-use web_sys::HtmlSelectElement;
 use yew::prelude::*;
 use yew::suspense::use_future_with;
 
@@ -13,35 +13,25 @@ pub fn timetable() -> HtmlResult {
     let selected_name = use_state(|| None::<String>);
 
     let res = {
-        let reload_trigger = reload_trigger.clone();
-        use_future_with(*reload_trigger, |_| async move {
+        let trigger = *reload_trigger;
+        use_future_with(trigger, |_| async move {
             get_all_timetables(Week::current()).await
         })?
     };
 
-    if let Ok((map, Some(id))) = &*res && selected_name.is_none() {
-        let initial = map.keys().find(|e| {
-            if let Entity::Class(c) = e { c.id == *id } else { false }
-        }).map(|e| get_entity_name(e));
-
-        if let Some(name) = initial {
-            selected_name.set(Some(name));
-        }
-    }
-
-    let on_reload = {
-        let reload_trigger = reload_trigger.clone();
-        let selected_name = selected_name.clone();
-        Callback::from(move |_| {
-            selected_name.set(None);
-            reload_trigger.set(*reload_trigger + 1);
-        })
-    };
-
     match &*res {
-        Err(err) => Ok(html! { <div class="alert alert-danger m-3">{ err }</div> }),
-        Ok((map, _)) => {
-            let mut filtered_items: Vec<(&Entity, &WeekTimeTable)> = map.iter()
+        Err(err) => Ok(html! { <div class="alert alert-danger m-3">{ err.to_string() }</div> }),
+        Ok((map, initial_id)) => {
+            if selected_name.is_none() {
+                if let Some(id) = initial_id {
+                    let initial = map.keys().find(|e| {
+                        if let Entity::Class(c) = e { c.id == *id } else { false }
+                    }).map(get_entity_name);
+                    selected_name.set(initial);
+                }
+            }
+
+            let filtered_data: Vec<(&Entity, &WeekTimeTable)> = map.iter()
                 .filter(|(entity, _)| match (category.as_str(), entity) {
                     ("Class", Entity::Class(_)) => true,
                     ("Teacher", Entity::Teacher(_)) => true,
@@ -50,71 +40,50 @@ pub fn timetable() -> HtmlResult {
                 })
                 .collect();
 
-            filtered_items.sort_by(|(a, _), (b, _)| get_entity_name(a).cmp(&get_entity_name(b)));
+            let mut names: Vec<String> = filtered_data.iter().map(|(e, _)| get_entity_name(e)).collect();
+            names.sort();
 
-            let active_item = filtered_items.iter()
+            let active_timetable = filtered_data.iter()
                 .find(|(e, _)| Some(get_entity_name(e)) == *selected_name)
-                .or(filtered_items.first());
+                .or(filtered_data.first())
+                .map(|(_, t)| (*t).clone());
 
             let on_category_change = {
                 let category = category.clone();
                 let selected_name = selected_name.clone();
-                Callback::from(move |e: Event| {
-                    let val = e.target_unchecked_into::<HtmlSelectElement>().value();
-                    category.set(val);
+                Callback::from(move |cat| {
+                    category.set(cat);
                     selected_name.set(None);
+                })
+            };
+
+            let on_reload = {
+                let trigger = reload_trigger.clone();
+                let selected_name = selected_name.clone();
+                Callback::from(move |_| {
+                    selected_name.set(None);
+                    trigger.set(*trigger + 1);
                 })
             };
 
             let on_entity_change = {
                 let selected_name = selected_name.clone();
-                Callback::from(move |e: Event| {
-                    let val = e.target_unchecked_into::<HtmlSelectElement>().value();
-                    selected_name.set(Some(val));
-                })
+                Callback::from(move |name| selected_name.set(Some(name)))
             };
 
             Ok(html! {
                 <>
-                    <div class="sticky-top p-3 mb-3 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
-                        <div class="d-flex align-items-center">
-                             <select
-                                class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon"
-                                onchange={on_category_change}
-                            >
-                                <option value="Class" selected={*category == "Class"}>{"Class"}</option>
-                                <option value="Teacher" selected={*category == "Teacher"}>{"Teacher"}</option>
-                                <option value="Room" selected={*category == "Room"}>{"Room"}</option>
-                            </select>
-
-                            <select
-                                class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon"
-                                onchange={on_entity_change}
-                            >
-                                {for filtered_items.iter().map(|(entity, _)| {
-                                    let name = get_entity_name(entity);
-                                    html! {
-                                        <option value={name.clone()} selected={active_item.map(|(e, _)| get_entity_name(e) == name).unwrap_or(false)}>
-                                            { name }
-                                        </option>
-                                    }
-                                })}
-                            </select>
-
-                            <button
-                                class="btn btn-outline-primary ms-auto d-flex align-items-center"
-                                onclick={on_reload}
-                                title="Reload Untis Data"
-                            >
-                                <i class="bi bi-arrow-clockwise me-1"></i>
-                                <span>{"Reload"}</span>
-                            </button>
-                        </div>
-                    </div>
-
+                    <TimetableControls 
+                        category={(*category).clone()}
+                        selected_name={(*selected_name).clone()}
+                        filtered_names={names}
+                        on_category_change={on_category_change}
+                        on_entity_change={on_entity_change}
+                        on_reload={on_reload}
+                    />
                     <div class="flex-grow-1 m-1">
-                        if let Some((_, timetable)) = active_item {
-                            <TimeTableRender timetable={(*timetable).clone()} />
+                        if let Some(tt) = active_timetable {
+                            <TimeTableRender timetable={tt} />
                         } else {
                             <p class="text-light"> {"No selection made"} </p>
                         }

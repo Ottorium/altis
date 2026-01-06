@@ -4,6 +4,12 @@ use web_sys::{HtmlDocument, Storage};
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Settings {
+    pub auth_settings: AuthSettings,
+}
+
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct AuthSettings {
     pub school_name: String,
     pub username: String,
     pub auth_secret: String,
@@ -56,27 +62,71 @@ impl PersistenceManager {
         }
     }
 
+    pub fn save_cookies(cookies: &Cookies) -> Result<(), String> {
+        let window = web_sys::window().ok_or("No global window found")?;
+        let document = window.document().ok_or("No global document found")?;
+        let html_doc = document
+            .dyn_into::<HtmlDocument>()
+            .map_err(|_| "Could not cast to HtmlDocument")?;
+
+        let cookie_list = [
+            format!("JSESSIONID={}", cookies.jsessionid),
+            format!("Tenant-Id={}", cookies.tenant_id),
+            format!("schoolname={}", cookies.school_name_base32),
+        ];
+
+        for cookie_str in cookie_list {
+            let cookie_entry = format!("{}; Path=/; SameSite=Strict", cookie_str);
+            html_doc.set_cookie(&cookie_entry).map_err(|_| "Failed to set cookie")?;
+        }
+
+        Ok(())
+    }
+
+    fn clear_cookies() {
+        let window = web_sys::window().expect("no global `window` exists");
+        let document = window.document().expect("should have a document on window");
+        if let Ok(html_doc) = document.dyn_into::<HtmlDocument>() {
+            let cookie_names = ["JSESSIONID", "Tenant-Id", "schoolname"];
+            for name in cookie_names {
+                let _ = html_doc.set_cookie(&format!("{}=; Max-Age=0; path=/; SameSite=Lax", name));
+            }
+        }
+    }
+
     pub fn save_settings(settings: &Settings) -> Result<(), String> {
+        if let Ok(Some(existing)) = Self::get_settings() {
+            if existing.auth_settings != settings.auth_settings {
+                Self::clear_cookies();
+            }
+        }
+
         let serialized =
             serde_json::to_string(settings).map_err(|e| format!("Serialization failed: {}", e))?;
 
         Self::get_storage()?
             .set_item("user_settings", &serialized)
-            .map_err(|_| "Failed to write to localStorage (storage might be full)")?;
+            .map_err(|_| "Failed to write to localStorage")?;
 
         Ok(())
     }
 
-    pub fn get_settings() -> Result<Settings, String> {
+    pub fn get_settings() -> Result<Option<Settings>, String> {
         let value = Self::get_storage()?
             .get_item("user_settings")
-            .map_err(|_| "Error reading from localStorage")?
-            .ok_or("No settings found in storage")?;
+            .map_err(|_| "Error reading from localStorage")?;
 
-        let settings = serde_json::from_str::<Settings>(&value)
-            .map_err(|e| format!("Failed to parse settings: {}", e))?;
+        match value {
+            Some(v) => Ok(Some(serde_json::from_str::<Settings>(&v).map_err(|e| format!("Failed to parse settings: {}", e))?)),
+            None => Ok(None),
+        }
+    }
 
-        Ok(settings)
+    pub fn clear_storage() -> Result<(), String> {
+        Self::clear_cookies();
+        Self::get_storage()?
+            .clear()
+            .map_err(|_| "Failed to clear localStorage".to_string())
     }
 
     fn get_storage() -> Result<Storage, String> {

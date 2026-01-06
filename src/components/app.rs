@@ -6,7 +6,7 @@ use crate::components::letto::*;
 use crate::components::loading::*;
 use crate::components::messages::*;
 use crate::components::navbar::*;
-use crate::components::settings::*;
+use crate::components::settings::settings::*;
 use crate::components::timetable::timetable::*;
 use crate::persistence_manager::PersistenceManager;
 use wasm_bindgen_futures::spawn_local;
@@ -31,12 +31,12 @@ pub fn app() -> Html {
         Tab::Book2Eat => html! { <Book2EatComponent /> },
     };
 
-    if let Some(s) = PersistenceManager::get_settings().ok() {
+    if let Some(s) = PersistenceManager::get_settings().ok() && let Some(s) = s {
         spawn_local(async move {
             let _ = authorization_untis_client::get_session_into_cookies(
-                s.school_name,
-                s.username,
-                s.auth_secret,
+                s.auth_settings.school_name,
+                s.auth_settings.username,
+                s.auth_settings.auth_secret,
             ).await;
         });
     }

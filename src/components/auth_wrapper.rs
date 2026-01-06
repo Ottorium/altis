@@ -1,5 +1,5 @@
-use crate::persistence_manager::PersistenceManager;
 use crate::authorization_untis_client;
+use crate::persistence_manager::PersistenceManager;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -24,22 +24,28 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
                     return session.set(true);
                 }
 
-                match PersistenceManager::get_settings() {
-                    Ok(s) => match authorization_untis_client::get_session_into_cookies(
-                        s.school_name,
-                        s.username,
-                        s.auth_secret,
-                    )
-                    .await
-                    {
-                        Ok(_) => session.set(true),
-                        Err(e) => {
-                            error.set(Some(format!("Login failed: {e}")));
-                            session.set(false);
-                        }
-                    },
+                let settings = match PersistenceManager::get_settings() {
+                    Ok(Some(s)) => s,
+                    Ok(None) => {
+                        error.set(Some("No credentials found".to_string()));
+                        session.set(false);
+                        return;
+                    }
                     Err(e) => {
-                        error.set(Some(format!("No credentials found: {e}")));
+                        error.set(Some(format!("Failed to load settings: {e}")));
+                        session.set(false);
+                        return;
+                    }
+                };
+
+                match authorization_untis_client::get_session_into_cookies(
+                    settings.auth_settings.school_name,
+                    settings.auth_settings.username,
+                    settings.auth_settings.auth_secret,
+                ).await {
+                    Ok(_) => session.set(true),
+                    Err(e) => {
+                        error.set(Some(format!("Login failed: {e}")));
                         session.set(false);
                     }
                 }
