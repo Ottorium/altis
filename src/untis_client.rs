@@ -44,10 +44,22 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
 
     let response = authorized_request("GET", url.as_str(), HashMap::new(), "".to_string()).await?;
 
-    let untis_data: UntisResponse =
-        serde_json::from_str(&response.body).map_err(|e| {
-            UntisError::Parsing(format!("Serialization error: {}", e))
-        })?;
+    let untis_data: UntisResponse = serde_json::from_str(&response.body).map_err(|e| {
+        let line = e.line();
+        let col = e.column();
+        let line_content = response.body.lines().nth(line - 1).unwrap_or("Requested line not found");
+        let snippet = if line_content.len() > col {
+            let start = col.saturating_sub(20);
+            let end = (col + 20).min(line_content.len());
+            format!("{} --> {} <-- {}", &line_content[start..col], &line_content[col..col+1], &line_content[col+1..end])
+        } else {
+            line_content.to_string()
+        };
+        UntisError::Parsing(format!(
+            "JSON Error: {} at line {} col {}.\nContext: {}",
+            e, line, col, snippet
+        ))
+    })?;
 
     if let Some(errors) = untis_data.errors && errors.len() > 0 {
         return Err(UntisError::Miscellaneous(format!("Error in response from Untis: {:#?}", errors)));

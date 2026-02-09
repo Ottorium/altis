@@ -74,6 +74,9 @@ impl From<UntisResource> for Entity {
                 class_teacher: None,
                 department: Department::default(),
             }),
+            "lesson_info" | "info" => Entity::Info(Info {
+                text: res.text.unwrap_or("".to_string()),
+            }),
             _ => panic!("Unrecognized resource type: {}", res.r#type),
         }
     }

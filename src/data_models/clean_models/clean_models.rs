@@ -44,6 +44,12 @@ pub struct Subject {
 }
 
 #[allow(dead_code)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+pub struct Info {
+    pub text: String,
+}
+
+#[allow(dead_code)]
 #[derive(Default, Clone, PartialEq, Debug, Serialize)]
 pub struct WeekTimeTable {
     pub days: Vec<DayTimeTable>,
@@ -75,6 +81,7 @@ pub enum Entity {
     Class(Class),
     Room(Room),
     Subject(Subject),
+    Info(Info),
 }
 
 #[allow(dead_code)]

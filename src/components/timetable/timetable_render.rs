@@ -10,7 +10,7 @@ pub struct TimeTableRenderProps {
 pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     html! {
         <pre>
-            { props.timetable.to_string_pretty(true, true, false, true, false) }
+            { props.timetable.to_string_pretty(true, true, true, true, true) }
         </pre>
     }
 }

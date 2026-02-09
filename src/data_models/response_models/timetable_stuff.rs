@@ -71,5 +71,6 @@ pub struct UntisResource {
     pub short_name: String,
     pub long_name: String,
     pub display_name: String,
-    pub display_name_label: String,
+    pub display_name_label: Option<String>,
+    pub text: Option<String>,
 }

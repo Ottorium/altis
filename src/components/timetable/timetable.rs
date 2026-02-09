@@ -100,5 +100,6 @@ fn get_entity_name(entity: &Entity) -> String {
         Entity::Teacher(t) => t.short_name.clone(),
         Entity::Room(r) => r.name.clone(),
         Entity::Subject(s) => s.short_name.clone(),
+        Entity::Info(i) => i.text.clone(),
     }
 }
