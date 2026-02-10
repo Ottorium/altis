@@ -72,8 +72,8 @@ pub fn timetable() -> HtmlResult {
             };
 
             Ok(html! {
-                <>
-                    <TimetableControls 
+                <div class="d-flex flex-column h-100">
+                    <TimetableControls
                         category={(*category).clone()}
                         selected_name={(*selected_name).clone()}
                         filtered_names={names}
@@ -81,14 +81,14 @@ pub fn timetable() -> HtmlResult {
                         on_entity_change={on_entity_change}
                         on_reload={on_reload}
                     />
-                    <div class="flex-grow-1 m-1">
+                    <div class="d-flex flex-column flex-grow-1 w-100" style="overflow-y: auto;">
                         if let Some(tt) = active_timetable {
                             <TimeTableRender timetable={tt} />
                         } else {
                             <p class="text-light"> {"No selection made"} </p>
                         }
                     </div>
-                </>
+                </div>
             })
         }
     }

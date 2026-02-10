@@ -2,6 +2,7 @@ use crate::data_models::clean_models::clean_models::*;
 use crate::errors::UntisError;
 use crate::untis_client::get_classes;
 use crate::untis_week::Week;
+use chrono::NaiveDate;
 use std::collections::HashMap;
 
 pub async fn get_all_timetables(
@@ -15,22 +16,24 @@ pub async fn get_all_timetables(
         .map(|(class, table)| (Entity::Class(class), table))
         .collect();
 
-    let mut entity_lesson_map: HashMap<Entity, Vec<(usize, LessonBlock)>> = HashMap::new();
+    let mut entity_lesson_map: HashMap<Entity, HashMap<NaiveDate, Vec<LessonBlock>>> = HashMap::new();
 
     for table in all_timetables.values() {
-        for (i, day_table) in table.days.iter().enumerate() {
+        for (_, day_table) in table.days.iter().enumerate() {
             for lesson in &day_table.lessons {
                 for entity_wrapper in &lesson.entities {
                     if entity_wrapper.status == ChangeStatus::Removed {
                         continue;
                     }
 
-                    match &entity_wrapper.data {
+                    match &entity_wrapper.inner {
                         Entity::Teacher(_) | Entity::Room(_) => {
                             entity_lesson_map
-                                .entry(entity_wrapper.data.clone())
+                                .entry(entity_wrapper.inner.clone())
                                 .or_default()
-                                .push((i, lesson.clone()));
+                                .entry(day_table.date)
+                                .or_default()
+                                .push(lesson.clone());
                         }
                         _ => {}
                     }
@@ -40,12 +43,10 @@ pub async fn get_all_timetables(
     }
 
     for (entity, lessons) in entity_lesson_map {
-        let mut new_table = WeekTimeTable {
-            days: vec![DayTimeTable { lessons: vec![] }; 5],
-        };
+        let mut new_table = WeekTimeTable { days: vec![] };
 
-        for (i, lesson) in lessons {
-            new_table.days[i].lessons.push(lesson);
+        for (date, lessons) in lessons {
+            new_table.days.push(DayTimeTable { date, lessons })
         }
 
         all_timetables.insert(entity, new_table);

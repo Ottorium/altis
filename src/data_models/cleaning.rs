@@ -1,7 +1,7 @@
 use crate::data_models::clean_models::clean_models::*;
 use crate::data_models::response_models::response_models::*;
 use crate::data_models::response_models::timetable_stuff::*;
-use chrono::{NaiveDateTime, TimeZone, Utc};
+use chrono::{NaiveDate, NaiveDateTime};
 use std::collections::HashMap;
 
 impl From<UntisClassEntry> for Class {
@@ -46,8 +46,8 @@ impl From<UntisDuration> for TimeRange {
             NaiveDateTime::parse_from_str(&duration.end, format).expect("Failed to parse end date");
 
         TimeRange {
-            start: Utc.from_local_datetime(&start_naive).unwrap(),
-            end: Utc.from_local_datetime(&end_naive).unwrap(),
+            start: start_naive,
+            end: end_naive,
         }
     }
 }
@@ -93,13 +93,13 @@ impl From<UntisPosition> for Vec<Tracked<Entity>> {
                 } else {
                     ChangeStatus::Regular
                 },
-                data: Entity::from(current),
+                inner: Entity::from(current),
             });
         }
 
         if let Some(removed_res) = pos.removed {
             tracked_entities.push(Tracked {
-                data: Entity::from(removed_res),
+                inner: Entity::from(removed_res),
                 status: ChangeStatus::Removed,
             });
         }
@@ -157,6 +157,7 @@ impl From<UntisGridEntry> for LessonBlock {
 impl From<UntisDayEntry> for DayTimeTable {
     fn from(entry: UntisDayEntry) -> Self {
         Self {
+            date: NaiveDate::parse_from_str(entry.date.as_str(), "%Y-%m-%d").unwrap_or_default(),
             lessons: entry
                 .grid_entries
                 .into_iter()

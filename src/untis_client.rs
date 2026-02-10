@@ -73,7 +73,7 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
             let mut day_table = DayTimeTable::from(day);
             for lesson in &mut day_table.lessons {
                 lesson.entities.push(Tracked {
-                    data: Entity::Class(class.clone()),
+                    inner: Entity::Class(class.clone()),
                     status: ChangeStatus::Regular,
                 });
             }

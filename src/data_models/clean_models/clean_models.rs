@@ -1,4 +1,4 @@
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{NaiveDate, NaiveDateTime, Timelike};
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap};
 
@@ -58,6 +58,7 @@ pub struct WeekTimeTable {
 #[allow(dead_code)]
 #[derive(Default, Clone, PartialEq, Debug, Serialize)]
 pub struct DayTimeTable {
+    pub date: NaiveDate,
     pub lessons: Vec<LessonBlock>,
 }
 
@@ -87,14 +88,14 @@ pub enum Entity {
 #[allow(dead_code)]
 #[derive(Default, Clone, PartialEq, Debug, Serialize)]
 pub struct TimeRange {
-    pub start: DateTime<Utc>,
-    pub end: DateTime<Utc>,
+    pub start: NaiveDateTime,
+    pub end: NaiveDateTime,
 }
 
 #[allow(dead_code)]
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Tracked<T> {
-    pub data: T,
+    pub inner: T,
     pub status: ChangeStatus,
 }
 
@@ -209,10 +210,10 @@ impl WeekTimeTable {
                     let cell_content: Vec<String> = lessons_in_slot.iter().map(|l| {
                         let kind = active_types.get(line_idx).unwrap_or(&"");
                         match *kind {
-                            "sub" => l.entities.iter().find_map(|e| if let Entity::Subject(s) = &e.data { Some(s.short_name.clone()) } else { None }).unwrap_or_default(),
-                            "tea" => l.entities.iter().filter_map(|e| if let Entity::Teacher(t) = &e.data { Some(t.short_name.clone()) } else { None }).collect::<Vec<_>>().join(","),
-                            "cla" => l.entities.iter().filter_map(|e| if let Entity::Class(c) = &e.data { Some(c.name.clone()) } else { None }).collect::<Vec<_>>().join(","),
-                            "roo" => l.entities.iter().filter_map(|e| if let Entity::Room(r) = &e.data { Some(r.name.clone()) } else { None }).collect::<Vec<_>>().join(","),
+                            "sub" => l.entities.iter().find_map(|e| if let Entity::Subject(s) = &e.inner { Some(s.short_name.clone()) } else { None }).unwrap_or_default(),
+                            "tea" => l.entities.iter().filter_map(|e| if let Entity::Teacher(t) = &e.inner { Some(t.short_name.clone()) } else { None }).collect::<Vec<_>>().join(","),
+                            "cla" => l.entities.iter().filter_map(|e| if let Entity::Class(c) = &e.inner { Some(c.name.clone()) } else { None }).collect::<Vec<_>>().join(","),
+                            "roo" => l.entities.iter().filter_map(|e| if let Entity::Room(r) = &e.inner { Some(r.name.clone()) } else { None }).collect::<Vec<_>>().join(","),
                             "sta" => l.status.clone(),
                             _ => String::new(),
                         }
