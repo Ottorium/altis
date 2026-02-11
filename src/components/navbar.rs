@@ -51,7 +51,7 @@ pub fn navbar(props: &NavProps) -> Html {
             </nav>
 
             // MOBILE BOTTOM NAV
-            <nav class="d-md-none fixed-bottom px-2 shadow-lg" style="background-color: #1a1a1a; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1050;">
+            <nav class="d-md-none order-last px-2 shadow-lg" style="background-color: #1a1a1a; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1050;">
                 <div class="d-flex justify-content-around py-2">
                     {for main_tabs_mobile.into_iter().map(|(tab, label)| {
                         render_mobile_nav_item(tab, label, props)

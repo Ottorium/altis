@@ -26,7 +26,7 @@ pub fn timetable() -> HtmlResult {
                 if let Some(id) = initial_id {
                     let initial = map.keys().find(|e| {
                         if let Entity::Class(c) = e { c.id == *id } else { false }
-                    }).map(get_entity_name);
+                    }).map(|e| e.name());
                     selected_name.set(initial);
                 }
             }
@@ -40,11 +40,11 @@ pub fn timetable() -> HtmlResult {
                 })
                 .collect();
 
-            let mut names: Vec<String> = filtered_data.iter().map(|(e, _)| get_entity_name(e)).collect();
+            let mut names: Vec<String> = filtered_data.iter().map(|(e, _)| e.name()).collect();
             names.sort();
 
             let active_timetable = filtered_data.iter()
-                .find(|(e, _)| Some(get_entity_name(e)) == *selected_name)
+                .find(|(e, _)| Some(e.name()) == *selected_name)
                 .or(filtered_data.first())
                 .map(|(_, t)| (*t).clone());
 
@@ -72,7 +72,7 @@ pub fn timetable() -> HtmlResult {
             };
 
             Ok(html! {
-                <div class="d-flex flex-column h-100">
+                <div class="d-flex flex-column flex-grow-1 h-100">
                     <TimetableControls
                         category={(*category).clone()}
                         selected_name={(*selected_name).clone()}
@@ -91,15 +91,5 @@ pub fn timetable() -> HtmlResult {
                 </div>
             })
         }
-    }
-}
-
-fn get_entity_name(entity: &Entity) -> String {
-    match entity {
-        Entity::Class(c) => c.name.clone(),
-        Entity::Teacher(t) => t.short_name.clone(),
-        Entity::Room(r) => r.name.clone(),
-        Entity::Subject(s) => s.short_name.clone(),
-        Entity::Info(i) => i.text.clone(),
     }
 }

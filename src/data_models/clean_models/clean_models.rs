@@ -108,6 +108,25 @@ pub enum ChangeStatus {
     New,
 }
 
+impl LessonBlock {
+    pub fn overlaps(&self, other: &LessonBlock) -> bool {
+        self.time_range.start < other.time_range.end &&
+            other.time_range.start < self.time_range.end
+    }
+}
+
+impl Entity {
+    pub fn name(&self) -> String {
+        match self {
+            Entity::Class(c) => c.name.clone(),
+            Entity::Teacher(t) => t.short_name.clone(),
+            Entity::Room(r) => r.name.clone(),
+            Entity::Subject(s) => s.short_name.clone(),
+            Entity::Info(i) => i.text.clone(),
+        }
+    }
+}
+
 impl WeekTimeTable {
     pub fn to_string_pretty(
         &self,
