@@ -1,6 +1,7 @@
 use crate::data_models::clean_models::clean_models::{ChangeStatus, DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
 use chrono::{Datelike, TimeDelta};
+use log::info;
 use yew::{function_component, html, Html, Properties};
 
 #[derive(Properties, PartialEq, Clone)]
@@ -26,8 +27,8 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
         return html! { "No lessons!" };
     }
 
-    let week_start_time = lessons.iter().map(|l| l.time_range.start).min().unwrap();
-    let week_end_time = lessons.iter().map(|l| l.time_range.end).max().unwrap();
+    let week_start_time = lessons.iter().map(|l| l.time_range.start.time()).min().unwrap();
+    let week_end_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
 
     html! {
         <>
@@ -60,7 +61,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                             style="flex-basis: 0; min-width: 0; overflow: hidden;"
                         >
                             { for group_by_time(fill_breaks(day.lessons.clone())).iter().map(|lesson| {
-                                generate_lessons_html(lesson, week_end_time.time() - week_start_time.time())
+                                generate_lessons_html(lesson, week_end_time - week_start_time)
                             })}
                         </div>
                     })}
@@ -144,7 +145,7 @@ fn generate_lesson_html(lesson: &LessonBlock, group_duration: f64, width: f64) -
     let mut border_classes = "rounded text-black text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center position-relative".to_string();
 
     if lesson.status == "CANCELLED" {
-        border_classes += " border border-3 border-danger opacity-50";
+        border_classes += " border border-4 border-danger opacity-50";
         inner_style += "background-image: linear-gradient(to top right, transparent 49%, red 48%, red 52%, transparent 51%);";
     }
 
@@ -178,10 +179,21 @@ fn render_entities(lesson: &LessonBlock, variant_match: fn(&Entity) -> bool) -> 
         let name = tracked.inner.name();
         let separator = if i < len - 1 { ", " } else { "" };
 
+        let style = match tracked.status {
+            ChangeStatus::Removed => "background-color: #ffcccc; color: #b30000; padding: 0 2px;",
+            ChangeStatus::New => "background-color: #ccffcc; color: #006600; padding: 0 2px;",
+            ChangeStatus::Changed => "background-color: #ffffcc; color: #8a6d3b; padding: 0 2px;",
+            ChangeStatus::Regular => "",
+        };
+
         if tracked.status == ChangeStatus::Removed {
-            html! { <><del>{ name }</del>{ separator }</> }
+            html! {
+                <><del style={style}>{ name }</del>{ separator }</>
+            }
         } else {
-            html! { <>{ name }{ separator }</> }
+            html! {
+                <><span style={style}>{ name }</span>{ separator }</>
+            }
         }
     }).collect::<Html>()
 }
