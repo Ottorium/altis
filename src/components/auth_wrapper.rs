@@ -1,8 +1,8 @@
 use crate::authorization_untis_client;
 use crate::persistence_manager::PersistenceManager;
+use gloo_timers::callback::Timeout;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-use gloo_timers::callback::Timeout;
 
 #[derive(Properties, PartialEq)]
 pub struct AuthWrapperProps {
@@ -85,7 +85,7 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
     };
 
     if *session {
-        html! { for props.children.iter() }
+        html! {{ for props.children.iter() }}
     } else {
         html! {
             <div class="d-flex align-items-center justify-content-center vh-100 bg-dark">

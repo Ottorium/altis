@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@tauri-apps/cli": "^2.10.0",
     "bootstrap": "^5.3.8",
     "sass": "1.76.0"
   }
