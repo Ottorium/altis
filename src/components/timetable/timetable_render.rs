@@ -1,7 +1,7 @@
-use crate::data_models::clean_models::clean_models::{DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
+use crate::data_models::clean_models::clean_models::{ChangeStatus, DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
+use crate::persistence_manager::PersistenceManager;
 use chrono::{Datelike, TimeDelta};
 use yew::{function_component, html, Html, Properties};
-use crate::persistence_manager::PersistenceManager;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
@@ -139,17 +139,49 @@ fn generate_lesson_html(lesson: &LessonBlock, group_duration: f64, width: f64) -
     let height_pct = (duration / group_duration) * 100.0;
 
     let outer_style = format!("height: {height_pct}%; width: {width}%;");
-    let inner_style = format!("background-color: #{}; height: 100%; width: 100%;", lesson.color_hex);
+    let mut inner_style = format!("background-color: #{}; height: 100%; width: 100%;", lesson.color_hex);
+
+    let mut border_classes = "rounded text-black text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center position-relative".to_string();
+
+    if lesson.status == "CANCELLED" {
+        border_classes += " border border-3 border-danger opacity-50";
+        inner_style += "background-image: linear-gradient(to top right, transparent 49%, red 48%, red 52%, transparent 51%);";
+    }
 
     html! {
         <div style={outer_style} class="p-1">
-            <div class="rounded text-black text-center h-100 w-100" style={inner_style}>
-                { lesson.entities.iter()
-                    .find(|x| matches!(x.inner, Entity::Subject(..)))
-                    .map(|x| x.inner.name())
-                    .unwrap_or_default()
-                }
+            <div class={border_classes} style={inner_style}>
+                <span>
+                    { render_entities(lesson, |e| matches!(e, Entity::Subject(..))) }
+                    <br/>
+                    { render_entities(lesson, |e| matches!(e, Entity::Teacher(..))) }
+                    <br/>
+                    { render_entities(lesson, |e| matches!(e, Entity::Room(..))) }
+                </span>
             </div>
         </div>
     }
+}
+
+fn render_entities(lesson: &LessonBlock, variant_match: fn(&Entity) -> bool) -> Html {
+    let mut filtered_entities: Vec<_> = lesson.entities.iter()
+        .filter(|tracked| variant_match(&tracked.inner))
+        .collect();
+
+    filtered_entities.sort_by_key(|tracked| {
+        if tracked.status == ChangeStatus::Removed { 0 } else { 1 }
+    });
+
+    let len = filtered_entities.len();
+
+    filtered_entities.into_iter().enumerate().map(|(i, tracked)| {
+        let name = tracked.inner.name();
+        let separator = if i < len - 1 { ", " } else { "" };
+
+        if tracked.status == ChangeStatus::Removed {
+            html! { <><del>{ name }</del>{ separator }</> }
+        } else {
+            html! { <>{ name }{ separator }</> }
+        }
+    }).collect::<Html>()
 }
