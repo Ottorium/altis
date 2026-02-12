@@ -11,11 +11,13 @@ pub fn timetable() -> HtmlResult {
     let reload_trigger = use_state(|| 0);
     let category = use_state(|| "Class".to_string());
     let selected_name = use_state(|| None::<String>);
+    let selected_week = use_state(|| Week::current());
 
     let res = {
         let trigger = *reload_trigger;
+        let selected_week = selected_week.clone();
         use_future_with(trigger, |_| async move {
-            get_all_timetables(Week::current()).await
+            get_all_timetables((*selected_week).clone()).await
         })?
     };
 
@@ -71,14 +73,22 @@ pub fn timetable() -> HtmlResult {
                 Callback::from(move |name| selected_name.set(Some(name)))
             };
 
+            let on_week_change = {
+                let selected_week = selected_week.clone();
+                let trigger = reload_trigger.clone();
+                Callback::from(move |week| { selected_week.set(week); trigger.set(*trigger + 1); })
+            };
+
             Ok(html! {
                 <div class="d-flex flex-column flex-grow-1 h-100">
                     <TimetableControls
                         category={(*category).clone()}
                         selected_name={(*selected_name).clone()}
+                        selected_week={(*selected_week).clone()}
                         filtered_names={names}
                         on_category_change={on_category_change}
                         on_entity_change={on_entity_change}
+                        on_week_change={on_week_change}
                         on_reload={on_reload}
                     />
                     <div class="d-flex flex-column flex-grow-1 w-100" style="overflow-y: auto;">

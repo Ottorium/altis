@@ -51,6 +51,7 @@ dependencies = [
  "chrono-tz",
  "console_error_panic_hook",
  "futures",
+ "gloo-timers 0.3.0",
  "js-sys",
  "log",
  "serde",
