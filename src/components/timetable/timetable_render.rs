@@ -1,6 +1,7 @@
 use crate::data_models::clean_models::clean_models::{DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
 use chrono::{Datelike, TimeDelta};
 use yew::{function_component, html, Html, Properties};
+use crate::persistence_manager::PersistenceManager;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
@@ -9,6 +10,15 @@ pub struct TimeTableRenderProps {
 
 #[function_component(TimeTableRender)]
 pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
+
+    if PersistenceManager::get_settings().is_ok_and(|x| x.is_some_and(|x| x.visual_settings.force_ascii_timetable)) {
+        return html! {
+            <pre>
+                { props.timetable.to_string_pretty(true, true, true, true, true) }
+            </pre>
+        }
+    }
+
     let mut days: Vec<DayTimeTable> = props.timetable.days.clone();
     days.sort_by_key(|x| x.date);
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();

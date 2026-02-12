@@ -5,6 +5,12 @@ use web_sys::{HtmlDocument, Storage};
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub auth_settings: AuthSettings,
+    pub visual_settings: VisualSettings,
+}
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct VisualSettings {
+    pub force_ascii_timetable: bool,
 }
 
 
