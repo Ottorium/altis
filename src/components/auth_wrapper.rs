@@ -2,6 +2,7 @@ use crate::authorization_untis_client;
 use crate::persistence_manager::PersistenceManager;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use gloo_timers::callback::Timeout;
 
 #[derive(Properties, PartialEq)]
 pub struct AuthWrapperProps {
@@ -14,14 +15,16 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
     let session = use_state(|| authorization_untis_client::is_authenticated());
     let error = use_state(|| Option::<String>::None);
 
-    let onclick = {
-        let (session, error) = (session.clone(), error.clone());
-        Callback::from(move |_| {
-            let (session, error) = (session.clone(), error.clone());
-            error.set(None);
+    let perform_login = {
+        let session = session.clone();
+        let error = error.clone();
+        Callback::from(move |_: ()| {
+            let session = session.clone();
+            let error = error.clone();
             spawn_local(async move {
                 if authorization_untis_client::is_authenticated() {
-                    return session.set(true);
+                    session.set(true);
+                    return;
                 }
 
                 let settings = match PersistenceManager::get_settings() {
@@ -50,6 +53,34 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
                     }
                 }
             });
+        })
+    };
+
+    {
+        let perform_login = perform_login.clone();
+        let session = session.clone();
+        use_effect_with((), move |_| {
+            if !*session {
+                for delay in [100, 300, 1000] {
+                    let perform_login = perform_login.clone();
+                    let session = session.clone();
+                    Timeout::new(delay, move || {
+                        if !*session {
+                            perform_login.emit(());
+                        }
+                    }).forget();
+                }
+            }
+            || ()
+        });
+    }
+
+    let onclick = {
+        let perform_login = perform_login.clone();
+        let error = error.clone();
+        Callback::from(move |_| {
+            error.set(None);
+            perform_login.emit(());
         })
     };
 
