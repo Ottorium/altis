@@ -1,8 +1,13 @@
 use crate::data_models::clean_models::clean_models::{ChangeStatus, Entity, LessonBlock};
 use chrono::{NaiveDateTime, TimeDelta};
-use yew::{html, Html};
+use web_sys::MouseEvent;
+use yew::{html, Callback, Html};
 
-pub fn generate_lessons_html(lessons: &Vec<LessonBlock>, time_range: TimeDelta) -> Html {
+pub fn generate_lessons_html(
+    lessons: &Vec<LessonBlock>,
+    time_range: TimeDelta,
+    on_group_click: Callback<Vec<LessonBlock>>,
+) -> Html {
     if lessons.is_empty() {
         return html! {};
     }
@@ -39,10 +44,16 @@ pub fn generate_lessons_html(lessons: &Vec<LessonBlock>, time_range: TimeDelta) 
 
     let total_lanes = lanes.len().max(1) as f64;
     let width = 100.0 / total_lanes;
-    let height_style = format!("height: {}%; position: relative;", (group_duration / total) * 100.0);
+    let height_style = format!("height: {}%; position: relative; cursor: pointer;", (group_duration / total) * 100.0);
+
+    let lessons_to_emit = lessons.clone();
+    let onclick = Callback::from(move |e: MouseEvent| {
+        e.stop_propagation();
+        on_group_click.emit(lessons_to_emit.clone());
+    });
 
     html! {
-        <div class="w-100" style={height_style}>
+        <div class="w-100 group-block" style={height_style} {onclick}>
             { for sorted_lessons.iter().zip(lesson_lane_assignments.iter()).map(|(lesson, lane_idx)| {
                 let offset_x = (*lane_idx as f64) * width;
                 generate_lesson_html(lesson, group_duration, earliest, width, offset_x)

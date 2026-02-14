@@ -1,3 +1,4 @@
+use crate::components::timetable::group_modal::GroupDetailModal;
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
 use crate::data_models::clean_models::clean_models::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
@@ -16,6 +17,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let pointer_start_x = use_state(|| 0.0);
     let current_offset = use_state(|| 0.0);
     let is_dragging = use_state(|| false);
+    let selected_group = use_state(|| None::<Vec<LessonBlock>>);
 
     let on_pointer_down = {
         let pointer_start_x = pointer_start_x.clone();
@@ -57,6 +59,21 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
             current_offset.set(0.0);
         })
     };
+
+    let on_group_click = {
+        let selected_group = selected_group.clone();
+        Callback::from(move |lessons: Vec<LessonBlock>| {
+            if lessons.iter().any(|l| l.r#type != "Break") {
+                selected_group.set(Some(lessons));
+            }
+        })
+    };
+
+    let on_close = {
+        let selected_group = selected_group.clone();
+        Callback::from(move |_| selected_group.set(None))
+    };
+
 
     let transform_style = format!(
         "transform: translateX({}px); transition: {}; touch-action: pan-y; user-select: none;",
@@ -104,50 +121,53 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let week_end_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
 
     html! {
-        <div
-            onpointerdown={on_pointer_down}
-            onpointermove={on_pointer_move}
-            onpointerup={on_pointer_up.clone()}
-            onpointerleave={on_pointer_up.clone()}
-            style={transform_style}
-            class="d-flex flex-grow-1 flex-column"
-        >
-            <div class="d-flex w-100 bg-dark border-bottom">
-                <div style="width: 60px;" class="flex-shrink-0"></div>
-                <div class="d-flex flex-grow-1">
-                    { for days.iter().map(|day| {
-                        let weekday = day.date.weekday().to_string();
-                        let date_str = day.date.format("%d.%m").to_string();
-                        html! {
-                            <div class="flex-grow-1 text-center border-start pb-1" style="flex-basis: 0;">
-                                <div class="fw-bold">{ weekday }</div>
-                                <div class="small">{ date_str }</div>
+        <>
+            { if let Some(lessons) = (*selected_group).clone() {
+                html! { <GroupDetailModal {lessons} on_close={on_close} /> }
+            } else { html! {} } }
+
+            <div
+                onpointerdown={on_pointer_down}
+                onpointermove={on_pointer_move}
+                onpointerup={on_pointer_up.clone()}
+                onpointerleave={on_pointer_up.clone()}
+                style={transform_style}
+                class="d-flex flex-grow-1 flex-column"
+            >
+                <div class="d-flex w-100 bg-dark border-bottom">
+                    <div style="width: 60px;" class="flex-shrink-0"></div>
+                    <div class="d-flex flex-grow-1">
+                        { for days.iter().map(|day| {
+                            let weekday = day.date.weekday().to_string();
+                            let date_str = day.date.format("%d.%m").to_string();
+                            html! {
+                                <div class="flex-grow-1 text-center border-start pb-1" style="flex-basis: 0;">
+                                    <div class="fw-bold">{ weekday }</div>
+                                    <div class="small">{ date_str }</div>
+                                </div>
+                            }
+                        })}
+                    </div>
+                </div>
+
+
+                <div class="d-flex flex-grow-1 w-100">
+                    <div style="width: 60px" class="d-flex flex-column justify-content-between align-items-end">
+                        <div class="small pe-1">{ week_start_time.format("%H:%M").to_string() }</div>
+                        <div class="small pe-1">{ week_end_time.format("%H:%M").to_string() }</div>
+                    </div>
+                    <div class="d-flex flex-grow-1">
+                        { for days.iter().map(|day| html! {
+                            <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
+                                { for group_by_time(fill_breaks(day.lessons.clone())).iter().map(|lessons| {
+                                    generate_lessons_html(lessons, week_end_time - week_start_time, on_group_click.clone())
+                                })}
                             </div>
-                        }
-                    })}
+                        })}
+                    </div>
                 </div>
             </div>
-
-
-            <div class="d-flex flex-grow-1 w-100">
-                <div style="width: 60px" class="d-flex flex-column justify-content-between align-items-end">
-                    <div class="small pe-1">{ week_start_time.format("%H:%M").to_string() }</div>
-                    <div class="small pe-1">{ week_end_time.format("%H:%M").to_string() }</div>
-                </div>
-                <div class="d-flex flex-grow-1">
-                    { for days.iter().map(|day| html! {
-                        <div
-                            class="flex-grow-1 border-start position-relative flex"
-                            style="flex-basis: 0; min-width: 0; overflow: hidden;"
-                        >
-                            { for group_by_time(fill_breaks(day.lessons.clone())).iter().map(|lessons| {
-                                generate_lessons_html(lessons, week_end_time - week_start_time)
-                            })}
-                        </div>
-                    })}
-                </div>
-            </div>
-        </div>
+        </>
     }
 }
 
