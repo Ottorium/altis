@@ -1,23 +1,53 @@
-use crate::data_models::clean_models::clean_models::{ChangeStatus, DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
-use crate::persistence_manager::PersistenceManager;
-use chrono::{Datelike, TimeDelta};
-use log::info;
-use yew::{function_component, html, Html, Properties};
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
+use crate::data_models::clean_models::clean_models::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
+use crate::persistence_manager::PersistenceManager;
+use chrono::Datelike;
+use yew::{function_component, html, use_state, Callback, Html, Properties};
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
     pub timetable: WeekTimeTable,
+    pub on_next: Callback<()>,
+    pub on_prev: Callback<()>,
 }
 
 #[function_component(TimeTableRender)]
 pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
+    let pointer_start_x = use_state(|| 0.0);
+
+    let on_pointer_down = {
+        let pointer_start_x = pointer_start_x.clone();
+        Callback::from(move |e: yew::events::PointerEvent| {
+            pointer_start_x.set(e.client_x() as f64);
+        })
+    };
+
+    let on_pointer_up = {
+        let pointer_start_x = pointer_start_x.clone();
+        let on_next = props.on_next.clone();
+        let on_prev = props.on_prev.clone();
+
+        Callback::from(move |e: yew::events::PointerEvent| {
+            let start_x = *pointer_start_x;
+            let end_x = e.client_x() as f64;
+            let diff = start_x - end_x;
+            let threshold = 50.0;
+
+            if diff > threshold {
+                on_next.emit(());
+            } else if diff < -threshold {
+                on_prev.emit(());
+            }
+        })
+    };
 
     if PersistenceManager::get_settings().is_ok_and(|x| x.is_some_and(|x| x.visual_settings.force_ascii_timetable)) {
         return html! {
-            <pre>
-                { props.timetable.to_string_pretty(true, true, true, true, true) }
-            </pre>
+            <div onpointerdown={on_pointer_down} onpointerup={on_pointer_up} class="d-flex flex-grow-1 flex-column">
+                <pre>
+                    { props.timetable.to_string_pretty(true, true, true, true, true) }
+                </pre>
+            </div>
         }
     }
 
@@ -25,14 +55,18 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     days.sort_by_key(|x| x.date);
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();
     if lessons.is_empty() {
-        return html! { "No lessons!" };
+        return html! {
+            <div onpointerdown={on_pointer_down} onpointerup={on_pointer_up} class="d-flex flex-grow-1 flex-column">
+                {"No lessons!"}
+            </div>
+        };
     }
 
     let week_start_time = lessons.iter().map(|l| l.time_range.start.time()).min().unwrap();
     let week_end_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
 
     html! {
-        <>
+        <div onpointerdown={on_pointer_down} onpointerup={on_pointer_up} class="d-flex flex-grow-1 flex-column">
             <div class="d-flex w-100 bg-dark border-bottom">
                 <div style="width: 60px;" class="flex-shrink-0"></div>
                 <div class="d-flex flex-grow-1">
@@ -68,7 +102,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                     })}
                 </div>
             </div>
-        </>
+        </div>
     }
 }
 

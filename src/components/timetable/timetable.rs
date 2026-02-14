@@ -79,6 +79,26 @@ pub fn timetable() -> HtmlResult {
                 Callback::from(move |week| { selected_week.set(week); trigger.set(*trigger + 1); })
             };
 
+            let on_swipe_next = {
+                let selected_week = selected_week.clone();
+                let trigger = reload_trigger.clone();
+                Callback::from(move |_| {
+                    let next = (*selected_week).next();
+                    selected_week.set(next);
+                    trigger.set(*trigger + 1);
+                })
+            };
+
+            let on_swipe_prev = {
+                let selected_week = selected_week.clone();
+                let trigger = reload_trigger.clone();
+                Callback::from(move |_| {
+                    let prev = (*selected_week).previous();
+                    selected_week.set(prev);
+                    trigger.set(*trigger + 1);
+                })
+            };
+
             Ok(html! {
                 <div class="d-flex flex-column flex-grow-1 h-100">
                     <TimetableControls
@@ -93,7 +113,11 @@ pub fn timetable() -> HtmlResult {
                     />
                     <div class="d-flex flex-column flex-grow-1 w-100" style="overflow-y: auto;">
                         if let Some(tt) = active_timetable {
-                            <TimeTableRender timetable={tt} />
+                            <TimeTableRender
+                                timetable={tt}
+                                on_next={on_swipe_next}
+                                on_prev={on_swipe_prev}
+                            />
                         } else {
                             <p class="text-light"> {"No selection made"} </p>
                         }

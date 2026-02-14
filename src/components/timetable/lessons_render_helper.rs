@@ -66,12 +66,12 @@ fn generate_lesson_html(lesson: &LessonBlock, group_duration: f64, group_start: 
     if lesson.status == "CANCELLED" {
         border_classes += " border border-4 border-danger opacity-50";
         inner_style += "background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
+    } else if lesson.r#type == "EXAM" {
+        border_classes += " border border-4 border-warning";
     } else if lesson.status == "CHANGED" {
         border_classes += " border border-4 border-info";
     } else if lesson.status == "ADDITIONAL" {
         border_classes += " border border-4 border-success";
-    } else if lesson.r#type == "EXAM" {
-        border_classes += " border border-4 border-warning";
     }
 
     html! {
