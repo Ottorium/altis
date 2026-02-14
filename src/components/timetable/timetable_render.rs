@@ -14,36 +14,67 @@ pub struct TimeTableRenderProps {
 #[function_component(TimeTableRender)]
 pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let pointer_start_x = use_state(|| 0.0);
+    let current_offset = use_state(|| 0.0);
+    let is_dragging = use_state(|| false);
 
     let on_pointer_down = {
         let pointer_start_x = pointer_start_x.clone();
+        let is_dragging = is_dragging.clone();
         Callback::from(move |e: yew::events::PointerEvent| {
             pointer_start_x.set(e.client_x() as f64);
+            is_dragging.set(true);
         })
     };
 
-    let on_pointer_up = {
+    let on_pointer_move = {
         let pointer_start_x = pointer_start_x.clone();
-        let on_next = props.on_next.clone();
-        let on_prev = props.on_prev.clone();
-
+        let current_offset = current_offset.clone();
+        let is_dragging = is_dragging.clone();
         Callback::from(move |e: yew::events::PointerEvent| {
-            let start_x = *pointer_start_x;
-            let end_x = e.client_x() as f64;
-            let diff = start_x - end_x;
-            let threshold = 50.0;
-
-            if diff > threshold {
-                on_next.emit(());
-            } else if diff < -threshold {
-                on_prev.emit(());
+            if *is_dragging {
+                let diff = (e.client_x() as f64) - *pointer_start_x;
+                current_offset.set(diff);
             }
         })
     };
 
+    let on_pointer_up = {
+        let is_dragging = is_dragging.clone();
+        let current_offset = current_offset.clone();
+        let on_next = props.on_next.clone();
+        let on_prev = props.on_prev.clone();
+
+        Callback::from(move |_: yew::events::PointerEvent| {
+            is_dragging.set(false);
+            let offset = *current_offset;
+            let threshold = 100.0;
+
+            if offset < -threshold {
+                on_next.emit(());
+            } else if offset > threshold {
+                on_prev.emit(());
+            }
+            current_offset.set(0.0);
+        })
+    };
+
+    let transform_style = format!(
+        "transform: translateX({}px); transition: {}; touch-action: pan-y; user-select: none;",
+        *current_offset,
+        if *is_dragging { "none" } else { "transform 0.3s ease-out" }
+    );
+
+
     if PersistenceManager::get_settings().is_ok_and(|x| x.is_some_and(|x| x.visual_settings.force_ascii_timetable)) {
         return html! {
-            <div onpointerdown={on_pointer_down} onpointerup={on_pointer_up} class="d-flex flex-grow-1 flex-column">
+            <div
+            onpointerdown={on_pointer_down}
+            onpointermove={on_pointer_move}
+            onpointerup={on_pointer_up.clone()}
+            onpointerleave={on_pointer_up.clone()}
+            style={transform_style}
+            class="d-flex flex-grow-1 flex-column"
+        >
                 <pre>
                     { props.timetable.to_string_pretty(true, true, true, true, true) }
                 </pre>
@@ -56,7 +87,14 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();
     if lessons.is_empty() {
         return html! {
-            <div onpointerdown={on_pointer_down} onpointerup={on_pointer_up} class="d-flex flex-grow-1 flex-column">
+            <div
+            onpointerdown={on_pointer_down}
+            onpointermove={on_pointer_move}
+            onpointerup={on_pointer_up.clone()}
+            onpointerleave={on_pointer_up.clone()}
+            style={transform_style}
+            class="d-flex flex-grow-1 flex-column"
+        >
                 {"No lessons!"}
             </div>
         };
@@ -66,7 +104,14 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let week_end_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
 
     html! {
-        <div onpointerdown={on_pointer_down} onpointerup={on_pointer_up} class="d-flex flex-grow-1 flex-column">
+        <div
+            onpointerdown={on_pointer_down}
+            onpointermove={on_pointer_move}
+            onpointerup={on_pointer_up.clone()}
+            onpointerleave={on_pointer_up.clone()}
+            style={transform_style}
+            class="d-flex flex-grow-1 flex-column"
+        >
             <div class="d-flex w-100 bg-dark border-bottom">
                 <div style="width: 60px;" class="flex-shrink-0"></div>
                 <div class="d-flex flex-grow-1">
