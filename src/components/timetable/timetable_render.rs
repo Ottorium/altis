@@ -21,8 +21,6 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
         }
     }
 
-    info!("{:#?}", props.timetable.clone());
-
     let mut days: Vec<DayTimeTable> = props.timetable.days.clone();
     days.sort_by_key(|x| x.date);
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();
@@ -78,24 +76,41 @@ fn group_by_time(mut lessons: Vec<LessonBlock>) -> Vec<Vec<LessonBlock>> {
     lessons.sort_by_key(|l| l.time_range.start);
     let mut remaining = lessons;
     let mut res = vec![];
-    while remaining.len() > 0 {
-        let curr = remaining.pop().unwrap();
-        let mut v = vec![curr.clone()];
+
+    while !remaining.is_empty() {
+        let mut group = vec![remaining.remove(0)];
 
         let mut i = 0;
         while i < remaining.len() {
-            if remaining[i].overlaps(&curr) {
-                v.push(remaining[i].clone());
-                remaining.remove(i);
-                continue;
+            let mut overlaps_any = false;
+            for member in &group {
+                if remaining[i].overlaps(member) {
+                    overlaps_any = true;
+                    break;
+                }
             }
-            i += 1;
+
+            if overlaps_any {
+                group.push(remaining.remove(i));
+                i = 0;
+            } else {
+                i += 1;
+            }
         }
 
-        res.push(v);
+        group.sort_by(|a, b| {
+            let duration_a = a.time_range.end - a.time_range.start;
+            let duration_b = b.time_range.end - b.time_range.start;
+
+            duration_b.cmp(&duration_a)
+                .then(a.time_range.start.cmp(&b.time_range.start))
+        });
+
+        res.push(group);
     }
-    res.sort_by_key(|l| l.iter().min_by(|x, y|
-        x.time_range.start.cmp(&y.time_range.start)).unwrap().time_range.start);
+
+    // we can get away with using [0] because the groups don't overlap
+    res.sort_by_key(|g| g[0].time_range.start);
     res
 }
 
