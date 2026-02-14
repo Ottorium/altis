@@ -60,6 +60,6 @@ impl Week {
     pub fn to_string(&self) -> String {
         let s = NaiveDate::parse_from_str(&self.start, "%Y-%m-%d").unwrap();
         let e = NaiveDate::parse_from_str(&self.end, "%Y-%m-%d").unwrap();
-        format!("{}.{} - {}.{}", s.month(), s.day(), e.month(), e.day())
+        format!("{}.{} - {}.{}", s.day(), s.month(), e.day(), e.month())
     }
 }

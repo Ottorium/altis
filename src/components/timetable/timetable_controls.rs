@@ -1,7 +1,7 @@
+use crate::untis_week::Week;
 use chrono::NaiveDate;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
-use crate::untis_week::Week;
 
 #[derive(Properties, PartialEq)]
 pub struct ControlsProps {
@@ -83,28 +83,46 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                     })}
                 </select>
 
-                <div class="btn-group shadow-sm ms-md-2" role="group">
-                    <button type="button" class="btn btn-dark border-primary" onclick={on_prev_week}>
-                        <i class="bi bi-chevron-left text-primary"></i>
+                // DESKTOP DATE SELECTOR
+                <div class="btn-group shadow-sm ms-md-2 d-none d-md-inline-flex" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick={on_prev_week.clone()}>
+                        <i class="bi bi-chevron-left"></i>
                     </button>
 
-                    <div class="btn btn-dark border-primary position-relative d-flex align-items-center justify-content-center px-3 ms-auto" style="min-width: 140px;">
-                        <span class="text-white">{ props.selected_week.to_string() }</span>
+                    <div
+                        class="btn btn-outline-primary position-relative d-flex align-items-center justify-content-center px-3"
+                        style="min-width: 45px;"
+                    >
+                        <span>{ props.selected_week.to_string() }</span>
 
                         <input
                             type="date"
                             class="position-absolute opacity-0 w-100 h-100 start-0 top-0 text-sm"
                             style="cursor: pointer;"
                             value={ props.selected_week.start.clone() }
-                            onchange={on_date_change}
+                            onchange={on_date_change.clone()}
                         />
                     </div>
 
-                    <button type="button" class="btn btn-dark border-primary" onclick={on_next_week}>
-                        <i class="bi bi-chevron-right text-primary"></i>
+                    <button type="button" class="btn btn-outline-primary" onclick={on_next_week}>
+                        <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
-                <button class="btn btn-outline-primary ms-auto" onclick={move |_| on_reload.emit(())}>
+
+                // MOBILE DATE PICKER
+                <div class="d-block d-md-none">
+                    <div class="btn btn-outline-primary position-relative w-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-calendar3"></i>
+                        <input
+                            type="date"
+                            class="position-absolute opacity-0 start-0 top-0"
+                            value={ props.selected_week.start.clone() }
+                            onchange={on_date_change}
+                        />
+                    </div>
+                </div>
+
+                <button class="btn btn-outline-primary ms-auto" onclick={let on_reload = on_reload.clone(); move |_| on_reload.emit(())}>
                     <i class="bi bi-arrow-clockwise me-1"></i>
                     <span>{"Reload"}</span>
                 </button>
