@@ -15,6 +15,11 @@ pub async fn get_session_into_cookies(
     username: String,
     secret: String,
 ) -> Result<(), UntisError> {
+
+    if school_name == "" || username == "" || secret == "" {
+        return Err(UntisError::Authentication("Credentials not set. ".to_string()))
+    }
+
     let secret_bytes = Secret::Encoded(secret)
         .to_bytes()
         .map_err(|x| UntisError::Authentication(x.to_string()))?;
@@ -76,6 +81,11 @@ pub async fn get_session_into_cookies(
 async fn get_token() -> Result<String, UntisError> {
     let cookies = PersistenceManager::get_cookies().ok_or(UntisError::Authentication("Could not get cookies".to_string()))?;
     let settings = PersistenceManager::get_settings()?.ok_or(UntisError::Miscellaneous("Settings are empty".to_string()))?;
+
+    if settings.auth_settings.school_name == "" || settings.auth_settings.username == "" || settings.auth_settings.auth_secret == "" {
+        return Err(UntisError::Authentication("Credentials not set. ".to_string()))
+    }
+
     let url = format!("https://{}.webuntis.com/WebUntis/api/token/new", settings.auth_settings.school_name);
     let mut headers = HashMap::new();
     headers.insert("Cookie".to_string(), vec![cookies.to_header_value()]);
