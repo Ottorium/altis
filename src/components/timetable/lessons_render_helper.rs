@@ -4,140 +4,121 @@ use web_sys::MouseEvent;
 use yew::{html, Callback, Html};
 
 pub fn generate_lessons_html(
-    lessons: &Vec<LessonBlock>,
+    lessons: &[LessonBlock],
     time_range: TimeDelta,
     on_group_click: Callback<Vec<LessonBlock>>,
 ) -> Html {
-    if lessons.is_empty() {
-        return html! {};
-    }
+    if lessons.is_empty() { return html! {}; }
 
-    let earliest = lessons.iter().map(|l| l.time_range.start).min().unwrap();
-    let latest = lessons.iter().map(|l| l.time_range.end).max().unwrap();
-    let group_duration = (latest - earliest).num_seconds() as f64;
-    let total = time_range.num_seconds() as f64;
+    let (start, end) = (lessons.iter().map(|l| l.time_range.start).min().unwrap(),
+                        lessons.iter().map(|l| l.time_range.end).max().unwrap());
+    let (group_duration, total) = ((end - start).num_seconds() as f64, time_range.num_seconds() as f64);
 
-    let mut sorted_lessons = lessons.clone();
-    sorted_lessons.sort_by_key(|l| l.time_range.start);
-
-    let mut lanes = Vec::new();
-    let mut lesson_lane_assignments = Vec::new();
-
-    for lesson in &sorted_lessons {
-        let mut assigned_lane = None;
-
-        for (idx, lane_end_time) in lanes.iter_mut().enumerate() {
-            // If this lesson starts after the last one in this lane ended, take that spot
-            if lesson.time_range.start >= *lane_end_time {
-                *lane_end_time = lesson.time_range.end;
-                assigned_lane = Some(idx);
-                break;
-            }
-        }
-
-        if assigned_lane.is_none() {
-            lanes.push(lesson.time_range.end);
-            assigned_lane = Some(lanes.len() - 1);
-        }
-        lesson_lane_assignments.push(assigned_lane.unwrap());
-    }
-
-    let total_lanes = lanes.len().max(1) as f64;
-    let width = 100.0 / total_lanes;
-    let height_style = format!("height: {}%; position: relative; cursor: pointer;", (group_duration / total) * 100.0);
-
-    let lessons_to_emit = lessons.clone();
+    let lessons_to_emit = lessons.to_vec();
     let onclick = Callback::from(move |e: MouseEvent| {
         e.stop_propagation();
         on_group_click.emit(lessons_to_emit.clone());
     });
 
-    html! {
-        <div class="w-100 group-block" style={height_style} {onclick}>
-            { for sorted_lessons.iter().zip(lesson_lane_assignments.iter()).map(|(lesson, lane_idx)| {
-                let offset_x = (*lane_idx as f64) * width;
-                generate_lesson_html(lesson, group_duration, earliest, width, offset_x)
-            })}
-        </div>
-    }
-}
-
-fn generate_lesson_html(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDateTime, width: f64, offset_x: f64) -> Html {
-    let start_offset = (lesson.time_range.start - group_start).num_seconds() as f64;
-    let duration = (lesson.time_range.end - lesson.time_range.start).num_seconds() as f64;
-
-    let top_pct = (start_offset / group_duration) * 100.0;
-    let height_pct = (duration / group_duration) * 100.0;
-
-    let outer_style = format!("position: absolute; top: {top_pct}%; left: {offset_x}%; height: {height_pct}%; width: {width}%;");
-
-    let mut inner_style = format!("background-color: #{};", lesson.color_hex);
-    let mut border_classes = "rounded text-black text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center overflow-hidden".to_string();
-
-    if lesson.status == "CANCELLED" {
-        border_classes += " border border-4 border-danger opacity-50";
-        inner_style += "background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
-    } else if lesson.r#type == "EXAM" {
-        border_classes += " border border-4 border-warning";
-    } else if lesson.status == "CHANGED" {
-        border_classes += " border border-4 border-info";
-    } else if lesson.status == "ADDITIONAL" {
-        border_classes += " border border-4 border-success";
-    }
+    let priority = lessons.iter().find(|l| l.r#type == "EXAM")
+        .or_else(|| lessons.iter().find(|l| l.status == "CHANGED"))
+        .or_else(|| lessons.iter().find(|l| l.status == "ADDITIONAL"))
+        .or_else(|| lessons.iter().find(|l| l.status != "CANCELLED"))
+        .unwrap_or(&lessons[0]);
 
     html! {
-        <div style={outer_style} class="p-custom">
+        <div class="w-100 group-block" style={format!("height: {}%; position: relative; cursor: pointer;", (group_duration / total) * 100.0)} {onclick}>
             <style>
-                { "
-                .p-custom { padding: 0.2rem; }
-                .border-info { border-color: #00d4ff !important; box-shadow: inset 0 0 15px #00d4ff; }
-                .border-success { border-color: #00ab5b !important; box-shadow: inset 0 0 15px #00ab5b; }
-                .border-warning { border-color: #ffcc00 !important; box-shadow: inset 0 0 15px #ffcc00; }
-                .border-danger { border-color: #ff4d4d !important; }
-                " }
+                { ".lesson-container { container-type: size; }
+                   .dynamic-text { font-size: clamp(0.9rem, 19cqw, 1.1rem); line-height: 1.1; width: 100%; word-wrap: break-word; }
+                   .border-info { border-color: #00d4ff !important; box-shadow: inset 0 0 15px #00d4ff; }
+                   .border-success { border-color: #00ab5b !important; box-shadow: inset 0 0 15px #00ab5b; }
+                   .border-warning { border-color: #ffcc00 !important; box-shadow: inset 0 0 15px #ffcc00; }
+                   .border-danger { border-color: #ff4d4d !important; }" }
             </style>
-            <div class={border_classes} style={inner_style}>
-                <span>
-                    { render_entities(lesson, |e| matches!(e, Entity::Subject(..))) }
-                    <br/>
-                    { render_entities(lesson, |e| matches!(e, Entity::Teacher(..))) }
-                    <br/>
-                    { render_entities(lesson, |e| matches!(e, Entity::Room(..))) }
-                </span>
+            <div class="d-none d-md-block h-100 w-100">
+                { render_lanes(lessons, group_duration, start) }
+            </div>
+            <div class="d-flex d-md-none h-100 w-100 p-1">
+                <div style={format!("width: {}%; height: 100%; position: relative;", if lessons.len() > 1 { 80 } else { 100 })}>
+                    { render_lesson(priority, group_duration, start, 100.0, 0.0, true) }
+                </div>
+                if lessons.len() > 1 {
+                    <div class="d-flex flex-column justify-content-center align-items-center text-white rounded ms-1 bg-primary"
+                         style="width: 20%; height: 100%; font-size: 0.8rem; opacity: 0.8; z-index: 10;">
+                        <span class="text-black fw-bold">{ lessons.len() - 1 }</span>
+                    </div>
+                }
             </div>
         </div>
     }
 }
-fn render_entities(lesson: &LessonBlock, variant_match: fn(&Entity) -> bool) -> Html {
-    let mut filtered_entities: Vec<_> = lesson.entities.iter()
-        .filter(|tracked| variant_match(&tracked.inner))
-        .collect();
 
-    filtered_entities.sort_by_key(|tracked| {
-        if tracked.status == ChangeStatus::Removed { 0 } else { 1 }
-    });
+fn render_lanes(lessons: &[LessonBlock], group_duration: f64, start: NaiveDateTime) -> Html {
+    let mut lanes: Vec<NaiveDateTime> = Vec::new();
+    let mut sorted = lessons.to_vec();
+    sorted.sort_by_key(|l| l.time_range.start);
 
-    let len = filtered_entities.len();
+    let assignments: Vec<usize> = sorted.iter().map(|l| {
+        let idx = lanes.iter().position(|&e| l.time_range.start >= e).unwrap_or(lanes.len());
+        if idx == lanes.len() { lanes.push(l.time_range.end); } else { lanes[idx] = l.time_range.end; }
+        idx
+    }).collect();
 
-    filtered_entities.into_iter().enumerate().map(|(i, tracked)| {
-        let name = tracked.inner.name();
-        let separator = if i < len - 1 { ", " } else { "" };
+    let width = 100.0 / lanes.len().max(1) as f64;
+    sorted.iter()
+        .zip(assignments)
+        .map(|(l, idx)| render_lesson(l, group_duration, start, width, idx as f64 * width, false))
+        .collect()
+}
 
-        let style = match tracked.status {
-            ChangeStatus::Removed => "background-color: #ffcccc; color: #b30000; padding: 0 2px;",
-            ChangeStatus::New => "background-color: #ccffcc; color: #006600; padding: 0 2px;",
-            ChangeStatus::Changed => "background-color: #ffffcc; color: #8a6d3b; padding: 0 2px;",
-            ChangeStatus::Regular => "",
+fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDateTime, width: f64, x_offset: f64, is_mobile: bool) -> Html {
+    let top = ((lesson.time_range.start - group_start).num_seconds() as f64 / group_duration) * 100.0;
+    let h = ((lesson.time_range.end - lesson.time_range.start).num_seconds() as f64 / group_duration) * 100.0;
+
+    let mut style = format!("background-color: #{};", lesson.color_hex);
+    let mut cls = "rounded text-black text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center overflow-hidden".to_string();
+
+    match lesson.status.as_str() {
+        "CANCELLED" => {
+            cls += " border border-4 border-danger opacity-50";
+            style += "background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
+        },
+        "CHANGED" => cls += " border border-4 border-info",
+        "ADDITIONAL" => cls += " border border-4 border-success",
+        _ if lesson.r#type == "EXAM" => cls += " border border-4 border-warning",
+        _ => {}
+    }
+
+    html! {
+        <div style={format!("position: absolute; top: {top}%; left: {x_offset}%; height: {h}%; width: {width}%; padding: {};", if is_mobile { "0" } else { "0.2rem" })} class="lesson-container">
+            <div class={cls} style={style}>
+                <div class="dynamic-text">
+                    { render_entity(lesson, |e| matches!(e, Entity::Subject(..))) } <br/>
+                    { render_entity(lesson, |e| matches!(e, Entity::Teacher(..))) } <br/>
+                    { render_entity(lesson, |e| matches!(e, Entity::Room(..))) }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_entity(lesson: &LessonBlock, filter: fn(&Entity) -> bool) -> Html {
+    let mut ents: Vec<_> = lesson.entities.iter().filter(|t| filter(&t.inner)).collect();
+    ents.sort_by_key(|t| t.status != ChangeStatus::Removed);
+
+    ents.into_iter().map(|t| {
+        let style = match t.status {
+            ChangeStatus::Removed => "background: #ffcccc; color: #b30000; padding: 0 2px;",
+            ChangeStatus::New => "background: #ccffcc; color: #006600; padding: 0 2px;",
+            ChangeStatus::Changed => "background: #ffffcc; color: #8a6d3b; padding: 0 2px;",
+            _ => "",
         };
 
-        if tracked.status == ChangeStatus::Removed {
-            html! {
-                <><del style={style}>{ name }</del>{ separator }</>
-            }
+        if t.status == ChangeStatus::Removed {
+            html! { <><del style={style}>{ t.inner.name() }</del>{ " " }</> }
         } else {
-            html! {
-                <><span style={style}>{ name }</span>{ separator }</>
-            }
+            html! { <><span style={style}>{ t.inner.name() }</span>{ " " }</> }
         }
     }).collect::<Html>()
 }

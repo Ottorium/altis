@@ -23,7 +23,7 @@ pub async fn get_classes(week: Week) -> Result<(Vec<Class>, Option<i32>), UntisE
     let untis_data: UntisResponse =
         serde_json::from_str(&response.body).map_err(|e| UntisError::Parsing(format!("Serialization error: {}", e)))?;
 
-    let classes = untis_data
+    let classes: Vec<Class> = untis_data
         .classes
         .unwrap_or_default()
         .into_iter()
@@ -31,6 +31,8 @@ pub async fn get_classes(week: Week) -> Result<(Vec<Class>, Option<i32>), UntisE
         .collect();
 
     Ok((classes, untis_data.pre_selected.map(|x| x.id)))
+    //Ok((vec![Class {id: 2419, name: "4BHITS".to_string(), class_teacher: None,department: Department { id: 45, short_name: "IT".to_string(), long_name: "INFORMATIONSTECHNOLOGIE".to_string(), display_name: "INFORMATIONSTECHNOLOGIE".to_string()}}], None))
+
 }
 
 pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, UntisError> {
