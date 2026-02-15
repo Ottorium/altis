@@ -16,7 +16,7 @@ pub async fn get_session_into_cookies(
     secret: String,
 ) -> Result<(), UntisError> {
 
-    if school_name == "" || username == "" || secret == "" {
+    if school_name.is_empty() || username.is_empty() || secret.is_empty() {
         return Err(UntisError::Authentication("Credentials not set. ".to_string()))
     }
 
@@ -72,7 +72,7 @@ pub async fn get_session_into_cookies(
 
     if let (Some(jsessionid), Some(tenant_id), Some(school_name)) = (jsessionid, tenant_id, school_name) {
         let cookies = Cookies { jsessionid, tenant_id, school_name_base32: school_name };
-        PersistenceManager::save_cookies(&cookies).map_err(|e| UntisError::Miscellaneous(e))?;
+        PersistenceManager::save_cookies(&cookies).map_err(UntisError::Miscellaneous)?;
     }
 
     Ok(())
@@ -82,7 +82,7 @@ async fn get_token() -> Result<String, UntisError> {
     let cookies = PersistenceManager::get_cookies().ok_or(UntisError::Authentication("Could not get cookies".to_string()))?;
     let settings = PersistenceManager::get_settings()?.ok_or(UntisError::Miscellaneous("Settings are empty".to_string()))?;
 
-    if settings.auth_settings.school_name == "" || settings.auth_settings.username == "" || settings.auth_settings.auth_secret == "" {
+    if settings.auth_settings.school_name.is_empty() || settings.auth_settings.username.is_empty() || settings.auth_settings.auth_secret.is_empty() {
         return Err(UntisError::Authentication("Credentials not set. ".to_string()))
     }
 

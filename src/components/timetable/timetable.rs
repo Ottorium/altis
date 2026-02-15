@@ -11,7 +11,7 @@ pub fn timetable() -> HtmlResult {
     let reload_trigger = use_state(|| 0);
     let category = use_state(|| "Class".to_string());
     let selected_name = use_state(|| None::<String>);
-    let selected_week = use_state(|| Week::current());
+    let selected_week = use_state(Week::current);
 
     let res = {
         let trigger = *reload_trigger;
@@ -24,14 +24,13 @@ pub fn timetable() -> HtmlResult {
     match &*res {
         Err(err) => Ok(html! { <div class="alert alert-danger m-3">{ err.to_string() }</div> }),
         Ok((map, initial_id)) => {
-            if selected_name.is_none() {
-                if let Some(id) = initial_id {
+            if selected_name.is_none()
+                && let Some(id) = initial_id {
                     let initial = map.keys().find(|e| {
                         if let Entity::Class(c) = e { c.id == *id } else { false }
                     }).map(|e| e.name());
                     selected_name.set(initial);
                 }
-            }
 
             let filtered_data: Vec<(&Entity, &WeekTimeTable)> = map.iter()
                 .filter(|(entity, _)| match (category.as_str(), entity) {

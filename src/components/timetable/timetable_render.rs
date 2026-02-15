@@ -221,15 +221,14 @@ fn fill_breaks(mut lessons: Vec<LessonBlock>) -> Vec<LessonBlock> {
     while let Some(curr) = iter.next() {
         let end = curr.time_range.end;
         result.push(curr);
-        if let Some(next) = iter.peek() {
-            if end < next.time_range.start {
+        if let Some(next) = iter.peek()
+            && end < next.time_range.start {
                 result.push(LessonBlock {
                     time_range: TimeRange { start: end, end: next.time_range.start },
                     r#type: "Break".into(),
                     ..Default::default()
                 });
             }
-        }
     }
     result
 }

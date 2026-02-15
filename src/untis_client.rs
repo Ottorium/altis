@@ -63,7 +63,7 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
         ))
     })?;
 
-    if let Some(errors) = untis_data.errors && errors.len() > 0 {
+    if let Some(errors) = untis_data.errors && !errors.is_empty() {
         return Err(UntisError::Miscellaneous(format!("Error in response from Untis: {:#?}", errors)));
     }
 
@@ -88,7 +88,7 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
 
 pub async fn get_multiple_timetables(
     week: Week,
-    classes: &Vec<Class>,
+    classes: &[Class],
 ) -> Result<HashMap<Class, WeekTimeTable>, UntisError> {
     let tasks = classes.iter().map(|class| {
         let week_clone = week.clone();

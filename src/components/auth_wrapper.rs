@@ -12,7 +12,7 @@ pub struct AuthWrapperProps {
 
 #[function_component(AuthWrapper)]
 pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
-    let session = use_state(|| authorization_untis_client::is_authenticated());
+    let session = use_state(authorization_untis_client::is_authenticated);
     let error = use_state(|| Option::<String>::None);
 
     let perform_login = {

@@ -77,7 +77,7 @@ fn report(err: &dyn std::error::Error) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    rustls::crypto::ring::default_provider().install_default();
+    let _ = rustls::crypto::ring::default_provider().install_default();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

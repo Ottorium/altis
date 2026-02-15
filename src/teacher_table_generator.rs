@@ -19,7 +19,7 @@ pub async fn get_all_timetables(
     let mut entity_lesson_map: HashMap<Entity, HashMap<NaiveDate, Vec<LessonBlock>>> = HashMap::new();
 
     for table in all_timetables.values() {
-        for (_, day_table) in table.days.iter().enumerate() {
+        for day_table in table.days.iter() {
             for lesson in &day_table.lessons {
                 for entity_wrapper in &lesson.entities {
                     if entity_wrapper.status == ChangeStatus::Removed {

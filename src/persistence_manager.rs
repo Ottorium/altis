@@ -28,11 +28,10 @@ impl PersistenceManager {
     fn get_all_cookies() -> String {
         let window = web_sys::window().expect("no global `window` exists");
         let document = window.document().expect("should have a document on window");
-        if let Ok(html_doc) = document.dyn_into::<HtmlDocument>() {
-            if let Ok(cookies) = html_doc.cookie() {
+        if let Ok(html_doc) = document.dyn_into::<HtmlDocument>()
+            && let Ok(cookies) = html_doc.cookie() {
                 return cookies;
             }
-        }
         String::new()
     }
 
@@ -101,11 +100,10 @@ impl PersistenceManager {
     }
 
     pub fn save_settings(settings: &Settings) -> Result<(), String> {
-        if let Ok(Some(existing)) = Self::get_settings() {
-            if existing.auth_settings != settings.auth_settings {
+        if let Ok(Some(existing)) = Self::get_settings()
+            && existing.auth_settings != settings.auth_settings {
                 Self::clear_cookies();
             }
-        }
 
         let serialized =
             serde_json::to_string(settings).map_err(|e| format!("Serialization failed: {}", e))?;
