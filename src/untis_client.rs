@@ -49,14 +49,20 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
     let untis_data: UntisResponse = serde_json::from_str(&response.body).map_err(|e| {
         let line = e.line();
         let col = e.column();
-        let line_content = response.body.lines().nth(line - 1).unwrap_or("Requested line not found");
-        let snippet = if line_content.len() > col {
-            let start = col.saturating_sub(20);
-            let end = (col + 20).min(line_content.len());
-            format!("{} --> {} <-- {}", &line_content[start..col], &line_content[col..col+1], &line_content[col+1..end])
+        let line_content = response.body.lines().nth(line.saturating_sub(1)).unwrap_or("");
+
+        let start = col.saturating_sub(20);
+        let end = (col + 20).min(line_content.len());
+
+        let snippet = if !line_content.is_empty() && col <= line_content.len() {
+            let before = &line_content[start..col.saturating_sub(1)];
+            let char = &line_content[col.saturating_sub(1)..col];
+            let after = &line_content[col..end];
+            format!("{}[-->]{}[<--] {}", before, char, after)
         } else {
             line_content.to_string()
         };
+
         UntisError::Parsing(format!(
             "JSON Error: {} at line {} col {}.\nContext: {}",
             e, line, col, snippet

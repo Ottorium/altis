@@ -30,16 +30,17 @@ pub fn generate_lessons_html(
         <div class="w-100 group-block" style={format!("height: {}%; position: relative; cursor: pointer;", (group_duration / total) * 100.0)} {onclick}>
             <style>
                 { ".lesson-container { container-type: size; }
-                   .dynamic-text { font-size: clamp(0.9rem, 19cqw, 1.1rem); line-height: 1.1; width: 100%; word-wrap: break-word; }
+                   .dynamic-text { font-size: clamp(0.7rem, 19cqw, 1.1rem); line-height: 1.1; width: 100%; word-wrap: break-word; }
                    .border-info { border-color: #00d4ff !important; box-shadow: inset 0 0 15px #00d4ff; }
                    .border-success { border-color: #00ab5b !important; box-shadow: inset 0 0 15px #00ab5b; }
                    .border-warning { border-color: #ffcc00 !important; box-shadow: inset 0 0 15px #ffcc00; }
-                   .border-danger { border-color: #ff4d4d !important; }" }
+                   .border-danger { border-color: #ff4d4d !important; }
+                   .mobile-p-half { padding: 0.125rem !important; }" }
             </style>
             <div class="d-none d-md-block h-100 w-100">
                 { render_lanes(lessons, group_duration, start) }
             </div>
-            <div class="d-flex d-md-none h-100 w-100 p-1">
+            <div class="d-flex d-md-none h-100 w-100 mobile-p-half">
                 <div style={format!("width: {}%; height: 100%; position: relative;", if lessons.len() > 1 { 80 } else { 100 })}>
                     { render_lesson(priority, group_duration, start, 100.0, 0.0, true) }
                 </div>

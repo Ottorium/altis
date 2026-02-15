@@ -44,9 +44,9 @@ pub fn app() -> Html {
 
     html! {
         <>
-            <div class="d-flex flex-column flex-md-row min-vh-100 bg-dark text-white">
+            <div class="d-flex flex-column flex-md-row vh-100 overflow-hidden bg-dark text-white">
                 <NavBar active_tab={(*active_tab).clone()} on_change={on_nav_change} />
-                <main class="d-flex flex-column flex-grow-1">
+                <main class="d-flex flex-column flex-grow-1 overflow-y-auto">
                     <Suspense fallback={html! { <LoadingComponent /> }}>
                         {content}
                     </Suspense>

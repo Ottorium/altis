@@ -123,8 +123,8 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                 </div>
 
                 <button class="btn btn-outline-primary ms-auto" onclick={let on_reload = on_reload.clone(); move |_| on_reload.emit(())}>
-                    <i class="bi bi-arrow-clockwise me-1"></i>
-                    <span>{"Reload"}</span>
+                    <i class="bi bi-arrow-clockwise me-sm-1"></i>
+                    <span class="d-none d-sm-inline">{"Reload"}</span>
                 </button>
             </div>
         </div>
