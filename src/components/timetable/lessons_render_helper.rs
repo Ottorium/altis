@@ -82,8 +82,8 @@ fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDa
 
     match lesson.status.as_str() {
         "CANCELLED" => {
-            cls += " border border-4 border-danger opacity-50";
-            style += "background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
+            cls += " border border-4 border-danger";
+            style += "opacity: 0.33; background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
         },
         "CHANGED" => cls += " border border-4 border-info",
         "ADDITIONAL" => cls += " border border-4 border-success",

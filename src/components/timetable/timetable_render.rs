@@ -2,7 +2,7 @@ use crate::components::timetable::group_modal::GroupDetailModal;
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
 use crate::data_models::clean_models::clean_models::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
-use chrono::Datelike;
+use chrono::{Datelike, NaiveTime};
 use yew::{function_component, html, use_state, Callback, Html, Properties};
 
 #[derive(Properties, PartialEq, Clone)]
@@ -117,8 +117,26 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
         };
     }
 
-    let week_start_time = lessons.iter().map(|l| l.time_range.start.time()).min().unwrap();
-    let week_end_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
+    let mut start_times = lessons.iter().map(|l| l.time_range.start.time()).collect::<Vec<_>>();
+    let mut end_times = lessons.iter().map(|l| l.time_range.end.time()).collect::<Vec<_>>();
+    start_times.sort();
+    end_times.sort();
+    start_times.dedup();
+    end_times.dedup();
+
+    let min_time = *start_times.first().unwrap();
+    let max_time = *end_times.last().unwrap();
+    let total_duration = (max_time - min_time).num_seconds() as f64;
+
+    let mut start_end_times: Vec<(NaiveTime, NaiveTime)> = Vec::new();
+    let mut ei = 0;
+    let mut it = start_times.iter().peekable();
+    while let Some(&s) = it.next() {
+        while ei < end_times.len() && s >= end_times[ei] { ei += 1; }
+        if ei >= end_times.len() { break; }
+        if let Some(&&next_s) = it.peek() && end_times[ei] > next_s { continue; }
+        start_end_times.push((s, end_times[ei]));
+    }
 
     html! {
         <>
@@ -132,7 +150,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                 onpointerup={on_pointer_up.clone()}
                 onpointerleave={on_pointer_up.clone()}
                 style={transform_style}
-                class="d-flex flex-grow-1 flex-column"
+                class="d-flex flex-grow-1 flex-column h-100 w-100 overflow-hidden"
             >
                 <div class="d-flex w-100 bg-dark border-bottom">
                     <div style="width: 60px;" class="flex-shrink-0"></div>
@@ -152,15 +170,34 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
 
 
                 <div class="d-flex flex-grow-1 w-100">
-                    <div style="width: 60px" class="d-flex flex-column justify-content-between align-items-end">
-                        <div class="small pe-1">{ week_start_time.format("%H:%M").to_string() }</div>
-                        <div class="small pe-1">{ week_end_time.format("%H:%M").to_string() }</div>
+                    <div style="width: 60px; position: relative;" class="d-flex flex-column flex-shrink-0">
+                        {{
+                            let mut last_end: Option<NaiveTime> = None;
+                            start_end_times.iter().map(|(s, e)| {
+                                let top = ((*s - min_time).num_seconds() as f64 / total_duration) * 100.0;
+                                let height = ((*e - *s).num_seconds() as f64 / total_duration) * 100.0;
+
+                                let show_start = last_end.map_or(true, |prev_e| prev_e != *s);
+                                let p = last_end;
+                                last_end = Some(*e);
+
+                                html! {
+                                    <div style={format!("position: absolute; top: {top}%; height: {height}%; width: 100%;")}
+                                          class={format!("d-flex flex-column justify-content-between align-items-end border-bottom {} m-0", if show_start && p.is_some() { "border-top" } else { "" })}>
+                                        <div class="small pe-1">
+                                            { if show_start { s.format("%H:%M").to_string() } else { "".to_string() } }
+                                        </div>
+                                        <div class="small pe-1">{ e.format("%H:%M").to_string() }</div>
+                                    </div>
+                                }
+                            }).collect::<Vec<_>>()
+                        }}
                     </div>
                     <div class="d-flex flex-grow-1">
                         { for days.iter().map(|day| html! {
                             <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
                                 { for group_by_time(fill_breaks(day.lessons.clone())).iter().map(|lessons| {
-                                    generate_lessons_html(lessons, week_end_time - week_start_time, on_group_click.clone())
+                                    generate_lessons_html(lessons, max_time - min_time, on_group_click.clone())
                                 })}
                             </div>
                         })}

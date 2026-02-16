@@ -65,7 +65,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
     };
 
     html! {
-        <div class="sticky-top p-3 mb-3 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
+        <div class="sticky-top p-3 mb-1 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
             <div class="d-flex align-items-center">
                 <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_cat_change}>
                     <option value="Class" selected={category == "Class"}>{"Class"}</option>
