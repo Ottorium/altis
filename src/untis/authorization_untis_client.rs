@@ -1,4 +1,4 @@
-use crate::errors::UntisError;
+use crate::errors::ApiError;
 use crate::persistence_manager::{Cookies, PersistenceManager};
 use crate::request_proxy::{request_proxy, ProxyResponse};
 use js_sys::Date;
@@ -14,15 +14,15 @@ pub async fn get_session_into_cookies(
     school_name: String,
     username: String,
     secret: String,
-) -> Result<(), UntisError> {
+) -> Result<(), ApiError> {
 
     if school_name.is_empty() || username.is_empty() || secret.is_empty() {
-        return Err(UntisError::Authentication("Credentials not set. ".to_string()))
+        return Err(ApiError::Authentication("Credentials not set. ".to_string()))
     }
 
     let secret_bytes = Secret::Encoded(secret)
         .to_bytes()
-        .map_err(|x| UntisError::Authentication(x.to_string()))?;
+        .map_err(|x| ApiError::Authentication(x.to_string()))?;
     let now_ms = Date::now() as u64;
     let totp = TOTP::new_unchecked(Algorithm::SHA1, 6, 1, 30, secret_bytes);
     let token = totp.generate(now_ms / 1000);
@@ -39,15 +39,15 @@ pub async fn get_session_into_cookies(
 
     let response = request_proxy("POST", &login_url, HashMap::new(), body.to_string())
         .await
-        .map_err(|x| UntisError::Network(x.to_string()))?;
+        .map_err(|x| ApiError::Network(x.to_string()))?;
 
     let response_json: serde_json::Value = serde_json::from_str(&response.body)
-        .map_err(|x| UntisError::Parsing(x.to_string()))?;
+        .map_err(|x| ApiError::Parsing(x.to_string()))?;
 
     if let Some(error) = response_json.get("error") {
         let message = error["message"].as_str().unwrap_or("Unknown error");
         let code = error["code"].as_i64().unwrap_or(0);
-        return Err(UntisError::Authentication(format!("API Error {}: {}", code, message)));
+        return Err(ApiError::Authentication(format!("API Error {}: {}", code, message)));
     }
 
     let mut jsessionid = None;
@@ -72,27 +72,27 @@ pub async fn get_session_into_cookies(
 
     if let (Some(jsessionid), Some(tenant_id), Some(school_name)) = (jsessionid, tenant_id, school_name) {
         let cookies = Cookies { jsessionid, tenant_id, school_name_base32: school_name };
-        PersistenceManager::save_cookies(&cookies).map_err(UntisError::Miscellaneous)?;
+        PersistenceManager::save_cookies(&cookies).map_err(ApiError::Miscellaneous)?;
     }
 
     Ok(())
 }
 
-async fn get_token() -> Result<String, UntisError> {
-    let cookies = PersistenceManager::get_cookies().ok_or(UntisError::Authentication("Could not get cookies".to_string()))?;
-    let settings = PersistenceManager::get_settings()?.ok_or(UntisError::Miscellaneous("Settings are empty".to_string()))?;
+async fn get_token() -> Result<String, ApiError> {
+    let cookies = PersistenceManager::get_cookies().ok_or(ApiError::Authentication("Could not get cookies".to_string()))?;
+    let settings = PersistenceManager::get_settings()?.ok_or(ApiError::Miscellaneous("Settings are empty".to_string()))?;
 
-    if settings.auth_settings.school_name.is_empty() || settings.auth_settings.username.is_empty() || settings.auth_settings.auth_secret.is_empty() {
-        return Err(UntisError::Authentication("Credentials not set. ".to_string()))
+    if settings.untis_auth.school_identifier.is_empty() || settings.untis_auth.user_identifier.is_empty() || settings.untis_auth.secret.is_empty() {
+        return Err(ApiError::Authentication("Credentials not set. ".to_string()))
     }
 
-    let url = format!("https://{}.webuntis.com/WebUntis/api/token/new", settings.auth_settings.school_name);
+    let url = format!("https://{}.webuntis.com/WebUntis/api/token/new", settings.untis_auth.school_identifier);
     let mut headers = HashMap::new();
     headers.insert("Cookie".to_string(), vec![cookies.to_header_value()]);
     Ok(request_proxy("GET", url.as_str(), headers, "".to_string()).await?.body)
 }
 
-pub async fn authorized_request(method: &str, url: &str, mut headers: HashMap<String, Vec<String>>, body: String) -> Result<ProxyResponse, UntisError> {
+pub async fn authorized_request(method: &str, url: &str, mut headers: HashMap<String, Vec<String>>, body: String) -> Result<ProxyResponse, ApiError> {
     let token = get_token().await?;
     headers.insert("Authorization".to_string(), vec![format!("Bearer {}", token)]);
     Ok(request_proxy(method, url, headers, body).await?)

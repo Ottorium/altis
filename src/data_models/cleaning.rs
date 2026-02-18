@@ -1,6 +1,6 @@
-use crate::data_models::clean_models::clean_models::*;
-use crate::data_models::response_models::response_models::*;
-use crate::data_models::response_models::timetable_stuff::*;
+use crate::data_models::clean_models::untis::*;
+use crate::data_models::response_models::untis_response_models::*;
+use crate::data_models::response_models::untis_timetables::*;
 use chrono::{NaiveDate, NaiveDateTime};
 use std::collections::HashMap;
 

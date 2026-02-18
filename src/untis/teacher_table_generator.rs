@@ -1,15 +1,15 @@
-use crate::data_models::clean_models::clean_models::*;
-use crate::errors::UntisError;
-use crate::untis_client::get_classes;
-use crate::untis_week::Week;
+use crate::data_models::clean_models::untis::*;
+use crate::errors::ApiError;
+use crate::untis::untis_client::get_classes;
+use crate::untis::untis_week::Week;
 use chrono::NaiveDate;
 use std::collections::HashMap;
 
 pub async fn get_all_timetables(
     week: Week,
-) -> Result<(HashMap<Entity, WeekTimeTable>, Option<i32>), UntisError> {
+) -> Result<(HashMap<Entity, WeekTimeTable>, Option<i32>), ApiError> {
     let (classes, pre_selected) = get_classes(Week::current()).await?;
-    let class_results = crate::untis_client::get_multiple_timetables(week.clone(), &classes).await?;
+    let class_results = crate::untis::untis_client::get_multiple_timetables(week.clone(), &classes).await?;
 
     let mut all_timetables: HashMap<Entity, WeekTimeTable> = class_results
         .into_iter()

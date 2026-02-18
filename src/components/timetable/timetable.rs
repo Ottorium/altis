@@ -1,8 +1,8 @@
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
-use crate::data_models::clean_models::clean_models::{Entity, WeekTimeTable};
-use crate::teacher_table_generator::get_all_timetables;
-use crate::untis_week::Week;
+use crate::data_models::clean_models::untis::{Entity, WeekTimeTable};
+use crate::untis::teacher_table_generator::get_all_timetables;
+use crate::untis::untis_week::Week;
 use yew::prelude::*;
 use yew::suspense::use_future_with;
 

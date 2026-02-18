@@ -1,12 +1,10 @@
 
 mod components;
 mod request_proxy;
-mod authorization_untis_client;
 mod persistence_manager;
-mod untis_client;
-mod untis_week;
 mod data_models;
-mod teacher_table_generator;
+mod untis;
+mod book2eat;
 mod errors;
 
 use components::app::App;

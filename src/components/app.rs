@@ -1,4 +1,4 @@
-use crate::authorization_untis_client;
+use crate::untis::authorization_untis_client;
 use crate::components::absences::*;
 use crate::components::auth_wrapper::AuthWrapper;
 use crate::components::book2eat::*;
@@ -34,9 +34,9 @@ pub fn app() -> Html {
     if let Some(s) = PersistenceManager::get_settings().ok() && let Some(s) = s {
         spawn_local(async move {
             let _ = authorization_untis_client::get_session_into_cookies(
-                s.auth_settings.school_name,
-                s.auth_settings.username,
-                s.auth_settings.auth_secret,
+                s.untis_auth.school_identifier,
+                s.untis_auth.user_identifier,
+                s.untis_auth.secret,
             ).await;
         });
     }

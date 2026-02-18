@@ -1,4 +1,4 @@
-use crate::data_models::clean_models::clean_models::{ChangeStatus, Entity, LessonBlock};
+use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock};
 use chrono::{NaiveDateTime, TimeDelta};
 use web_sys::MouseEvent;
 use yew::{html, Callback, Html};

@@ -1,4 +1,4 @@
-use crate::authorization_untis_client;
+use crate::untis::authorization_untis_client;
 use crate::persistence_manager::PersistenceManager;
 use gloo_timers::callback::Timeout;
 use wasm_bindgen_futures::spawn_local;
@@ -42,9 +42,9 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
                 };
 
                 match authorization_untis_client::get_session_into_cookies(
-                    settings.auth_settings.school_name,
-                    settings.auth_settings.username,
-                    settings.auth_settings.auth_secret,
+                    settings.untis_auth.school_identifier,
+                    settings.untis_auth.user_identifier,
+                    settings.untis_auth.secret,
                 ).await {
                     Ok(_) => session.set(true),
                     Err(e) => {

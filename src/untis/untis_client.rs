@@ -1,17 +1,17 @@
-use crate::authorization_untis_client::authorized_request;
-use crate::data_models::clean_models::clean_models::*;
-use crate::data_models::response_models::response_models::*;
-use crate::errors::UntisError;
+use crate::untis::authorization_untis_client::authorized_request;
+use crate::data_models::clean_models::untis::*;
+use crate::data_models::response_models::untis_response_models::*;
+use crate::errors::ApiError;
 use crate::persistence_manager::PersistenceManager;
-use crate::untis_week::Week;
+use crate::untis::untis_week::Week;
 use futures::future::join_all;
 use std::collections::HashMap;
 
-pub fn school_name() -> Result<String, UntisError> {
-    Ok(PersistenceManager::get_settings()?.ok_or(UntisError::Authentication("Settings are empty".to_string()))?.auth_settings.school_name)
+pub fn school_name() -> Result<String, ApiError> {
+    Ok(PersistenceManager::get_settings()?.ok_or(ApiError::Authentication("Settings are empty".to_string()))?.untis_auth.school_identifier)
 }
 
-pub async fn get_classes(week: Week) -> Result<(Vec<Class>, Option<i32>), UntisError> {
+pub async fn get_classes(week: Week) -> Result<(Vec<Class>, Option<i32>), ApiError> {
     let url = format!(
         "https://{}.webuntis.com/WebUntis/api/rest/view/v1/timetable/filter?resourceType=CLASS&timetableType=STANDARD&start={}&end={}",
         school_name()?,
@@ -21,7 +21,7 @@ pub async fn get_classes(week: Week) -> Result<(Vec<Class>, Option<i32>), UntisE
 
     let response = authorized_request("GET", url.as_str(), HashMap::new(), "".to_string()).await?;
     let untis_data: UntisResponse =
-        serde_json::from_str(&response.body).map_err(|e| UntisError::Parsing(format!("Serialization error: {}", e)))?;
+        serde_json::from_str(&response.body).map_err(|e| ApiError::Parsing(format!("Serialization error: {}", e)))?;
 
     let classes: Vec<Class> = untis_data
         .classes
@@ -35,7 +35,7 @@ pub async fn get_classes(week: Week) -> Result<(Vec<Class>, Option<i32>), UntisE
 
 }
 
-pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, UntisError> {
+pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, ApiError> {
     let url = format!(
         "https://{}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries?start={}&end={}&format=1&resourceType=CLASS&resources={}&periodTypes=&timetableType=STANDARD&",
         school_name()?,
@@ -63,14 +63,14 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
             line_content.to_string()
         };
 
-        UntisError::Parsing(format!(
+        ApiError::Parsing(format!(
             "JSON Error: {} at line {} col {}.\nContext: {}",
             e, line, col, snippet
         ))
     })?;
 
     if let Some(errors) = untis_data.errors && !errors.is_empty() {
-        return Err(UntisError::Miscellaneous(format!("Error in response from Untis: {:#?}", errors)));
+        return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {:#?}", errors)));
     }
 
     let day_tables = untis_data
@@ -95,7 +95,7 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Un
 pub async fn get_multiple_timetables(
     week: Week,
     classes: &[Class],
-) -> Result<HashMap<Class, WeekTimeTable>, UntisError> {
+) -> Result<HashMap<Class, WeekTimeTable>, ApiError> {
     let tasks = classes.iter().map(|class| {
         let week_clone = week.clone();
         let class_clone = class.clone();
@@ -111,7 +111,7 @@ pub async fn get_multiple_timetables(
     for (class, result) in results {
         match result {
             Ok(timetable) => { map.insert(class, timetable); }
-            Err(e) => return Err(UntisError::Miscellaneous(format!("Could not get timetable for class {}: {}", class.id, e))),
+            Err(e) => return Err(ApiError::Miscellaneous(format!("Could not get timetable for class {}: {}", class.id, e))),
         }
     }
 

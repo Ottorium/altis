@@ -1,4 +1,4 @@
-use crate::data_models::clean_models::clean_models::{Entity, LessonBlock};
+use crate::data_models::clean_models::untis::{Entity, LessonBlock};
 use web_sys::MouseEvent;
 use yew::{function_component, html, Callback, Html, Properties};
 

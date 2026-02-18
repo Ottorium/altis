@@ -1,2 +1,3 @@
-pub mod response_models;
-pub mod timetable_stuff;
+pub mod untis_response_models;
+pub mod untis_timetables;
+pub mod book2eat;

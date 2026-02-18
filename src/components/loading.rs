@@ -7,7 +7,7 @@ pub fn loading_component() -> Html {
             <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
                 <span class="visually-hidden">{"Loading..."}</span>
             </div>
-            <p class="mt-3 text-secondary">{"Synchronizing with WebUntis..."}</p>
+            <p class="mt-3 text-secondary">{"fetching data..."}</p>
         </div>
     }
 }

@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use crate::data_models::response_models::timetable_stuff::UntisDayEntry;
+use crate::data_models::response_models::untis_timetables::UntisDayEntry;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]

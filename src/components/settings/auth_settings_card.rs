@@ -3,22 +3,29 @@ use yew::{function_component, html, use_state, Callback, Html, Properties, Targe
 use crate::components::settings::settings_card::SettingsCard;
 use crate::persistence_manager::AuthSettings;
 
+#[derive(PartialEq)]
+pub enum AuthType {
+    Untis,
+    Book2Eat,
+}
+
 #[derive(Properties, PartialEq)]
 pub struct AuthCardProps {
+    pub r#type: AuthType,
     pub initial: AuthSettings,
     pub on_save: Callback<AuthSettings>,
 }
 
 #[function_component(AuthSettingsCard)]
 pub fn auth_settings_card(props: &AuthCardProps) -> Html {
-    let school = use_state(|| props.initial.school_name.clone());
-    let user = use_state(|| props.initial.username.clone());
-    let secret = use_state(|| props.initial.auth_secret.clone());
+    let school = use_state(|| props.initial.school_identifier.clone());
+    let user = use_state(|| props.initial.user_identifier.clone());
+    let secret = use_state(|| props.initial.secret.clone());
     let secret_visible = use_state(|| false);
 
-    let is_dirty = *school != props.initial.school_name
-        || *user != props.initial.username
-        || *secret != props.initial.auth_secret;
+    let is_dirty = *school != props.initial.school_identifier
+        || *user != props.initial.user_identifier
+        || *secret != props.initial.secret;
 
     let on_input = |state: UseStateHandle<String>| {
         Callback::from(move |e: InputEvent| {
@@ -35,9 +42,9 @@ pub fn auth_settings_card(props: &AuthCardProps) -> Html {
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
             on_save.emit(AuthSettings {
-                school_name: (*school).clone(),
-                username: (*user).clone(),
-                auth_secret: (*secret).clone(),
+                school_identifier: (*school).clone(),
+                user_identifier: (*user).clone(),
+                secret: (*secret).clone(),
             });
         })
     };
@@ -45,18 +52,18 @@ pub fn auth_settings_card(props: &AuthCardProps) -> Html {
     let secret_icon_class = if *secret_visible { "bi bi-eye text-primary" } else { "bi bi-eye-slash text-secondary" };
 
     html! {
-        <SettingsCard title="Authentication">
+        <SettingsCard title={ match props.r#type {AuthType::Untis => "Untis-Authentication", AuthType::Book2Eat => "Book2Eat-Authentication"}}>
             <form>
                 <div class="mb-3">
-                    <label class="form-label small text-secondary">{"School"}</label>
+                    <label class="form-label small text-secondary">{ match props.r#type {AuthType::Untis => "School", AuthType::Book2Eat => "Canteen-ID"}}</label>
                     <input type="text" value={(*school).clone()} oninput={on_input(school.clone())} class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small text-secondary">{"Username"}</label>
+                    <label class="form-label small text-secondary">{ match props.r#type {AuthType::Untis => "Username", AuthType::Book2Eat => "Mail"}}</label>
                     <input type="text" value={(*user).clone()} oninput={on_input(user.clone())} class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small text-secondary">{"Secret"}</label>
+                    <label class="form-label small text-secondary">{ match props.r#type {AuthType::Untis => "Secret", AuthType::Book2Eat => "Password"}}</label>
                     <div class="input-group">
                         <input type={if *secret_visible {"text"} else {"password"}}
                                value={(*secret).clone()}

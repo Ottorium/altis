@@ -1,6 +1,6 @@
 use crate::components::timetable::group_modal::GroupDetailModal;
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
-use crate::data_models::clean_models::clean_models::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
+use crate::data_models::clean_models::untis::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
 use chrono::{Datelike, NaiveTime};
 use yew::{function_component, html, use_state, Callback, Html, Properties};

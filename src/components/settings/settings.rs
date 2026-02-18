@@ -1,5 +1,5 @@
-use crate::authorization_untis_client;
-use crate::components::settings::auth_settings_card::AuthSettingsCard;
+use crate::untis::authorization_untis_client;
+use crate::components::settings::auth_settings_card::{AuthSettingsCard, AuthType};
 use crate::components::settings::clear_settings_button::ClearSettingsButton;
 use crate::persistence_manager::*;
 use yew::prelude::*;
@@ -38,13 +38,13 @@ pub fn settings() -> Html {
         let update_settings = update_settings.clone();
         Callback::from(move |new_auth: AuthSettings| {
             let auth_clone = new_auth.clone();
-            update_settings.emit(Box::new(move |s| s.auth_settings = new_auth));
+            update_settings.emit(Box::new(move |s| s.untis_auth = new_auth));
 
             wasm_bindgen_futures::spawn_local(async move {
                 let _ = authorization_untis_client::get_session_into_cookies(
-                    auth_clone.school_name,
-                    auth_clone.username,
-                    auth_clone.auth_secret,
+                    auth_clone.school_identifier,
+                    auth_clone.user_identifier,
+                    auth_clone.secret,
                 )
                     .await;
             });
@@ -55,6 +55,13 @@ pub fn settings() -> Html {
         let update_settings = update_settings.clone();
         Callback::from(move |new_visual: VisualSettings| {
             update_settings.emit(Box::new(move |s| s.visual_settings = new_visual));
+        })
+    };
+
+    let b2e_save = {
+        let update_settings = update_settings.clone();
+        Callback::from(move |new_auth: AuthSettings| {
+            update_settings.emit(Box::new(move |s| s.b2e_auth = new_auth));
         })
     };
 
@@ -73,8 +80,15 @@ pub fn settings() -> Html {
 
                     if let Some(settings) = &*settings_state {
                         <AuthSettingsCard
-                            initial={settings.clone().auth_settings}
+                            r#type={AuthType::Untis}
+                            initial={settings.clone().untis_auth}
                             on_save={on_auth_save}
+                        />
+
+                        <AuthSettingsCard
+                            r#type={AuthType::Book2Eat}
+                            initial={settings.clone().b2e_auth}
+                            on_save={b2e_save}
                         />
 
                         <VisualSettingsCard

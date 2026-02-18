@@ -4,7 +4,8 @@ use web_sys::{HtmlDocument, Storage};
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Settings {
-    pub auth_settings: AuthSettings,
+    pub untis_auth: AuthSettings,
+    pub b2e_auth: AuthSettings,
     pub visual_settings: VisualSettings,
 }
 
@@ -16,9 +17,9 @@ pub struct VisualSettings {
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct AuthSettings {
-    pub school_name: String,
-    pub username: String,
-    pub auth_secret: String,
+    pub school_identifier: String,
+    pub user_identifier: String,
+    pub secret: String,
 }
 
 #[derive(Default, Clone, PartialEq, Debug)]
@@ -101,7 +102,7 @@ impl PersistenceManager {
 
     pub fn save_settings(settings: &Settings) -> Result<(), String> {
         if let Ok(Some(existing)) = Self::get_settings()
-            && existing.auth_settings != settings.auth_settings {
+            && existing.untis_auth != settings.untis_auth {
                 Self::clear_cookies();
             }
 

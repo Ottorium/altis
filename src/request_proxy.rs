@@ -22,7 +22,7 @@ extern "C" {
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
-// CORS disallows the requests to webuntis, so we need a proxy
+// CORS disallows the requests to other domains, so we need a proxy
 pub async fn request_proxy(
     method: &str,
     url: &str,
