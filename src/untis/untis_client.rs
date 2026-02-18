@@ -52,12 +52,11 @@ pub async fn get_timetable(week: Week, class: Class) -> Result<WeekTimeTable, Ap
         let line_content = response.body.lines().nth(line.saturating_sub(1)).unwrap_or("");
 
         let start = col.saturating_sub(20);
-        let end = (col + 20).min(line_content.len());
 
         let snippet = if !line_content.is_empty() && col <= line_content.len() {
             let before = &line_content[start..col.saturating_sub(1)];
             let char = &line_content[col.saturating_sub(1)..col];
-            let after = &line_content[col..end];
+            let after = &line_content[col..];
             format!("{}[-->]{}[<--] {}", before, char, after)
         } else {
             line_content.to_string()
