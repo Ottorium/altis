@@ -1,7 +1,7 @@
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
 use crate::data_models::clean_models::untis::{Entity, WeekTimeTable};
-use crate::untis::teacher_table_generator::get_all_timetables;
+use crate::untis::untis_client::UntisClient;
 use crate::untis::untis_week::Week;
 use yew::prelude::*;
 use yew::suspense::use_future_with;
@@ -17,7 +17,8 @@ pub fn timetable() -> HtmlResult {
         let trigger = *reload_trigger;
         let selected_week = selected_week.clone();
         use_future_with(trigger, |_| async move {
-            get_all_timetables((*selected_week).clone()).await
+            let client = UntisClient::new()?;
+            client.get_all_timetables((*selected_week).clone()).await
         })?
     };
 

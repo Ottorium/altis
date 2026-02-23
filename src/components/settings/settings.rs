@@ -1,4 +1,4 @@
-use crate::untis::authorization_untis_client;
+use crate::untis::untis_client::UntisClient;
 use crate::components::settings::auth_settings_card::{AuthSettingsCard, AuthType};
 use crate::components::settings::clear_settings_button::ClearSettingsButton;
 use crate::persistence_manager::*;
@@ -41,7 +41,7 @@ pub fn settings() -> Html {
             update_settings.emit(Box::new(move |s| s.untis_auth = new_auth));
 
             wasm_bindgen_futures::spawn_local(async move {
-                let _ = authorization_untis_client::get_session_into_cookies(
+                let _ = UntisClient::authenticate(
                     auth_clone.school_identifier,
                     auth_clone.user_identifier,
                     auth_clone.secret,

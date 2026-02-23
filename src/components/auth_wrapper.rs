@@ -1,4 +1,4 @@
-use crate::untis::authorization_untis_client;
+use crate::untis::untis_client::UntisClient;
 use crate::persistence_manager::PersistenceManager;
 use gloo_timers::callback::Timeout;
 use wasm_bindgen_futures::spawn_local;
@@ -12,7 +12,7 @@ pub struct AuthWrapperProps {
 
 #[function_component(AuthWrapper)]
 pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
-    let session = use_state(authorization_untis_client::is_authenticated);
+    let session = use_state(|| UntisClient::is_authenticated());
     let error = use_state(|| Option::<String>::None);
 
     let perform_login = {
@@ -22,7 +22,7 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
             let session = session.clone();
             let error = error.clone();
             spawn_local(async move {
-                if authorization_untis_client::is_authenticated() {
+                if UntisClient::is_authenticated() {
                     session.set(true);
                     return;
                 }
@@ -41,7 +41,7 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
                     }
                 };
 
-                match authorization_untis_client::get_session_into_cookies(
+                match UntisClient::authenticate(
                     settings.untis_auth.school_identifier,
                     settings.untis_auth.user_identifier,
                     settings.untis_auth.secret,
