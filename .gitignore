@@ -1,8 +1,11 @@
 /dist/
 /target/
 /src-tauri/target/
-/src-tauri/gen/
-
+/src-tauri/gen/*
+!/src-tauri/gen/android/
+/src-tauri/gen/android/**/*
+!/src-tauri/gen/android/**/
+!/src-tauri/gen/android/app/src/main/java/com/altis/app/MainActivity.kt
 # Rust artifacts
 **/*.rs.bk
 *.pdb
