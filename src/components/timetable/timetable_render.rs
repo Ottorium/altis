@@ -196,7 +196,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                     <div class="d-flex flex-grow-1">
                         { for days.iter().map(|day| html! {
                             <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
-                                { for group_by_time(fill_breaks(day.lessons.clone())).iter().map(|lessons| {
+                                { for group_by_time(fill_breaks(day.lessons.clone(), min_time)).iter().map(|lessons| {
                                     generate_lessons_html(lessons, max_time - min_time, on_group_click.clone())
                                 })}
                             </div>
@@ -250,10 +250,19 @@ fn group_by_time(mut lessons: Vec<LessonBlock>) -> Vec<Vec<LessonBlock>> {
     res
 }
 
-fn fill_breaks(mut lessons: Vec<LessonBlock>) -> Vec<LessonBlock> {
+fn fill_breaks(mut lessons: Vec<LessonBlock>, earliest: NaiveTime) -> Vec<LessonBlock> {
     lessons.sort_by_key(|l| l.time_range.start);
     let mut result = Vec::new();
     let mut iter = lessons.into_iter().peekable();
+
+    if let Some(first) = iter.peek()
+        && first.time_range.start.time() != earliest {
+        result.push(LessonBlock {
+            time_range: TimeRange { start: first.time_range.start.date().and_time(earliest), end: first.time_range.start },
+            r#type: "Break".into(),
+            ..Default::default()
+        });
+    }
 
     while let Some(curr) = iter.next() {
         let end = curr.time_range.end;
