@@ -1,9 +1,9 @@
 use chrono::{NaiveDate, NaiveDateTime, Timelike};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub struct Class {
     pub id: i32,
     pub name: String,
@@ -12,7 +12,7 @@ pub struct Class {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub struct Department {
     pub id: i32,
     pub short_name: String,
@@ -21,7 +21,7 @@ pub struct Department {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub struct Teacher {
     pub id: Option<i32>, // we only have the id if it's a class teacher
     pub short_name: String,
@@ -30,13 +30,13 @@ pub struct Teacher {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub struct Room {
     pub name: String,
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub struct Subject {
     pub short_name: String,
     pub long_name: String,
@@ -44,26 +44,26 @@ pub struct Subject {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub struct Info {
     pub text: String,
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct WeekTimeTable {
     pub days: Vec<DayTimeTable>,
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DayTimeTable {
     pub date: NaiveDate,
     pub lessons: Vec<LessonBlock>,
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct LessonBlock {
     pub time_range: TimeRange,
     pub entities: Vec<Tracked<Entity>>,
@@ -76,7 +76,7 @@ pub struct LessonBlock {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, PartialEq, Debug, Serialize, Hash, Eq)]
+#[derive(Clone, PartialEq, Debug, Serialize, Hash, Eq, Deserialize)]
 pub enum Entity {
     Teacher(Teacher),
     Class(Class),
@@ -86,21 +86,21 @@ pub enum Entity {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Clone, PartialEq, Debug, Serialize)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct TimeRange {
     pub start: NaiveDateTime,
     pub end: NaiveDateTime,
 }
 
 #[allow(dead_code)]
-#[derive(Clone, PartialEq, Debug, Serialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Tracked<T> {
     pub inner: T,
     pub status: ChangeStatus,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ChangeStatus {
     Regular,
     Changed,

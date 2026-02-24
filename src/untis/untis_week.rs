@@ -1,6 +1,7 @@
 use chrono::{Datelike, Duration, NaiveDate};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, PartialEq, Debug, Hash, Eq, Serialize, Deserialize)]
 pub struct Week {
     pub start: String,
     pub end: String,

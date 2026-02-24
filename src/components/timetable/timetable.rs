@@ -1,10 +1,10 @@
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
 use crate::data_models::clean_models::untis::{Entity, WeekTimeTable};
-use crate::untis::untis_client::UntisClient;
 use crate::untis::untis_week::Week;
 use yew::prelude::*;
 use yew::suspense::use_future_with;
+use crate::untis::cached_untis_client::CachedUntisClient;
 
 #[function_component(TimetableComponent)]
 pub fn timetable() -> HtmlResult {
@@ -17,8 +17,7 @@ pub fn timetable() -> HtmlResult {
         let trigger = *reload_trigger;
         let selected_week = selected_week.clone();
         use_future_with(trigger, |_| async move {
-            let client = UntisClient::new()?;
-            client.get_all_timetables((*selected_week).clone()).await
+            CachedUntisClient::new()?.get_all_timetables((*selected_week).clone()).await
         })?
     };
 
@@ -63,6 +62,7 @@ pub fn timetable() -> HtmlResult {
                 let trigger = reload_trigger.clone();
                 let selected_name = selected_name.clone();
                 Callback::from(move |_| {
+                    let _ = CachedUntisClient::clear_cache();
                     selected_name.set(None);
                     trigger.set(*trigger + 1);
                 })

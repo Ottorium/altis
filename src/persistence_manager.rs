@@ -1,6 +1,22 @@
+use crate::data_models::clean_models::untis::{Class, WeekTimeTable};
+use crate::untis::untis_week::Week;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::io::Read;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlDocument, Storage};
+
+
+pub type TimeTables = (HashMap<Class, WeekTimeTable>, Option<i32>);
+
+#[allow(dead_code)]
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct TimeTableCache {
+    pub tables: HashMap<Week, (Option<NaiveDateTime>, TimeTables)>,
+}
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Settings {
@@ -123,6 +139,47 @@ impl PersistenceManager {
 
         match value {
             Some(v) => Ok(Some(serde_json::from_str::<Settings>(&v).map_err(|e| format!("Failed to parse settings: {}", e))?)),
+            None => Ok(None),
+        }
+    }
+
+    pub fn save_timetables(tt: &TimeTableCache) -> Result<(), String> {
+        let bytes = postcard::to_allocvec(tt)
+            .map_err(|e| format!("Postcard failed: {}", e))?;
+
+        let compressed = zstd::encode_all(&bytes[..], 3)
+            .map_err(|e| format!("Compression failed: {}", e))?;
+
+        let encoded = STANDARD.encode(compressed);
+
+        Self::get_storage()?
+            .set_item("cached_timetables", &encoded)
+            .map_err(|_| "Failed to write to localStorage".to_string())?;
+
+        Ok(())
+    }
+
+    pub fn get_timetables() -> Result<Option<TimeTableCache>, String> {
+        let storage = Self::get_storage()?;
+        let value = storage.get_item("cached_timetables")
+            .map_err(|_| "Error reading from localStorage".to_string())?;
+
+        match value {
+            Some(v) => {
+                let compressed_bytes = STANDARD.decode(v.trim())
+                    .map_err(|e| format!("Base64 decode failed: {}", e))?;
+
+                let mut decompressed = Vec::new();
+                zstd::Decoder::new(&compressed_bytes[..])
+                    .map_err(|e| e.to_string())?
+                    .read_to_end(&mut decompressed)
+                    .map_err(|e| format!("Decompression failed: {}", e))?;
+
+                let decoded = postcard::from_bytes(&decompressed)
+                    .map_err(|e| format!("Postcard failed: {}", e))?;
+
+                Ok(Some(decoded))
+            }
             None => Ok(None),
         }
     }
