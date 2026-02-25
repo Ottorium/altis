@@ -42,65 +42,34 @@ pub struct AuthSettings {
 pub struct PersistenceManager {}
 
 impl PersistenceManager {
-    fn get_all_cookies() -> String {
-        let window = web_sys::window().expect("no global `window` exists");
-        let document = window.document().expect("should have a document on window");
-        if let Ok(html_doc) = document.dyn_into::<HtmlDocument>()
-            && let Ok(cookies) = html_doc.cookie() {
-                return cookies;
-            }
-        String::new()
-    }
-
     pub fn get_cookies() -> Option<Cookies> {
-        let raw_cookies = Self::get_all_cookies();
+        let storage = Self::get_storage().ok()?;
 
-        let mut jsessionid = None;
-        let mut tenant_id = None;
-        let mut school_name = None;
+        let jsessionid = storage.get_item("JSESSIONID").ok()??;
+        let tenant_id = storage.get_item("Tenant-Id").ok()??;
+        let school_name = storage.get_item("schoolname").ok()??;
 
-        for cookie in raw_cookies.split(';') {
-            let mut parts = cookie.splitn(2, '=');
-            let key = parts.next().unwrap_or("").trim();
-            let val = parts.next().unwrap_or("").trim().to_string();
-
-            match key {
-                "JSESSIONID" => jsessionid = Some(val),
-                "Tenant-Id" => tenant_id = Some(val),
-                "schoolname" => school_name = Some(val),
-                _ => {}
-            }
-        }
-
-        match (jsessionid, tenant_id, school_name) {
-            (Some(jsessionid), Some(tenant_id), Some(school_name)) => {
-                Some(Cookies {
-                    jsessionid,
-                    tenant_id,
-                    school_name_base32: school_name,
-                })
-            }
-            _ => None,
-        }
+        Some(Cookies {
+            jsessionid,
+            tenant_id,
+            school_name_base32: school_name,
+        })
     }
 
     pub fn save_cookies(cookies: &Cookies) -> Result<(), String> {
-        let window = web_sys::window().ok_or("No global window found")?;
-        let document = window.document().ok_or("No global document found")?;
-        let html_doc = document
-            .dyn_into::<HtmlDocument>()
-            .map_err(|_| "Could not cast to HtmlDocument")?;
+        let storage = Self::get_storage()?;
 
-        let cookie_list = [
-            format!("JSESSIONID={}", cookies.jsessionid),
-            format!("Tenant-Id={}", cookies.tenant_id),
-            format!("schoolname={}", cookies.school_name_base32),
-        ];
+        storage
+            .set_item("JSESSIONID", &cookies.jsessionid)
+            .map_err(|_| "Failed to save JSESSIONID")?;
 
-        for cookie_str in cookie_list {
-            let cookie_entry = format!("{}; Path=/; SameSite=Strict", cookie_str);
-            html_doc.set_cookie(&cookie_entry).map_err(|_| "Failed to set cookie")?;
-        }
+        storage
+            .set_item("Tenant-Id", &cookies.tenant_id)
+            .map_err(|_| "Failed to save Tenant-Id")?;
+
+        storage
+            .set_item("schoolname", &cookies.school_name_base32)
+            .map_err(|_| "Failed to save schoolname")?;
 
         Ok(())
     }
