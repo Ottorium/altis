@@ -25,8 +25,7 @@ pub fn book2eat() -> HtmlResult {
             let today = Local::now().format("%Y-%m-%d").to_string();
 
             let todays_meals: Vec<_> = menu_response.data.menue.values()
-                .filter(|meal| meal.date == today)
-                .map(|x| x.clone())
+                .filter(|meal| meal.date == today).cloned()
                 .collect();
 
 

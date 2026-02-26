@@ -58,6 +58,6 @@ impl CachedUntisClient {
         PersistenceManager::save_timetables(&TimeTableCache {
             tables: HashMap::new(),
         })
-        .map_err(|x| ApiError::from(x))
+        .map_err(ApiError::from)
     }
 }

@@ -105,7 +105,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                                 let top = ((*s - min_time).num_seconds() as f64 / total_duration) * 100.0;
                                 let height = ((*e - *s).num_seconds() as f64 / total_duration) * 100.0;
 
-                                let show_start = last_end.map_or(true, |prev_e| prev_e != *s);
+                                let show_start = last_end != Some(*s);
                                 let p = last_end;
                                 last_end = Some(*e);
 
