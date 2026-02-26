@@ -85,8 +85,8 @@ impl UntisClient {
             ))
         })?;
 
-        if let Some(errors) = untis_data.errors && !errors.is_empty() {
-            return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {:#?}", errors)));
+        if let Some(error) = untis_data.error_message && !error.is_empty() {
+            return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {:#?}", error)));
         }
 
         let day_tables = untis_data

@@ -20,7 +20,9 @@ pub struct UntisResponse {
     pub subjects: Option<Vec<serde_json::Value>>,
     pub students: Option<Vec<serde_json::Value>>,
     pub teachers: Option<Vec<serde_json::Value>>,
-    pub errors: Option<Vec<serde_json::Value>>,
+    pub error_code: Option<Vec<serde_json::Value>>,
+    pub error_message: Option<Vec<serde_json::Value>>,
+    pub request_id: Option<Vec<serde_json::Value>>,
 }
 
 #[allow(dead_code)]
