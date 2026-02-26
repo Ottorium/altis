@@ -8,57 +8,11 @@ use yew::{function_component, html, use_state, Callback, Html, Properties};
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
     pub timetable: WeekTimeTable,
-    pub on_next: Callback<()>,
-    pub on_prev: Callback<()>,
 }
 
 #[function_component(TimeTableRender)]
 pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
-    let pointer_start_x = use_state(|| 0.0);
-    let current_offset = use_state(|| 0.0);
-    let is_dragging = use_state(|| false);
     let selected_group = use_state(|| None::<Vec<LessonBlock>>);
-
-    let on_pointer_down = {
-        let pointer_start_x = pointer_start_x.clone();
-        let is_dragging = is_dragging.clone();
-        Callback::from(move |e: yew::events::PointerEvent| {
-            pointer_start_x.set(e.client_x() as f64);
-            is_dragging.set(true);
-        })
-    };
-
-    let on_pointer_move = {
-        let pointer_start_x = pointer_start_x.clone();
-        let current_offset = current_offset.clone();
-        let is_dragging = is_dragging.clone();
-        Callback::from(move |e: yew::events::PointerEvent| {
-            if *is_dragging {
-                let diff = (e.client_x() as f64) - *pointer_start_x;
-                current_offset.set(diff);
-            }
-        })
-    };
-
-    let on_pointer_up = {
-        let is_dragging = is_dragging.clone();
-        let current_offset = current_offset.clone();
-        let on_next = props.on_next.clone();
-        let on_prev = props.on_prev.clone();
-
-        Callback::from(move |_: yew::events::PointerEvent| {
-            is_dragging.set(false);
-            let offset = *current_offset;
-            let threshold = 100.0;
-
-            if offset < -threshold {
-                on_next.emit(());
-            } else if offset > threshold {
-                on_prev.emit(());
-            }
-            current_offset.set(0.0);
-        })
-    };
 
     let on_group_click = {
         let selected_group = selected_group.clone();
@@ -75,23 +29,9 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     };
 
 
-    let transform_style = format!(
-        "transform: translateX({}px); transition: {}; touch-action: pan-y; user-select: none;",
-        *current_offset,
-        if *is_dragging { "none" } else { "transform 0.3s ease-out" }
-    );
-
-
     if PersistenceManager::get_settings().is_ok_and(|x| x.is_some_and(|x| x.visual_settings.force_ascii_timetable)) {
         return html! {
-            <div
-            onpointerdown={on_pointer_down}
-            onpointermove={on_pointer_move}
-            onpointerup={on_pointer_up.clone()}
-            onpointerleave={on_pointer_up.clone()}
-            style={transform_style}
-            class="d-flex flex-grow-1 flex-column"
-        >
+            <div class="d-flex flex-grow-1 flex-column">
                 <pre>
                     { props.timetable.to_string_pretty(true, true, true, true, true) }
                 </pre>
@@ -104,14 +44,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();
     if lessons.is_empty() {
         return html! {
-            <div
-            onpointerdown={on_pointer_down}
-            onpointermove={on_pointer_move}
-            onpointerup={on_pointer_up.clone()}
-            onpointerleave={on_pointer_up.clone()}
-            style={transform_style}
-            class="d-flex flex-grow-1 flex-column"
-        >
+            <div class="d-flex flex-grow-1 flex-column">
                 {"No lessons!"}
             </div>
         };
@@ -145,11 +78,6 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
             } else { html! {} } }
 
             <div
-                onpointerdown={on_pointer_down}
-                onpointermove={on_pointer_move}
-                onpointerup={on_pointer_up.clone()}
-                onpointerleave={on_pointer_up.clone()}
-                style={transform_style}
                 class="d-flex flex-grow-1 flex-column h-100 w-100 overflow-hidden"
             >
                 <div class="d-flex w-100 bg-dark border-bottom">

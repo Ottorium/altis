@@ -1,6 +1,6 @@
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
-use crate::data_models::clean_models::untis::{Entity, WeekTimeTable};
+use crate::data_models::clean_models::untis::{Entity, LessonBlock, WeekTimeTable};
 use crate::untis::untis_week::Week;
 use yew::prelude::*;
 use yew::suspense::use_future_with;
@@ -12,6 +12,9 @@ pub fn timetable() -> HtmlResult {
     let category = use_state(|| "Class".to_string());
     let selected_name = use_state(|| None::<String>);
     let selected_week = use_state(Week::current);
+    let pointer_start_x = use_state(|| 0.0);
+    let current_offset = use_state(|| 0.0);
+    let is_dragging = use_state(|| false);
 
     let res = {
         let trigger = *reload_trigger;
@@ -99,6 +102,54 @@ pub fn timetable() -> HtmlResult {
                 })
             };
 
+
+            let on_pointer_down = {
+                let pointer_start_x = pointer_start_x.clone();
+                let is_dragging = is_dragging.clone();
+                Callback::from(move |e: yew::events::PointerEvent| {
+                    pointer_start_x.set(e.client_x() as f64);
+                    is_dragging.set(true);
+                })
+            };
+
+            let on_pointer_move = {
+                let pointer_start_x = pointer_start_x.clone();
+                let current_offset = current_offset.clone();
+                let is_dragging = is_dragging.clone();
+                Callback::from(move |e: PointerEvent| {
+                    if *is_dragging {
+                        let diff = (e.client_x() as f64) - *pointer_start_x;
+                        current_offset.set(diff);
+                    }
+                })
+            };
+
+            let on_pointer_up = {
+                let is_dragging = is_dragging.clone();
+                let current_offset = current_offset.clone();
+                let on_next = on_swipe_next.clone();
+                let on_prev = on_swipe_prev.clone();
+
+                Callback::from(move |_: PointerEvent| {
+                    is_dragging.set(false);
+                    let offset = *current_offset;
+                    let threshold = 100.0;
+
+                    if offset < -threshold {
+                        on_next.emit(());
+                    } else if offset > threshold {
+                        on_prev.emit(());
+                    }
+                    current_offset.set(0.0);
+                })
+            };
+
+            let transform_style = format!(
+                "transform: translateX({}px); transition: {}; touch-action: pan-y; user-select: none;",
+                *current_offset,
+                if *is_dragging { "none" } else { "transform 0.3s ease-out" }
+            );
+
             Ok(html! {
                 <div class="d-flex flex-column flex-grow-1 h-100">
                     <TimetableControls
@@ -111,12 +162,17 @@ pub fn timetable() -> HtmlResult {
                         on_week_change={on_week_change}
                         on_reload={on_reload}
                     />
-                    <div class="d-flex flex-column flex-grow-1 w-100" style="overflow-y: auto;">
+                    <div
+                        onpointerdown={on_pointer_down}
+                        onpointermove={on_pointer_move}
+                        onpointerup={on_pointer_up.clone()}
+                        onpointerleave={on_pointer_up.clone()}
+                        style={transform_style}
+                        class="d-flex flex-column flex-grow-1 w-100" style="overflow-y: auto;"
+                    >
                         if let Some(tt) = active_timetable {
                             <TimeTableRender
                                 timetable={tt}
-                                on_next={on_swipe_next}
-                                on_prev={on_swipe_prev}
                             />
                         } else {
                             <p class="text-light"> {"No selection made"} </p>
