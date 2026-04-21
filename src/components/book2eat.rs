@@ -30,30 +30,38 @@ pub fn book2eat() -> HtmlResult {
 
 
             Ok(html! {
-                <div class="container pt-4 pb-2 d-flex flex-column align-items-center w-100 h-100">
-                    <div class="d-flex justify-content-center align-items-center bg-light rounded p-4 mb-4" style="aspect-ratio: 1 / 1;">
-                        <QrCode data={menu_response.data.qr_code.clone()} />
-                    </div>
+    <div class="container pt-4 pb-2 d-flex flex-column align-items-center w-100 h-100">
+        <div class="d-flex justify-content-center align-items-center bg-light rounded p-4 mb-3" style="aspect-ratio: 1 / 1;">
+            <QrCode data={menu_response.data.qr_code.clone()} />
+        </div>
 
-                    <div class="d-flex flex-column flex-grow-1 justify-content-evenly bg-black w-100 p-2 mx-5 g-2 rounded-4 overflow-auto">
-                        { for sort_meals(todays_meals.clone()).iter().enumerate().map(|(index, meal)| {
-                            let is_last = index == todays_meals.len() - 1;
-                            let border_class = if is_last { "" } else { "border-bottom border-secondary" };
+        <div
+            class="d-flex flex-column flex-grow-1 justify-content-evenly bg-black w-100 p-2 mx-5 g-1 rounded-4 overflow-auto"
+        >
+            { for sort_meals(todays_meals.clone()).iter().enumerate().map(|(index, meal)| {
+                let is_last = index == todays_meals.len() - 1;
+                let border_class = if is_last { "" } else { "border-bottom border-secondary" };
 
-                            html! {
-                                <div class={classes!(border_class, "shadow-sm", "text-center", "text-white", "py-2", "w-100")}>
-                                    <div class="fw-bold">
-                                        { &meal.name }
-                                    </div>
-                                    <div class="text-secondary">
-                                        { &meal.typ_name }
-                                    </div>
-                                </div>
-                            }
-                        }) }
+                html! {
+                    <div class={classes!(border_class, "shadow-sm", "text-center", "text-white", "py-2", "w-100")}>
+                        <div
+                            class="fw-bold"
+                            style="font-size: clamp(0.8rem, 2cqw, 2.5rem);"
+                        >
+                            { &meal.name }
+                        </div>
+                        <div
+                            class="text-secondary"
+                            style="font-size: clamp(0.5rem, 1.6cqw, 1.5rem);"
+                        >
+                            { &meal.typ_name }
+                        </div>
                     </div>
-                </div>
-            })
+                }
+            }) }
+        </div>
+    </div>
+})
         }
         Err(err_msg) => Ok(html! {
             <div class="container mt-5">
