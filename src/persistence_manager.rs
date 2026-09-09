@@ -2,7 +2,7 @@ use crate::data_models::clean_models::untis::{Class, WeekTimeTable};
 use crate::untis::untis_week::Week;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Read;
@@ -25,9 +25,52 @@ pub struct Settings {
     pub visual_settings: VisualSettings,
 }
 
+pub const ALL_WEEKDAYS: [Weekday; 7] = [Weekday::Mon, Weekday::Tue, Weekday::Wed, Weekday::Thu, Weekday::Fri, Weekday::Sat, Weekday::Sun];
+pub const WORK_WEEKDAYS: [Weekday; 5] = [Weekday::Mon, Weekday::Tue, Weekday::Wed, Weekday::Thu, Weekday::Fri];
+
+pub fn default_always_show_weekdays() -> Vec<Weekday> {
+    WORK_WEEKDAYS.to_vec()
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct WeekdayOverride {
+    #[serde(default)]
+    pub only_lessons: bool,
+    #[serde(default = "default_always_show_weekdays")]
+    pub always_show: Vec<Weekday>,
+}
+
+impl Default for WeekdayOverride {
+    fn default() -> Self {
+        Self { only_lessons: false, always_show: default_always_show_weekdays() }
+    }
+}
+
+impl WeekdayOverride {
+    pub fn should_show(&self, weekday: Weekday, has_lessons: bool) -> bool {
+        has_lessons || (!self.only_lessons && self.always_show.contains(&weekday))
+    }
+
+    pub fn is_weekday_always_shown(&self, weekday: Weekday) -> bool {
+        self.always_show.contains(&weekday)
+    }
+
+    pub fn toggle_weekday(&mut self, weekday: Weekday) {
+        if let Some(pos) = self.always_show.iter().position(|&w| w == weekday) {
+            self.always_show.remove(pos);
+        } else {
+            self.always_show.push(weekday);
+            self.always_show.sort_by_key(|w| w.num_days_from_monday());
+        }
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct VisualSettings {
+    #[serde(default)]
     pub force_ascii_timetable: bool,
+    #[serde(default)]
+    pub weekday_override: WeekdayOverride,
 }
 
 

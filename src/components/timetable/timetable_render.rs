@@ -29,18 +29,24 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     };
 
 
-    if PersistenceManager::get_settings().is_ok_and(|x| x.is_some_and(|x| x.visual_settings.force_ascii_timetable)) {
+    let visual_settings = PersistenceManager::get_settings().ok().flatten()
+        .map(|settings| settings.visual_settings).unwrap_or_default();
+    let mut days: Vec<DayTimeTable> = props.timetable.days.iter()
+        .filter(|day| visual_settings.weekday_override.should_show(day.date.weekday(), !day.lessons.is_empty()))
+        .cloned().collect();
+    days.sort_by_key(|x| x.date);
+
+    if visual_settings.force_ascii_timetable {
+        let timetable = WeekTimeTable { days };
         return html! {
             <div class="d-flex flex-grow-1 flex-column">
                 <pre>
-                    { props.timetable.to_string_pretty(true, true, true, true, true) }
+                    { timetable.to_string_pretty(true, true, true, true, true) }
                 </pre>
             </div>
         }
     }
 
-    let mut days: Vec<DayTimeTable> = props.timetable.days.clone();
-    days.sort_by_key(|x| x.date);
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();
     if lessons.is_empty() {
         return html! {

@@ -136,7 +136,6 @@ impl WeekTimeTable {
         render_room: bool,
         render_status: bool,
     ) -> String {
-        let day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         let col_width = 34;
         let time_col_width = 5;
 
@@ -163,10 +162,11 @@ impl WeekTimeTable {
         let total_width = time_col_width + 3 + (num_days * (col_width + 3));
 
         output.push_str(&format!("| {:<width$} ", "Time", width = time_col_width));
-        for i in 0..num_days {
+        for day in &self.days {
+            let day_name = day.date.format("%a").to_string();
             output.push_str(&format!(
                 "| {:^width$} ",
-                day_names.get(i).unwrap_or(&"??"),
+                day_name,
                 width = col_width
             ));
         }

@@ -18,22 +18,22 @@ impl Week {
         let current_monday = today - Duration::days(days_from_monday as i64);
 
         let target_monday = current_monday + Duration::weeks(offset as i64);
-        let target_friday = target_monday + Duration::days(4);
+        let target_sunday = target_monday + Duration::days(6);
 
         Week {
             start: target_monday.format("%Y-%m-%d").to_string(),
-            end: target_friday.format("%Y-%m-%d").to_string(),
+            end: target_sunday.format("%Y-%m-%d").to_string(),
         }
     }
 
     pub fn from_date(date: NaiveDate) -> Self {
         let days_from_monday = date.weekday().num_days_from_monday();
         let monday = date - Duration::days(days_from_monday as i64);
-        let friday = monday + Duration::days(4);
+        let sunday = monday + Duration::days(6);
 
         Week {
             start: monday.format("%Y-%m-%d").to_string(),
-            end: friday.format("%Y-%m-%d").to_string(),
+            end: sunday.format("%Y-%m-%d").to_string(),
         }
     }
 
@@ -50,11 +50,11 @@ impl Week {
             .unwrap_or_else(|_| chrono::Local::now().date_naive());
 
         let new_monday = current_start + Duration::weeks(weeks);
-        let new_friday = new_monday + Duration::days(4);
+        let new_sunday = new_monday + Duration::days(6);
 
         Week {
             start: new_monday.format("%Y-%m-%d").to_string(),
-            end: new_friday.format("%Y-%m-%d").to_string(),
+            end: new_sunday.format("%Y-%m-%d").to_string(),
         }
     }
 

@@ -4,6 +4,7 @@ use crate::errors::ApiError;
 use crate::persistence_manager::PersistenceManager;
 use crate::untis::auth::AuthHelper;
 use crate::untis::untis_week::Week;
+use chrono::{Duration, NaiveDate};
 use futures::future::join_all;
 use std::collections::HashMap;
 
@@ -102,7 +103,7 @@ impl UntisClient {
 
         Self::check_untis_error(&untis_data)?;
 
-        let day_tables = untis_data
+        let mut day_tables: Vec<DayTimeTable> = untis_data
             .days
             .unwrap_or_default()
             .into_iter()
@@ -117,6 +118,19 @@ impl UntisClient {
                 day_table
             })
             .collect();
+
+        let start = NaiveDate::parse_from_str(&week.start, "%Y-%m-%d")
+            .map_err(|error| ApiError::Miscellaneous(format!("Invalid week start date: {error}")))?;
+        let end = NaiveDate::parse_from_str(&week.end, "%Y-%m-%d")
+            .map_err(|error| ApiError::Miscellaneous(format!("Invalid week end date: {error}")))?;
+        let mut date = start;
+        while date <= end {
+            if !day_tables.iter().any(|day| day.date == date) {
+                day_tables.push(DayTimeTable { date, lessons: Vec::new() });
+            }
+            date += Duration::days(1);
+        }
+        day_tables.sort_by_key(|day| day.date);
 
         Ok(WeekTimeTable { days: day_tables })
     }
