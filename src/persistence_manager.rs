@@ -1,7 +1,7 @@
 use crate::data_models::clean_models::untis::{Class, WeekTimeTable};
 use crate::untis::untis_week::Week;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use chrono::{NaiveDateTime, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -139,8 +139,8 @@ impl PersistenceManager {
     pub fn save_settings(settings: &Settings) -> Result<(), String> {
         if let Ok(Some(existing)) = Self::get_settings()
             && existing.untis_auth != settings.untis_auth {
-                Self::clear_cookies();
-            }
+            Self::clear_cookies();
+        }
 
         let serialized =
             serde_json::to_string(settings).map_err(|e| format!("Serialization failed: {}", e))?;

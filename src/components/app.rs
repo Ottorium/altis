@@ -1,4 +1,3 @@
-use crate::untis::untis_client::UntisClient;
 use crate::components::absences::*;
 use crate::components::auth_wrapper::AuthWrapper;
 use crate::components::book2eat::*;
@@ -9,12 +8,12 @@ use crate::components::navbar::*;
 use crate::components::settings::settings::*;
 use crate::components::timetable::timetable::*;
 use crate::persistence_manager::PersistenceManager;
+use crate::untis::untis_client::UntisClient;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
 #[function_component(App)]
 pub fn app() -> Html {
-
     let active_tab = use_state(|| Tab::Timetable);
 
     let on_nav_change = {

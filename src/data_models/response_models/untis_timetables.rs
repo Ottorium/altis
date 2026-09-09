@@ -1,4 +1,4 @@
-use crate::data_models::response_models::untis_response_models::{deserialize_null_as_default, UntisClassInfo};
+use crate::data_models::response_models::untis_response_models::{UntisClassInfo, deserialize_null_as_default};
 use serde::Deserialize;
 
 #[allow(dead_code)]

@@ -1,9 +1,9 @@
-use crate::untis::untis_client::UntisClient;
 use crate::components::settings::auth_settings_card::{AuthSettingsCard, AuthType};
 use crate::components::settings::clear_settings_button::ClearSettingsButton;
-use crate::persistence_manager::*;
-use yew::prelude::*;
 use crate::components::settings::visual_settings::VisualSettingsCard;
+use crate::persistence_manager::*;
+use crate::untis::untis_client::UntisClient;
+use yew::prelude::*;
 
 #[function_component(SettingsComponent)]
 pub fn settings() -> Html {

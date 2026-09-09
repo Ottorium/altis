@@ -29,11 +29,11 @@ pub fn timetable() -> HtmlResult {
         Ok((map, initial_id)) => {
             if selected_name.is_none()
                 && let Some(id) = initial_id {
-                    let initial = map.keys().find(|e| {
-                        if let Entity::Class(c) = e { c.id == *id } else { false }
-                    }).map(|e| e.name());
-                    selected_name.set(initial);
-                }
+                let initial = map.keys().find(|e| {
+                    if let Entity::Class(c) = e { c.id == *id } else { false }
+                }).map(|e| e.name());
+                selected_name.set(initial);
+            }
 
             let filtered_data: Vec<(&Entity, &WeekTimeTable)> = map.iter()
                 .filter(|(entity, _)| match (category.as_str(), entity) {
@@ -79,7 +79,10 @@ pub fn timetable() -> HtmlResult {
             let on_week_change = {
                 let selected_week = selected_week.clone();
                 let trigger = reload_trigger.clone();
-                Callback::from(move |week| { selected_week.set(week); trigger.set(*trigger + 1); })
+                Callback::from(move |week| {
+                    selected_week.set(week);
+                    trigger.set(*trigger + 1);
+                })
             };
 
             let on_swipe_next = {

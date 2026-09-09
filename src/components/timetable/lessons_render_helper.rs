@@ -1,7 +1,7 @@
 use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock};
 use chrono::{NaiveDateTime, TimeDelta};
 use web_sys::MouseEvent;
-use yew::{html, Callback, Html};
+use yew::{Callback, Html, html};
 
 pub fn generate_lessons_html(
     lessons: &[LessonBlock],
@@ -84,7 +84,7 @@ fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDa
         "CANCELLED" => {
             cls += " border border-4 border-danger";
             style += "opacity: 0.33; background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
-        },
+        }
         "CHANGED" => cls += " border border-4 border-info",
         "ADDITIONAL" => cls += " border border-4 border-success",
         _ if lesson.r#type == "EXAM" => cls += " border border-4 border-warning",

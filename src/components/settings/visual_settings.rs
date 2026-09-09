@@ -1,7 +1,7 @@
 use crate::components::settings::settings_card::SettingsCard;
-use crate::persistence_manager::{VisualSettings, ALL_WEEKDAYS, WORK_WEEKDAYS};
+use crate::persistence_manager::{ALL_WEEKDAYS, VisualSettings};
 use chrono::Weekday;
-use yew::{classes, function_component, html, use_effect_with, use_state, Callback, Html, Properties};
+use yew::{Callback, Html, Properties, classes, function_component, html, use_effect_with, use_state};
 
 #[derive(Properties, PartialEq)]
 pub struct VisualCardProps {

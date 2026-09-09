@@ -168,5 +168,5 @@ impl UntisClient {
         };
         let class_results = self.get_multiple_timetables(week.clone(), &classes).await?;
         Ok((class_results, pre_selected))
-    } 
+    }
 }

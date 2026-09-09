@@ -1,4 +1,4 @@
-use yew::{function_component, html, AttrValue, Children, Html, Properties};
+use yew::{AttrValue, Children, Html, Properties, function_component, html};
 
 #[derive(Properties, PartialEq)]
 pub struct SettingsCardProps {

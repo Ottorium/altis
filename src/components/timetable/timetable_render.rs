@@ -3,7 +3,7 @@ use crate::components::timetable::lessons_render_helper::generate_lessons_html;
 use crate::data_models::clean_models::untis::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
 use chrono::{Datelike, NaiveTime};
-use yew::{function_component, html, use_state, Callback, Html, Properties};
+use yew::{Callback, Html, Properties, function_component, html, use_state};
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
@@ -44,7 +44,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                     { timetable.to_string_pretty(true, true, true, true, true) }
                 </pre>
             </div>
-        }
+        };
     }
 
     let lessons: Vec<LessonBlock> = days.iter().flat_map(|dtt| dtt.lessons.clone()).collect();
@@ -203,12 +203,12 @@ fn fill_breaks(mut lessons: Vec<LessonBlock>, earliest: NaiveTime) -> Vec<Lesson
         result.push(curr);
         if let Some(next) = iter.peek()
             && end < next.time_range.start {
-                result.push(LessonBlock {
-                    time_range: TimeRange { start: end, end: next.time_range.start },
-                    r#type: "Break".into(),
-                    ..Default::default()
-                });
-            }
+            result.push(LessonBlock {
+                time_range: TimeRange { start: end, end: next.time_range.start },
+                r#type: "Break".into(),
+                ..Default::default()
+            });
+        }
     }
     result
 }

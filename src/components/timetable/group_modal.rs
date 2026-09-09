@@ -1,6 +1,6 @@
 use crate::data_models::clean_models::untis::{Entity, LessonBlock};
 use web_sys::MouseEvent;
-use yew::{function_component, html, Callback, Html, Properties};
+use yew::{Callback, Html, Properties, function_component, html};
 
 #[derive(Properties, PartialEq)]
 pub struct GroupModalProps {

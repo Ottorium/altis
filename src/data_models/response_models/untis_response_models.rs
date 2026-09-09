@@ -1,5 +1,5 @@
-use serde::{Deserialize, Deserializer};
 use crate::data_models::response_models::untis_timetables::UntisDayEntry;
+use serde::{Deserialize, Deserializer};
 
 fn deserialize_optional_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where

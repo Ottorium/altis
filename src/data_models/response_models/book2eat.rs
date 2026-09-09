@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize, Eq)]
 pub struct MenuResponse {

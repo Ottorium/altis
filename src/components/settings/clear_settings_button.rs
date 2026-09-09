@@ -1,5 +1,5 @@
 use crate::persistence_manager::PersistenceManager;
-use yew::{function_component, html, use_state, Callback, Html};
+use yew::{Callback, Html, function_component, html, use_state};
 
 #[function_component(ClearSettingsButton)]
 pub fn clear_settings_button() -> Html {

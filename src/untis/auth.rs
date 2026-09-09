@@ -1,6 +1,6 @@
 use crate::errors::ApiError;
 use crate::persistence_manager::{Cookies, PersistenceManager};
-use crate::request_proxy::{request_proxy, ProxyResponse};
+use crate::request_proxy::{ProxyResponse, request_proxy};
 use js_sys::Date;
 use serde_json::json;
 use std::collections::HashMap;
@@ -115,7 +115,7 @@ impl AuthHelper {
                     settings.untis_auth.user_identifier.clone(),
                     settings.untis_auth.secret.clone(),
                 )
-                .await?;
+                    .await?;
                 PersistenceManager::get_cookies().ok_or(ApiError::Authentication(
                     "Could not get cookies after authenticating".to_string(),
                 ))?
@@ -140,7 +140,7 @@ impl AuthHelper {
                 settings.untis_auth.user_identifier.clone(),
                 settings.untis_auth.secret.clone(),
             )
-            .await?;
+                .await?;
 
             let new_cookies = PersistenceManager::get_cookies().ok_or(ApiError::Authentication(
                 "Could not get cookies after re-authenticating".to_string(),
@@ -186,7 +186,7 @@ impl AuthHelper {
                 settings.untis_auth.user_identifier,
                 settings.untis_auth.secret,
             )
-            .await?;
+                .await?;
             let new_token = AuthHelper::get_token().await?;
             headers.insert(
                 "Authorization".to_string(),

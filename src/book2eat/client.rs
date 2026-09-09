@@ -35,7 +35,7 @@ pub async fn get_b2e_token() -> Result<(String, String), ApiError> {
         headers,
         body,
     )
-    .await?;
+        .await?;
 
     let json: Value =
         serde_json::from_str(&res.body).map_err(|e| ApiError::Parsing(e.to_string()))?;
