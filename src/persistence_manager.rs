@@ -74,13 +74,21 @@ impl PersistenceManager {
         Ok(())
     }
 
-    fn clear_cookies() {
-        let window = web_sys::window().expect("no global `window` exists");
-        let document = window.document().expect("should have a document on window");
-        if let Ok(html_doc) = document.dyn_into::<HtmlDocument>() {
-            let cookie_names = ["JSESSIONID", "Tenant-Id", "schoolname"];
-            for name in cookie_names {
-                let _ = html_doc.set_cookie(&format!("{}=; Max-Age=0; path=/; SameSite=Lax", name));
+    pub fn clear_cookies() {
+        if let Ok(storage) = Self::get_storage() {
+            let _ = storage.remove_item("JSESSIONID");
+            let _ = storage.remove_item("Tenant-Id");
+            let _ = storage.remove_item("schoolname");
+        }
+
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                if let Ok(html_doc) = document.dyn_into::<HtmlDocument>() {
+                    let cookie_names = ["JSESSIONID", "Tenant-Id", "schoolname"];
+                    for name in cookie_names {
+                        let _ = html_doc.set_cookie(&format!("{}=; Max-Age=0; path=/; SameSite=Lax", name));
+                    }
+                }
             }
         }
     }

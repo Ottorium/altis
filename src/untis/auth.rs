@@ -97,10 +97,6 @@ impl AuthHelper {
     }
 
     async fn get_token() -> Result<String, ApiError> {
-        let cookies = PersistenceManager::get_cookies().ok_or(ApiError::Authentication(
-            "Could not get cookies".to_string(),
-        ))?;
-
         let settings = PersistenceManager::get_settings()?
             .ok_or(ApiError::Miscellaneous("Settings are empty".to_string()))?;
 
@@ -111,6 +107,21 @@ impl AuthHelper {
             return Err(ApiError::Authentication("Credentials not set".to_string()));
         }
 
+        let cookies = match PersistenceManager::get_cookies() {
+            Some(c) => c,
+            None => {
+                Self::authenticate(
+                    settings.untis_auth.school_identifier.clone(),
+                    settings.untis_auth.user_identifier.clone(),
+                    settings.untis_auth.secret.clone(),
+                )
+                .await?;
+                PersistenceManager::get_cookies().ok_or(ApiError::Authentication(
+                    "Could not get cookies after authenticating".to_string(),
+                ))?
+            }
+        };
+
         let url = format!(
             "https://{}.webuntis.com/WebUntis/api/token/new",
             settings.untis_auth.school_identifier
@@ -119,9 +130,39 @@ impl AuthHelper {
         let mut headers = HashMap::new();
         headers.insert("Cookie".to_string(), vec![cookies.to_header_value()]);
 
-        Ok(request_proxy("GET", url.as_str(), headers, "".to_string())
-            .await?
-            .body)
+        let response = request_proxy("GET", url.as_str(), headers, "".to_string()).await?;
+        let body = response.body.trim().to_string();
+
+        let is_valid_jwt = body.split('.').count() == 3 && !body.starts_with('{');
+        if !is_valid_jwt {
+            Self::authenticate(
+                settings.untis_auth.school_identifier.clone(),
+                settings.untis_auth.user_identifier.clone(),
+                settings.untis_auth.secret.clone(),
+            )
+            .await?;
+
+            let new_cookies = PersistenceManager::get_cookies().ok_or(ApiError::Authentication(
+                "Could not get cookies after re-authenticating".to_string(),
+            ))?;
+
+            let mut new_headers = HashMap::new();
+            new_headers.insert("Cookie".to_string(), vec![new_cookies.to_header_value()]);
+
+            let retry_response = request_proxy("GET", url.as_str(), new_headers, "".to_string()).await?;
+            let retry_body = retry_response.body.trim().to_string();
+
+            if retry_body.split('.').count() == 3 && !retry_body.starts_with('{') {
+                return Ok(retry_body);
+            } else {
+                return Err(ApiError::Authentication(format!(
+                    "Failed to obtain JWT token: {}",
+                    retry_body
+                )));
+            }
+        }
+
+        Ok(body)
     }
 
     pub async fn authorized_request(
@@ -135,6 +176,25 @@ impl AuthHelper {
             "Authorization".to_string(),
             vec![format!("Bearer {}", token)],
         );
-        Ok(request_proxy(method, url, headers, body).await?)
+        let res = request_proxy(method, url, headers.clone(), body.clone()).await?;
+
+        if res.body.contains("UNAUTHORIZED") || res.body.contains("TOKEN_EXPIRED") {
+            let settings = PersistenceManager::get_settings()?
+                .ok_or(ApiError::Miscellaneous("Settings are empty".to_string()))?;
+            Self::authenticate(
+                settings.untis_auth.school_identifier,
+                settings.untis_auth.user_identifier,
+                settings.untis_auth.secret,
+            )
+            .await?;
+            let new_token = AuthHelper::get_token().await?;
+            headers.insert(
+                "Authorization".to_string(),
+                vec![format!("Bearer {}", new_token)],
+            );
+            return Ok(request_proxy(method, url, headers, body).await?);
+        }
+
+        Ok(res)
     }
 }

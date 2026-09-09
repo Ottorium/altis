@@ -41,6 +41,8 @@ impl UntisClient {
         let untis_data: UntisResponse =
             serde_json::from_str(&response.body).map_err(|e| ApiError::Parsing(format!("Serialization error: {}", e)))?;
 
+        Self::check_untis_error(&untis_data)?;
+
         let classes: Vec<Class> = untis_data
             .classes
             .unwrap_or_default()
@@ -49,6 +51,19 @@ impl UntisClient {
             .collect();
 
         Ok((classes, untis_data.pre_selected.map(|x| x.id)))
+    }
+
+    fn check_untis_error(untis_data: &UntisResponse) -> Result<(), ApiError> {
+        if let Some(msg) = &untis_data.error_message && !msg.is_empty() {
+            if let Some(code) = &untis_data.error_code && !code.is_empty() {
+                return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {} ({})", msg, code)));
+            }
+            return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {}", msg)));
+        }
+        if let Some(code) = &untis_data.error_code && !code.is_empty() {
+            return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {}", code)));
+        }
+        Ok(())
     }
 
     pub async fn get_timetable(&self, week: Week, class: Class) -> Result<WeekTimeTable, ApiError> {
@@ -85,9 +100,7 @@ impl UntisClient {
             ))
         })?;
 
-        if let Some(error) = untis_data.error_message && !error.is_empty() {
-            return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {:#?}", error)));
-        }
+        Self::check_untis_error(&untis_data)?;
 
         let day_tables = untis_data
             .days
@@ -135,7 +148,10 @@ impl UntisClient {
         &self,
         week: Week,
     ) -> Result<(HashMap<Class, WeekTimeTable>, Option<i32>), ApiError> {
-        let (classes, pre_selected) = self.get_classes(Week::current()).await?;
+        let (classes, pre_selected) = match self.get_classes(week.clone()).await {
+            Ok((classes, pre_selected)) if !classes.is_empty() => (classes, pre_selected),
+            _ => self.get_classes(Week::current()).await?,
+        };
         let class_results = self.get_multiple_timetables(week.clone(), &classes).await?;
         Ok((class_results, pre_selected))
     } 

@@ -10,7 +10,7 @@ impl From<UntisClassEntry> for Class {
             id: entry.class_info.id,
             name: entry.class_info.short_name,
             class_teacher: entry.class_teacher1.map(Teacher::from),
-            department: Department::from(entry.department),
+            department: entry.department.map(Department::from).unwrap_or_default(),
         }
     }
 }

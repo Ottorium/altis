@@ -1,5 +1,18 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use crate::data_models::response_models::untis_timetables::UntisDayEntry;
+
+fn deserialize_optional_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match value {
+        Some(serde_json::Value::String(s)) => Ok(Some(s)),
+        Some(serde_json::Value::Number(n)) => Ok(Some(n.to_string())),
+        Some(serde_json::Value::Null) | None => Ok(None),
+        Some(other) => Ok(Some(other.to_string())),
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]
@@ -20,9 +33,21 @@ pub struct UntisResponse {
     pub subjects: Option<Vec<serde_json::Value>>,
     pub students: Option<Vec<serde_json::Value>>,
     pub teachers: Option<Vec<serde_json::Value>>,
-    pub error_code: Option<Vec<serde_json::Value>>,
-    pub error_message: Option<Vec<serde_json::Value>>,
-    pub request_id: Option<Vec<serde_json::Value>>,
+    #[serde(default, deserialize_with = "deserialize_optional_string")]
+    pub error_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_string")]
+    pub error_message: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_string")]
+    pub request_id: Option<String>,
+}
+
+pub fn deserialize_null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    let opt = Option::<T>::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 #[allow(dead_code)]
@@ -30,8 +55,11 @@ pub struct UntisResponse {
 #[serde(rename_all = "camelCase")]
 pub struct UntisPreSelected {
     pub id: i32,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub short_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub long_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub display_name: String,
 }
 
@@ -43,7 +71,8 @@ pub struct UntisClassEntry {
     pub class_info: UntisClassInfo,
     pub class_teacher1: Option<UntisTeacher>,
     pub class_teacher2: Option<UntisTeacher>,
-    pub department: UntisDepartment,
+    #[serde(default)]
+    pub department: Option<UntisDepartment>,
 }
 
 #[allow(dead_code)]
@@ -51,8 +80,11 @@ pub struct UntisClassEntry {
 #[serde(rename_all = "camelCase")]
 pub struct UntisClassInfo {
     pub id: i32,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub short_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub long_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub display_name: String,
 }
 
@@ -61,8 +93,11 @@ pub struct UntisClassInfo {
 #[serde(rename_all = "camelCase")]
 pub struct UntisTeacher {
     pub id: i32,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub short_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub long_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub display_name: String,
 }
 
@@ -71,7 +106,10 @@ pub struct UntisTeacher {
 #[serde(rename_all = "camelCase")]
 pub struct UntisDepartment {
     pub id: i32,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub short_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub long_name: String,
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub display_name: String,
 }
