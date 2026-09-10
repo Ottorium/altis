@@ -36,6 +36,14 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
         .cloned().collect();
     days.sort_by_key(|x| x.date);
 
+    for day in &mut days {
+        for lesson in &mut day.lessons {
+            if let Some(color) = visual_settings.get_lesson_color_override(lesson) {
+                lesson.color_hex = color.trim_start_matches('#').to_string();
+            }
+        }
+    }
+
     if visual_settings.force_ascii_timetable {
         let timetable = WeekTimeTable { days };
         return html! {

@@ -28,7 +28,8 @@ pub fn group_detail_modal(props: &GroupModalProps) -> Html {
                     </div>
                     <div class="modal-body p-4 custom-scrollbar" style="max-height: 80vh; overflow-y: auto; background-color: #1a1d20;">
                         { for props.lessons.iter().filter(|l| l.r#type != "Break").map(|l| {
-                            let border_style = format!("border-left: 5px solid #{} !important; background-color: #2b3035;", l.color_hex);
+                            let hex = l.color_hex.trim_start_matches('#');
+                            let border_style = format!("border-left: 5px solid #{hex} !important; background-color: #2b3035;");
                             html! {
                                 <div class="card mb-3 shadow-sm border-0" style={border_style}>
                                     <div class="card-body text-light">

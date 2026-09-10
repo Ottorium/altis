@@ -1,4 +1,5 @@
 use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock};
+use crate::persistence_manager::is_dark_color;
 use chrono::{NaiveDateTime, TimeDelta};
 use web_sys::MouseEvent;
 use yew::{Callback, Html, html};
@@ -77,8 +78,10 @@ fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDa
     let top = ((lesson.time_range.start - group_start).num_seconds() as f64 / group_duration) * 100.0;
     let h = ((lesson.time_range.end - lesson.time_range.start).num_seconds() as f64 / group_duration) * 100.0;
 
-    let mut style = format!("background-color: #{};", lesson.color_hex);
-    let mut cls = "rounded text-black text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center overflow-hidden".to_string();
+    let hex = lesson.color_hex.trim_start_matches('#');
+    let mut style = format!("background-color: #{hex};");
+    let text_cls = if is_dark_color(hex) { "text-white" } else { "text-black" };
+    let mut cls = format!("rounded {text_cls} text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center overflow-hidden");
 
     match lesson.status.as_str() {
         "CANCELLED" => {

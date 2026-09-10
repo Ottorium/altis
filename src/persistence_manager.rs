@@ -1,10 +1,10 @@
-use crate::data_models::clean_models::untis::{Class, WeekTimeTable};
+use crate::data_models::clean_models::untis::{ChangeStatus, Class, Entity, LessonBlock, WeekTimeTable};
 use crate::untis::untis_week::Week;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use chrono::{NaiveDateTime, Weekday};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlDocument, Storage};
@@ -71,6 +71,70 @@ pub struct VisualSettings {
     pub force_ascii_timetable: bool,
     #[serde(default)]
     pub weekday_override: WeekdayOverride,
+    #[serde(default)]
+    pub subject_color_overrides: BTreeMap<String, String>,
+}
+
+impl VisualSettings {
+    /// Look up a color override for a given subject name (case-insensitive).
+    pub fn get_subject_color_override(&self, subject_name: &str) -> Option<&String> {
+        let trimmed = subject_name.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        self.subject_color_overrides.iter().find_map(|(k, v)| {
+            if k.trim().eq_ignore_ascii_case(trimmed) {
+                Some(v)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Check if a lesson block has an entity that matches any subject color override.
+    /// Prefers active (non-removed) subjects over removed ones.
+    pub fn get_lesson_color_override(&self, lesson: &LessonBlock) -> Option<String> {
+        let mut subjects: Vec<_> = lesson
+            .entities
+            .iter()
+            .filter_map(|e| {
+                if let Entity::Subject(sub) = &e.inner {
+                    Some((&e.status, sub))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // Sort so non-removed subjects are checked first
+        subjects.sort_by_key(|(status, _)| **status == ChangeStatus::Removed);
+
+        for (_, sub) in subjects {
+            if let Some(color) = self.get_subject_color_override(&sub.short_name) {
+                return Some(color.clone());
+            }
+            if let Some(color) = self.get_subject_color_override(&sub.display_name) {
+                return Some(color.clone());
+            }
+            if let Some(color) = self.get_subject_color_override(&sub.long_name) {
+                return Some(color.clone());
+            }
+        }
+        None
+    }
+}
+
+pub fn is_dark_color(hex: &str) -> bool {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() >= 6 {
+        let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(255) as f64;
+        let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(255) as f64;
+        let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(255) as f64;
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        luminance < 140.0
+    } else {
+        false
+    }
 }
 
 
@@ -202,6 +266,29 @@ impl PersistenceManager {
             }
             None => Ok(None),
         }
+    }
+
+    pub fn get_known_subjects() -> Vec<String> {
+        let mut subjects = BTreeSet::new();
+        if let Ok(Some(cache)) = Self::get_timetables() {
+            for (_, tables) in cache.tables.values() {
+                for week_table in tables.0.values() {
+                    for day in &week_table.days {
+                        for lesson in &day.lessons {
+                            for entity in &lesson.entities {
+                                if let Entity::Subject(sub) = &entity.inner {
+                                    let name = sub.short_name.trim();
+                                    if !name.is_empty() {
+                                        subjects.insert(name.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        subjects.into_iter().collect()
     }
 
     pub fn clear_storage() -> Result<(), String> {
