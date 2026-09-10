@@ -11,7 +11,9 @@ pub struct Data {
     pub qr_code: String,
     pub day_from: String,
     pub day_to: String,
+    #[serde(default)]
     pub menue: HashMap<String, Meal>,
+    #[serde(default)]
     pub not_visible_days: Vec<i32>,
 }
 
