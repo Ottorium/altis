@@ -4,7 +4,6 @@ mod settings;
 mod timetable;
 mod absences;
 mod messages;
-mod letto;
 mod book2eat;
 mod auth_wrapper;
 mod loading;

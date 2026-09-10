@@ -1,7 +1,6 @@
 use crate::components::absences::*;
 use crate::components::auth_wrapper::AuthWrapper;
 use crate::components::book2eat::*;
-use crate::components::letto::*;
 use crate::components::loading::*;
 use crate::components::messages::*;
 use crate::components::navbar::*;
@@ -26,7 +25,6 @@ pub fn app() -> Html {
         Tab::Messages => html! { <AuthWrapper><MessagesComponent /></AuthWrapper> },
         Tab::Absences => html! { <AuthWrapper><AbsencesComponent /></AuthWrapper> },
         Tab::Settings => html! { <SettingsComponent /> },
-        Tab::Letto => html! { <LettoComponent /> },
         Tab::Book2Eat => html! { <Book2EatComponent /> },
     };
 

@@ -6,7 +6,6 @@ pub enum Tab {
     Messages,
     Absences,
     Settings,
-    Letto,
     Book2Eat,
 }
 
@@ -22,7 +21,6 @@ pub fn navbar(props: &NavProps) -> Html {
         (Tab::Timetable, "Timetable"),
         (Tab::Messages, "Messages"),
         (Tab::Absences, "Absences"),
-        (Tab::Letto, "Letto"),
         (Tab::Book2Eat, "Book2Eat"),
     ];
 
@@ -68,7 +66,6 @@ fn get_icon(tab: &Tab) -> &'static str {
         Tab::Messages => "bi-chat-dots",
         Tab::Absences => "bi-person-exclamation",
         Tab::Settings => "bi-gear",
-        Tab::Letto => "bi-mortarboard",
         Tab::Book2Eat => "bi bi-fork-knife",
     }
 }
