@@ -152,6 +152,45 @@ pub struct AuthSettings {
     pub secret: String,
 }
 
+/// Settings as they are shared with other devices, the logins are only included when asked for
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct SettingsExport {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub untis_auth: Option<AuthSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub b2e_auth: Option<AuthSettings>,
+    pub visual_settings: VisualSettings,
+}
+
+impl SettingsExport {
+    pub fn new(settings: &Settings, include_credentials: bool) -> Self {
+        Self {
+            untis_auth: include_credentials.then(|| settings.untis_auth.clone()),
+            b2e_auth: include_credentials.then(|| settings.b2e_auth.clone()),
+            visual_settings: settings.visual_settings.clone(),
+        }
+    }
+
+    pub fn parse(text: &str) -> Result<Self, String> {
+        serde_json::from_str(text.trim()).map_err(|_| "This isn't an Altis settings export".to_string())
+    }
+
+    pub fn has_credentials(&self) -> bool {
+        self.untis_auth.is_some() || self.b2e_auth.is_some()
+    }
+
+    /// Overwrites the given settings with the imported ones, logins that weren't exported are kept
+    pub fn apply_to(self, settings: &mut Settings) {
+        if let Some(auth) = self.untis_auth {
+            settings.untis_auth = auth;
+        }
+        if let Some(auth) = self.b2e_auth {
+            settings.b2e_auth = auth;
+        }
+        settings.visual_settings = self.visual_settings;
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Debug)]
 pub struct PersistenceManager {}
 

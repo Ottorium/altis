@@ -8,7 +8,7 @@ edition = "2024"
 yew = { version = "0.22.0", features = ["csr"] }
 console_error_panic_hook = "0.1.7"
 log = "0.4.29"
-web-sys = { version = "0.3.85", features = ["HtmlDocument", "HtmlSelectElement", "HtmlElement", "Event", "TouchList", "Touch", "CssStyleDeclaration"] }
+web-sys = { version = "0.3.85", features = ["HtmlDocument", "HtmlSelectElement", "HtmlElement", "Event", "TouchList", "Touch", "CssStyleDeclaration", "Navigator", "DomTokenList", "MediaDevices", "MediaStream", "MediaStreamConstraints", "MediaStreamTrack", "HtmlMediaElement", "HtmlVideoElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "ContextAttributes2d", "ImageData"] }
 serde_json = "1.0.149"
 wasm-bindgen-futures = "0.4.58"
 totp-rs = "5.7.0"
@@ -20,12 +20,13 @@ wasm-bindgen = "0.2.108"
 serde-wasm-bindgen = "0.6.5"
 chrono-tz = "0.10.4"
 futures = "0.3.31"
-gloo-timers = "0.3.0"
+gloo-timers = { version = "0.3.0", features = ["futures"] }
 serde_urlencoded = "0.7.1"
 qrcode-generator = "5.0.0"
 base64 = "0.22.1"
 postcard = { version = "1.1.3", features = ["alloc"] }
 zstd = "0.13.3"
+rqrr = { version = "0.11.0", default-features = false }
 [workspace]
 members = ["src-tauri"]
 [build-dependencies]

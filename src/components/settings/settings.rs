@@ -1,5 +1,6 @@
 use crate::components::settings::auth_settings_card::{AuthSettingsCard, AuthType};
 use crate::components::settings::clear_settings_button::ClearSettingsButton;
+use crate::components::settings::share_settings_button::ShareSettingsButton;
 use crate::components::settings::visual_settings::VisualSettingsCard;
 use crate::persistence_manager::*;
 use crate::untis::untis_client::UntisClient;
@@ -71,7 +72,10 @@ pub fn settings() -> Html {
                 <div class="col-12 col-md-8 col-lg-6">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2 class="text-white mb-0">{"Settings"}</h2>
-                        <ClearSettingsButton />
+                        <div class="d-flex gap-2">
+                            <ShareSettingsButton />
+                            <ClearSettingsButton />
+                        </div>
                     </div>
 
                     {if let Some(msg) = &*error_message {

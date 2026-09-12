@@ -8,3 +8,4 @@ mod book2eat;
 mod auth_wrapper;
 mod loading;
 mod qr_code;
+mod qr_scanner;

@@ -5,6 +5,7 @@ mod data_models;
 mod untis;
 mod book2eat;
 mod errors;
+mod native;
 
 use components::app::App;
 
