@@ -1,4 +1,5 @@
 use crate::data_models::clean_models::untis::*;
+use crate::data_models::response_models::untis_messages::*;
 use crate::data_models::response_models::untis_response_models::*;
 use crate::errors::ApiError;
 use crate::persistence_manager::PersistenceManager;
@@ -6,6 +7,7 @@ use crate::untis::auth::AuthHelper;
 use crate::untis::untis_week::Week;
 use chrono::{Duration, NaiveDate};
 use futures::future::join_all;
+use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 
 pub struct UntisClient {
@@ -38,7 +40,7 @@ impl UntisClient {
             week.end,
         );
 
-        let untis_data = Self::fetch(&url).await?;
+        let untis_data: UntisResponse = Self::fetch(&url).await?;
 
         let classes: Vec<Class> = untis_data
             .classes
@@ -50,25 +52,30 @@ impl UntisClient {
         Ok((classes, untis_data.pre_selected.map(|x| x.id)))
     }
 
-    fn check_untis_error(untis_data: &UntisResponse) -> Result<(), ApiError> {
-        if let Some(msg) = &untis_data.error_message && !msg.is_empty() {
-            if let Some(code) = &untis_data.error_code && !code.is_empty() {
+    fn check_untis_error(untis_error: &UntisError) -> Result<(), ApiError> {
+        if let Some(msg) = &untis_error.error_message && !msg.is_empty() {
+            if let Some(code) = &untis_error.error_code && !code.is_empty() {
                 return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {} ({})", msg, code)));
             }
             return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {}", msg)));
         }
-        if let Some(code) = &untis_data.error_code && !code.is_empty() {
+        if let Some(code) = &untis_error.error_code && !code.is_empty() {
             return Err(ApiError::Miscellaneous(format!("Error in response from Untis: {}", code)));
         }
         Ok(())
     }
 
     /// Performs an authorized GET request and parses the response, including Untis error checking
-    async fn fetch(url: &str) -> Result<UntisResponse, ApiError> {
+    async fn fetch<T: DeserializeOwned>(url: &str) -> Result<T, ApiError> {
         let response = AuthHelper::authorized_request("GET", url, HashMap::new(), "".to_string())
             .await?;
 
-        let untis_data: UntisResponse = serde_json::from_str(&response.body).map_err(|e| {
+        // checked first, an error response doesn't parse as the expected type
+        if let Ok(untis_error) = serde_json::from_str::<UntisError>(&response.body) {
+            Self::check_untis_error(&untis_error)?;
+        }
+
+        serde_json::from_str(&response.body).map_err(|e| {
             let line = e.line();
             let col = e.column();
             let line_content = response.body.lines().nth(line.saturating_sub(1)).unwrap_or("");
@@ -88,15 +95,12 @@ impl UntisClient {
                 "JSON Error: {} at line {} col {}.\nContext: {}",
                 e, line, col, snippet
             ))
-        })?;
-
-        Self::check_untis_error(&untis_data)?;
-        Ok(untis_data)
+        })
     }
 
     /// Fetches timetable entries and fills in the days of the week that have no lessons
     async fn fetch_week(url: &str, week: &Week) -> Result<WeekTimeTable, ApiError> {
-        let mut day_tables: Vec<DayTimeTable> = Self::fetch(url)
+        let mut day_tables: Vec<DayTimeTable> = Self::fetch::<UntisResponse>(url)
             .await?
             .days
             .unwrap_or_default()
@@ -148,7 +152,7 @@ impl UntisClient {
             week.end,
         );
 
-        Ok(Self::fetch(&url).await?.pre_selected)
+        Ok(Self::fetch::<UntisResponse>(&url).await?.pre_selected)
     }
 
     /// Gets the personal timetable of the logged in student, which only contains their own lessons
@@ -206,5 +210,26 @@ impl UntisClient {
         };
         let class_results = self.get_multiple_timetables(week.clone(), &classes).await?;
         Ok((class_results, pre_selected))
+    }
+
+    /// The messages in the inbox, newest first
+    pub async fn get_messages(&self) -> Result<Vec<MessagePreview>, ApiError> {
+        let url = format!("https://{}.webuntis.com/WebUntis/api/rest/view/v1/messages", self.school_name);
+        Ok(Self::fetch::<MessageList>(&url).await?.incoming_messages)
+    }
+
+    /// WebUntis doesn't send a separate request to mark a message as read, loading it does that
+    pub async fn get_message(&self, id: i32) -> Result<Message, ApiError> {
+        let url = format!("https://{}.webuntis.com/WebUntis/api/rest/view/v1/messages/{}", self.school_name, id);
+        Self::fetch(&url).await
+    }
+
+    pub async fn get_attachment_download(&self, attachment_id: &str) -> Result<AttachmentDownload, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/rest/view/v1/messages/{}/attachmentstorageurl",
+            self.school_name,
+            attachment_id,
+        );
+        Self::fetch(&url).await
     }
 }

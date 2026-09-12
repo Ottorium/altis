@@ -1,5 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -30,6 +31,19 @@ struct SaveFileArgs<'a> {
 /// Lets the user pick where to save the file, `false` if they cancelled
 pub async fn save_file(file_name: &str, contents: &str) -> Result<bool, String> {
     call("save_file", &SaveFileArgs { file_name, contents }).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadFileArgs<'a> {
+    url: &'a str,
+    headers: &'a HashMap<String, Vec<String>>,
+    file_name: &'a str,
+}
+
+/// Downloads the file and lets the user pick where to save it, `false` if they cancelled
+pub async fn download_file(url: &str, headers: &HashMap<String, Vec<String>>, file_name: &str) -> Result<bool, String> {
+    call("download_file", &DownloadFileArgs { url, headers, file_name }).await
 }
 
 /// Lets the user pick a file and reads it, `None` if they cancelled

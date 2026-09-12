@@ -34,11 +34,17 @@ pub struct UntisResponse {
     pub students: Option<Vec<serde_json::Value>>,
     pub teachers: Option<Vec<serde_json::Value>>,
     #[serde(default, deserialize_with = "deserialize_optional_string")]
+    pub request_id: Option<String>,
+}
+
+/// The error fields of a response, independent of what the endpoint returns otherwise
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UntisError {
+    #[serde(default, deserialize_with = "deserialize_optional_string")]
     pub error_code: Option<String>,
     #[serde(default, deserialize_with = "deserialize_optional_string")]
     pub error_message: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_optional_string")]
-    pub request_id: Option<String>,
 }
 
 pub fn deserialize_null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>

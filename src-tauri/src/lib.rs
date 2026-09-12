@@ -3,7 +3,7 @@ use rustls::ClientConfig;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::io::{Read, Write as _};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_fs::{FsExt, OpenOptions};
 
 #[derive(serde::Serialize)]
@@ -12,13 +12,7 @@ struct ProxyResponse {
     body: String,
 }
 
-#[tauri::command]
-async fn proxy(
-    method: String,
-    url: String,
-    headers: HashMap<String, Vec<String>>,
-    body: String,
-) -> Result<ProxyResponse, String> {
+fn http_client() -> Result<reqwest::Client, String> {
     let mut root_store = rustls::RootCertStore::empty();
     root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
@@ -26,14 +20,13 @@ async fn proxy(
         .with_root_certificates(root_store)
         .with_no_client_auth();
 
-    let client = reqwest::Client::builder()
+    reqwest::Client::builder()
         .use_preconfigured_tls(config)
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())
+}
 
-    let http_method = Method::from_bytes(method.to_uppercase().as_bytes())
-        .map_err(|_| format!("Invalid HTTP method: {}", method))?;
-
+fn header_map(headers: HashMap<String, Vec<String>>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
     for (key, values) in headers {
         if let Ok(name) = HeaderName::from_bytes(key.as_bytes()) {
@@ -44,9 +37,21 @@ async fn proxy(
             }
         }
     }
+    header_map
+}
 
-    let res = client.request(http_method, &url)
-        .headers(header_map)
+#[tauri::command]
+async fn proxy(
+    method: String,
+    url: String,
+    headers: HashMap<String, Vec<String>>,
+    body: String,
+) -> Result<ProxyResponse, String> {
+    let http_method = Method::from_bytes(method.to_uppercase().as_bytes())
+        .map_err(|_| format!("Invalid HTTP method: {}", method))?;
+
+    let res = http_client()?.request(http_method, &url)
+        .headers(header_map(headers))
         .body(body)
         .send()
         .await
@@ -68,6 +73,13 @@ async fn proxy(
     })
 }
 
+fn write_file(app: &tauri::AppHandle, path: FilePath, contents: &[u8]) -> Result<(), String> {
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    let mut file = app.fs().open(path, options).map_err(|e| e.to_string())?;
+    file.write_all(contents).map_err(|e| e.to_string())
+}
+
 /// Asks where to save the file, `false` if the user cancelled
 #[tauri::command]
 async fn save_file(app: tauri::AppHandle, file_name: String, contents: String) -> Result<bool, String> {
@@ -78,10 +90,36 @@ async fn save_file(app: tauri::AppHandle, file_name: String, contents: String) -
         return Ok(false);
     };
 
-    let mut options = OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    let mut file = app.fs().open(path, options).map_err(|e| e.to_string())?;
-    file.write_all(contents.as_bytes()).map_err(|e| e.to_string())?;
+    write_file(&app, path, contents.as_bytes())?;
+    Ok(true)
+}
+
+/// Downloads the file, then asks where to save it, `false` if the user cancelled.
+/// Files are binary, so unlike the proxy's text body they can't be passed to the webview
+#[tauri::command]
+async fn download_file(
+    app: tauri::AppHandle,
+    url: String,
+    headers: HashMap<String, Vec<String>>,
+    file_name: String,
+) -> Result<bool, String> {
+    let contents = http_client()?.get(&url)
+        .headers(header_map(headers))
+        .send()
+        .await
+        .and_then(|res| res.error_for_status())
+        .map_err(|e| report(&e))?
+        .bytes()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let Some(path) = app.dialog().file()
+        .set_file_name(file_name)
+        .blocking_save_file() else {
+        return Ok(false);
+    };
+
+    write_file(&app, path, &contents)?;
     Ok(true)
 }
 
@@ -152,7 +190,7 @@ pub fn run() {
             allow_camera(_app);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![proxy, save_file, open_file])
+        .invoke_handler(tauri::generate_handler![proxy, save_file, download_file, open_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
