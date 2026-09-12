@@ -111,7 +111,14 @@ pub fn book2eat() -> HtmlResult {
               .b2e-dot { width: 8px; height: 8px; border-radius: 50%; background-color: rgba(255,255,255,0.3); cursor: pointer; transition: background-color 0.2s ease, transform 0.2s ease; }
               .b2e-dot.active { background-color: #fff; transform: scale(1.3); }
               .b2e-meal-list { animation: b2e-fade-in 0.2s ease; }
-              @keyframes b2e-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }"}
+              .b2e-meal-name { font-size: clamp(0.8rem, 2cqw, 2.5rem); }
+              .b2e-meal-type { font-size: clamp(0.5rem, 1.6cqw, 1.5rem); }
+              @keyframes b2e-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+              @media (min-width: 768px) {
+                .b2e-qr-wrapper { width: min(520px, 40vh); height: min(520px, 40vh); }
+                .b2e-meal-name { font-size: clamp(0.9rem, min(1.4vw, 2.8vh), 1.6rem); }
+                .b2e-meal-type { font-size: clamp(0.7rem, min(1vw, 2vh), 1.1rem); }
+              }"}
         </style>
 
         <div class="d-flex justify-content-center align-items-center bg-light rounded p-4 mb-3 b2e-qr-wrapper">
@@ -144,16 +151,10 @@ pub fn book2eat() -> HtmlResult {
 
                 html! {
                     <div class={classes!(border_class, "shadow-sm", "text-center", "text-white", "py-2", "w-100")}>
-                        <div
-                            class="fw-bold"
-                            style="font-size: clamp(0.8rem, 2cqw, 2.5rem);"
-                        >
+                        <div class="fw-bold b2e-meal-name">
                             { &meal.name }
                         </div>
-                        <div
-                            class="text-secondary"
-                            style="font-size: clamp(0.5rem, 1.6cqw, 1.5rem);"
-                        >
+                        <div class="text-secondary b2e-meal-type">
                             { &meal.typ_name }
                         </div>
                     </div>
