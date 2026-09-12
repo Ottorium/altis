@@ -9,6 +9,7 @@ pub struct ControlsProps {
     pub selected_name: Option<String>,
     pub selected_week: Week,
     pub filtered_names: Vec<String>,
+    pub loading: bool,
     pub on_category_change: Callback<String>,
     pub on_entity_change: Callback<String>,
     pub on_week_change: Callback<Week>,
@@ -67,21 +68,31 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
     html! {
         <div class="sticky-top p-3 mb-1 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
             <div class="d-flex align-items-center">
-                <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_cat_change}>
-                    <option value="Class" selected={category == "Class"}>{"Class"}</option>
-                    <option value="Teacher" selected={category == "Teacher"}>{"Teacher"}</option>
-                    <option value="Room" selected={category == "Room"}>{"Room"}</option>
-                </select>
+                if props.loading {
+                    <div class="d-flex align-items-center text-secondary px-2 me-2" role="status">
+                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                        <span>{"Loading..."}</span>
+                    </div>
+                } else {
+                    <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_cat_change}>
+                        <option value="Me" selected={category == "Me"}>{"Me"}</option>
+                        <option value="Class" selected={category == "Class"}>{"Class"}</option>
+                        <option value="Teacher" selected={category == "Teacher"}>{"Teacher"}</option>
+                        <option value="Room" selected={category == "Room"}>{"Room"}</option>
+                    </select>
 
-                <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_ent_change}>
-                    {for filtered_names.iter().map(|name| {
-                        html! {
-                            <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>
-                                { name }
-                            </option>
-                        }
-                    })}
-                </select>
+                    if !filtered_names.is_empty() {
+                        <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_ent_change}>
+                            {for filtered_names.iter().map(|name| {
+                                html! {
+                                    <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>
+                                        { name }
+                                    </option>
+                                }
+                            })}
+                        </select>
+                    }
+                }
 
                 // DESKTOP DATE SELECTOR
                 <div class="btn-group shadow-sm ms-md-2 d-none d-md-inline-flex" role="group">

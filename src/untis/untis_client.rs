@@ -38,11 +38,7 @@ impl UntisClient {
             week.end,
         );
 
-        let response = AuthHelper::authorized_request("GET", url.as_str(), HashMap::new(), "".to_string()).await?;
-        let untis_data: UntisResponse =
-            serde_json::from_str(&response.body).map_err(|e| ApiError::Parsing(format!("Serialization error: {}", e)))?;
-
-        Self::check_untis_error(&untis_data)?;
+        let untis_data = Self::fetch(&url).await?;
 
         let classes: Vec<Class> = untis_data
             .classes
@@ -67,16 +63,9 @@ impl UntisClient {
         Ok(())
     }
 
-    pub async fn get_timetable(&self, week: Week, class: Class) -> Result<WeekTimeTable, ApiError> {
-        let url = format!(
-            "https://{}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries?start={}&end={}&format=1&resourceType=CLASS&resources={}&periodTypes=&timetableType=STANDARD&",
-            self.school_name,
-            week.start,
-            week.end,
-            class.id,
-        );
-
-        let response = AuthHelper::authorized_request("GET", url.as_str(), HashMap::new(), "".to_string())
+    /// Performs an authorized GET request and parses the response, including Untis error checking
+    async fn fetch(url: &str) -> Result<UntisResponse, ApiError> {
+        let response = AuthHelper::authorized_request("GET", url, HashMap::new(), "".to_string())
             .await?;
 
         let untis_data: UntisResponse = serde_json::from_str(&response.body).map_err(|e| {
@@ -102,21 +91,17 @@ impl UntisClient {
         })?;
 
         Self::check_untis_error(&untis_data)?;
+        Ok(untis_data)
+    }
 
-        let mut day_tables: Vec<DayTimeTable> = untis_data
+    /// Fetches timetable entries and fills in the days of the week that have no lessons
+    async fn fetch_week(url: &str, week: &Week) -> Result<WeekTimeTable, ApiError> {
+        let mut day_tables: Vec<DayTimeTable> = Self::fetch(url)
+            .await?
             .days
             .unwrap_or_default()
             .into_iter()
-            .map(|day| {
-                let mut day_table = DayTimeTable::from(day);
-                for lesson in &mut day_table.lessons {
-                    lesson.entities.push(Tracked {
-                        inner: Entity::Class(class.clone()),
-                        status: ChangeStatus::Regular,
-                    });
-                }
-                day_table
-            })
+            .map(DayTimeTable::from)
             .collect();
 
         let start = NaiveDate::parse_from_str(&week.start, "%Y-%m-%d")
@@ -133,6 +118,59 @@ impl UntisClient {
         day_tables.sort_by_key(|day| day.date);
 
         Ok(WeekTimeTable { days: day_tables })
+    }
+
+    pub async fn get_timetable(&self, week: Week, class: Class) -> Result<WeekTimeTable, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries?start={}&end={}&format=1&resourceType=CLASS&resources={}&periodTypes=&timetableType=STANDARD&",
+            self.school_name,
+            week.start,
+            week.end,
+            class.id,
+        );
+
+        let mut timetable = Self::fetch_week(&url, &week).await?;
+        for lesson in timetable.days.iter_mut().flat_map(|day| &mut day.lessons) {
+            lesson.entities.push(Tracked {
+                inner: Entity::Class(class.clone()),
+                status: ChangeStatus::Regular,
+            });
+        }
+
+        Ok(timetable)
+    }
+
+    async fn get_me(&self, week: &Week) -> Result<Option<UntisPreSelected>, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/rest/view/v1/timetable/filter?resourceType=STUDENT&timetableType=MY_TIMETABLE&start={}&end={}",
+            self.school_name,
+            week.start,
+            week.end,
+        );
+
+        Ok(Self::fetch(&url).await?.pre_selected)
+    }
+
+    /// Gets the personal timetable of the logged in student, which only contains their own lessons
+    pub async fn get_my_timetable(&self, week: Week) -> Result<MyTimeTable, ApiError> {
+        let me = match self.get_me(&week).await {
+            Ok(Some(me)) => me,
+            _ => self.get_me(&Week::current()).await?
+                .ok_or(ApiError::Miscellaneous("Untis did not return a personal timetable for this account".to_string()))?,
+        };
+
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/rest/view/v1/timetable/entries?start={}&end={}&format=3&resourceType=STUDENT&resources={}&periodTypes=&timetableType=MY_TIMETABLE&layout=START_TIME",
+            self.school_name,
+            week.start,
+            week.end,
+            me.id,
+        );
+
+        Ok(MyTimeTable {
+            name: if me.display_name.is_empty() { me.short_name } else { me.display_name },
+            timetable: Self::fetch_week(&url, &week).await?,
+        })
     }
 
     async fn get_multiple_timetables(&self, week: Week, classes: &[Class]) -> Result<HashMap<Class, WeekTimeTable>, ApiError> {

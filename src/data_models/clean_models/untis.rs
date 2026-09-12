@@ -55,6 +55,13 @@ pub struct WeekTimeTable {
     pub days: Vec<DayTimeTable>,
 }
 
+/// The personal timetable of the logged in user (only their own groups/lessons)
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct MyTimeTable {
+    pub name: String,
+    pub timetable: WeekTimeTable,
+}
+
 #[allow(dead_code)]
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct DayTimeTable {

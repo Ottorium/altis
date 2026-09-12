@@ -1,8 +1,9 @@
-use crate::data_models::clean_models::untis::{ChangeStatus, Class, Entity, LessonBlock, WeekTimeTable};
+use crate::data_models::clean_models::untis::{ChangeStatus, Class, Entity, LessonBlock, MyTimeTable, WeekTimeTable};
 use crate::untis::untis_week::Week;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use chrono::{NaiveDateTime, Weekday};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
@@ -16,6 +17,12 @@ pub type TimeTables = (HashMap<Class, WeekTimeTable>, Option<i32>);
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct TimeTableCache {
     pub tables: HashMap<Week, (Option<NaiveDateTime>, TimeTables)>,
+}
+
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct MyTimeTableCache {
+    /// the timetables along with the time they expire
+    pub tables: HashMap<Week, (NaiveDateTime, MyTimeTable)>,
 }
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -228,7 +235,23 @@ impl PersistenceManager {
     }
 
     pub fn save_timetables(tt: &TimeTableCache) -> Result<(), String> {
-        let bytes = postcard::to_allocvec(tt)
+        Self::save_compressed("cached_timetables", tt)
+    }
+
+    pub fn get_timetables() -> Result<Option<TimeTableCache>, String> {
+        Self::get_compressed("cached_timetables")
+    }
+
+    pub fn save_my_timetables(tt: &MyTimeTableCache) -> Result<(), String> {
+        Self::save_compressed("cached_my_timetables", tt)
+    }
+
+    pub fn get_my_timetables() -> Result<Option<MyTimeTableCache>, String> {
+        Self::get_compressed("cached_my_timetables")
+    }
+
+    fn save_compressed<T: Serialize>(key: &str, value: &T) -> Result<(), String> {
+        let bytes = postcard::to_allocvec(value)
             .map_err(|e| format!("Postcard failed: {}", e))?;
 
         let compressed = zstd::encode_all(&bytes[..], 3)
@@ -237,15 +260,15 @@ impl PersistenceManager {
         let encoded = STANDARD.encode(compressed);
 
         Self::get_storage()?
-            .set_item("cached_timetables", &encoded)
+            .set_item(key, &encoded)
             .map_err(|_| "Failed to write to localStorage".to_string())?;
 
         Ok(())
     }
 
-    pub fn get_timetables() -> Result<Option<TimeTableCache>, String> {
+    fn get_compressed<T: DeserializeOwned>(key: &str) -> Result<Option<T>, String> {
         let storage = Self::get_storage()?;
-        let value = storage.get_item("cached_timetables")
+        let value = storage.get_item(key)
             .map_err(|_| "Error reading from localStorage".to_string())?;
 
         match value {
