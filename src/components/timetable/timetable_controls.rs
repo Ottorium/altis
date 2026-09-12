@@ -126,7 +126,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                         <i class="bi bi-calendar3"></i>
                         <input
                             type="date"
-                            class="position-absolute opacity-0 start-0 top-0"
+                            class="position-absolute opacity-0 w-100 h-100 start-0 top-0"
                             value={ props.selected_week.start.clone() }
                             onchange={on_date_change}
                         />

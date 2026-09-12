@@ -26,6 +26,13 @@ $warning: #fa8a44;
   -webkit-appearance: none;
 }
 
+// horizontal swipes between weeks are handled in code. Scroll containers (like the week panels) re-enable panning for
+// everything inside them, so the browser would take over the swipe, unless it's disabled on every element of the track
+.week-track,
+.week-track * {
+  touch-action: pan-y;
+}
+
 // the native QR scanner shows the camera behind the webview, so everything but its overlay has to be see-through
 html.qr-scanning,
 html.qr-scanning body {

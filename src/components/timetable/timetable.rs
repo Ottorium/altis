@@ -434,8 +434,8 @@ pub fn timetable() -> Html {
             <div class="flex-grow-1 w-100 position-relative overflow-hidden">
                 <div
                     ref={track_ref}
-                    class="position-absolute top-0 start-0 h-100 w-100"
-                    style="touch-action: pan-y; user-select: none;"
+                    class="week-track position-absolute top-0 start-0 h-100 w-100"
+                    style="user-select: none;"
                     onpointerdown={on_pointer_down}
                     onpointermove={on_pointer_move}
                     onpointerup={on_pointer_up}
