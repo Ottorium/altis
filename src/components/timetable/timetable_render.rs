@@ -2,8 +2,9 @@ use crate::components::timetable::group_modal::GroupDetailModal;
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
 use crate::data_models::clean_models::untis::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
-use chrono::{Datelike, NaiveTime};
-use yew::{Callback, Html, Properties, function_component, html, use_state};
+use chrono::{Datelike, Local, NaiveDateTime, NaiveTime};
+use gloo_timers::callback::Interval;
+use yew::{Callback, Html, Properties, function_component, html, use_effect_with, use_state};
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
@@ -13,6 +14,15 @@ pub struct TimeTableRenderProps {
 #[function_component(TimeTableRender)]
 pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let selected_group = use_state(|| None::<Vec<LessonBlock>>);
+    let now = use_state(current_time);
+
+    {
+        let now = now.clone();
+        use_effect_with((), move |_| {
+            let interval = Interval::new(30_000, move || now.set(current_time()));
+            move || drop(interval)
+        });
+    }
 
     let on_group_click = {
         let selected_group = selected_group.clone();
@@ -136,18 +146,32 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
                         }}
                     </div>
                     <div class="d-flex flex-grow-1">
-                        { for days.iter().map(|day| html! {
-                            <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
-                                { for group_by_time(fill_breaks(day.lessons.clone(), min_time)).iter().map(|lessons| {
-                                    generate_lessons_html(lessons, max_time - min_time, on_group_click.clone())
-                                })}
-                            </div>
+                        { for days.iter().map(|day| {
+                            let now_top = (day.date == now.date() && (min_time..=max_time).contains(&now.time()))
+                                .then(|| ((now.time() - min_time).num_seconds() as f64 / total_duration) * 100.0);
+                            html! {
+                                <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
+                                    { for group_by_time(fill_breaks(day.lessons.clone(), min_time)).iter().map(|lessons| {
+                                        generate_lessons_html(lessons, max_time - min_time, *now, on_group_click.clone())
+                                    })}
+                                    if let Some(top) = now_top {
+                                        <div style={format!("position: absolute; top: {top}%; left: 0; right: 0; height: 2px; transform: translateY(-1px); background: #ff3b30; z-index: 20; pointer-events: none;")}>
+                                            <div style="position: absolute; left: 0; top: -4px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid #ff3b30;"></div>
+                                            <div style="position: absolute; right: 0; top: -4px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-right: 7px solid #ff3b30;"></div>
+                                        </div>
+                                    }
+                                </div>
+                            }
                         })}
                     </div>
                 </div>
             </div>
         </>
     }
+}
+
+fn current_time() -> NaiveDateTime {
+    Local::now().naive_local()
 }
 
 fn group_by_time(mut lessons: Vec<LessonBlock>) -> Vec<Vec<LessonBlock>> {

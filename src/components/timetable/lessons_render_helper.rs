@@ -4,9 +4,12 @@ use chrono::{NaiveDateTime, TimeDelta};
 use web_sys::MouseEvent;
 use yew::{Callback, Html, html};
 
+const PAST_STYLE: &str = "filter: grayscale(0.4); opacity: 0.65;";
+
 pub fn generate_lessons_html(
     lessons: &[LessonBlock],
     time_range: TimeDelta,
+    now: NaiveDateTime,
     on_group_click: Callback<Vec<LessonBlock>>,
 ) -> Html {
     if lessons.is_empty() { return html! {}; }
@@ -39,15 +42,15 @@ pub fn generate_lessons_html(
                    .mobile-p-half { padding: 0.125rem !important; }" }
             </style>
             <div class="d-none d-md-block h-100 w-100">
-                { render_lanes(lessons, group_duration, start) }
+                { render_lanes(lessons, group_duration, start, now) }
             </div>
             <div class="d-flex d-md-none h-100 w-100 mobile-p-half">
                 <div style={format!("width: {}%; height: 100%; position: relative;", if lessons.len() > 1 { 80 } else { 100 })}>
-                    { render_lesson(priority, group_duration, start, 100.0, 0.0, true) }
+                    { render_lesson(priority, group_duration, start, 100.0, 0.0, true, now) }
                 </div>
                 if lessons.len() > 1 {
                     <div class="d-flex flex-column justify-content-center align-items-center text-white rounded ms-1 bg-primary"
-                         style="width: 20%; height: 100%; font-size: 0.8rem; opacity: 0.8; z-index: 10;">
+                         style={format!("width: 20%; height: 100%; font-size: 0.8rem; opacity: 0.8; z-index: 10; {}", if end <= now { PAST_STYLE } else { "" })}>
                         <span class="text-black fw-bold">{ lessons.len() - 1 }</span>
                     </div>
                 }
@@ -56,7 +59,7 @@ pub fn generate_lessons_html(
     }
 }
 
-fn render_lanes(lessons: &[LessonBlock], group_duration: f64, start: NaiveDateTime) -> Html {
+fn render_lanes(lessons: &[LessonBlock], group_duration: f64, start: NaiveDateTime, now: NaiveDateTime) -> Html {
     let mut lanes: Vec<NaiveDateTime> = Vec::new();
     let mut sorted = lessons.to_vec();
     sorted.sort_by_key(|l| l.time_range.start);
@@ -70,11 +73,11 @@ fn render_lanes(lessons: &[LessonBlock], group_duration: f64, start: NaiveDateTi
     let width = 100.0 / lanes.len().max(1) as f64;
     sorted.iter()
         .zip(assignments)
-        .map(|(l, idx)| render_lesson(l, group_duration, start, width, idx as f64 * width, false))
+        .map(|(l, idx)| render_lesson(l, group_duration, start, width, idx as f64 * width, false, now))
         .collect()
 }
 
-fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDateTime, width: f64, x_offset: f64, is_mobile: bool) -> Html {
+fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDateTime, width: f64, x_offset: f64, is_mobile: bool, now: NaiveDateTime) -> Html {
     let top = ((lesson.time_range.start - group_start).num_seconds() as f64 / group_duration) * 100.0;
     let h = ((lesson.time_range.end - lesson.time_range.start).num_seconds() as f64 / group_duration) * 100.0;
 
@@ -94,9 +97,9 @@ fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDa
         _ => {}
     }
 
-    html! {
-        <div style={format!("position: absolute; top: {top}%; left: {x_offset}%; height: {h}%; width: {width}%; padding: {};", if is_mobile { "0" } else { "0.2rem" })} class="lesson-container">
-            <div class={cls} style={style}>
+    let layer = |extra_style: String| html! {
+        <div style={format!("position: absolute; top: {top}%; left: {x_offset}%; height: {h}%; width: {width}%; padding: {}; {extra_style}", if is_mobile { "0" } else { "0.2rem" })} class="lesson-container">
+            <div class={cls.clone()} style={style.clone()}>
                 <div class="dynamic-text">
                     { render_entity(lesson, |e| matches!(e, Entity::Subject(..))) } <br/>
                     { render_entity(lesson, |e| matches!(e, Entity::Teacher(..))) } <br/>
@@ -104,6 +107,22 @@ fn render_lesson(lesson: &LessonBlock, group_duration: f64, group_start: NaiveDa
                 </div>
             </div>
         </div>
+    };
+
+    let (start, end) = (lesson.time_range.start, lesson.time_range.end);
+    if now <= start {
+        layer(String::new())
+    } else if now >= end {
+        layer(PAST_STYLE.to_string())
+    } else {
+        // lesson is in progress: stack a grayed copy clipped to the part that's already over
+        let past_pct = (now - start).num_seconds() as f64 / (end - start).num_seconds() as f64 * 100.0;
+        html! {
+            <>
+                { layer(format!("clip-path: inset({past_pct}% 0 0 0);")) }
+                { layer(format!("clip-path: inset(0 0 {}% 0); {PAST_STYLE}", 100.0 - past_pct)) }
+            </>
+        }
     }
 }
 
