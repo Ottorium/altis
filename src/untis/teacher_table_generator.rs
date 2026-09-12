@@ -2,7 +2,7 @@ use crate::data_models::clean_models::untis::{
     ChangeStatus, Class, DayTimeTable, Entity, LessonBlock, WeekTimeTable,
 };
 use crate::errors::ApiError;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 pub fn gen_all_timetables(
     class_results: HashMap<Class, WeekTimeTable>,
@@ -40,14 +40,17 @@ pub fn gen_all_timetables(
         }
     }
 
-    for (entity, lessons) in entity_lesson_map {
-        let mut new_table = WeekTimeTable { days: vec![] };
+    // every day of the week gets an entry, even without lessons, so the weekday settings can still show it
+    let all_dates: BTreeSet<chrono::NaiveDate> = all_timetables.values()
+        .flat_map(|table| table.days.iter().map(|day| day.date))
+        .collect();
 
-        for (date, lessons) in lessons {
-            new_table.days.push(DayTimeTable { date, lessons })
-        }
+    for (entity, mut lessons) in entity_lesson_map {
+        let days = all_dates.iter()
+            .map(|&date| DayTimeTable { date, lessons: lessons.remove(&date).unwrap_or_default() })
+            .collect();
 
-        all_timetables.insert(entity, new_table);
+        all_timetables.insert(entity, WeekTimeTable { days });
     }
 
     Ok((all_timetables, pre_selected))
