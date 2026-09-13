@@ -74,26 +74,10 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
         };
     }
 
-    let mut start_times = lessons.iter().map(|l| l.time_range.start.time()).collect::<Vec<_>>();
-    let mut end_times = lessons.iter().map(|l| l.time_range.end.time()).collect::<Vec<_>>();
-    start_times.sort();
-    end_times.sort();
-    start_times.dedup();
-    end_times.dedup();
-
-    let min_time = *start_times.first().unwrap();
-    let max_time = *end_times.last().unwrap();
+    let min_time = lessons.iter().map(|l| l.time_range.start.time()).min().unwrap();
+    let max_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
     let total_duration = (max_time - min_time).num_seconds() as f64;
-
-    let mut start_end_times: Vec<(NaiveTime, NaiveTime)> = Vec::new();
-    let mut ei = 0;
-    let mut it = start_times.iter().peekable();
-    while let Some(&s) = it.next() {
-        while ei < end_times.len() && s >= end_times[ei] { ei += 1; }
-        if ei >= end_times.len() { break; }
-        if let Some(&&next_s) = it.peek() && end_times[ei] > next_s { continue; }
-        start_end_times.push((s, end_times[ei]));
-    }
+    let slots = time_slots(&lessons);
 
     html! {
         <>
@@ -123,27 +107,19 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
 
                 <div class="d-flex flex-grow-1 w-100">
                     <div style="width: 60px; position: relative;" class="d-flex flex-column flex-shrink-0">
-                        {{
-                            let mut last_end: Option<NaiveTime> = None;
-                            start_end_times.iter().map(|(s, e)| {
-                                let top = ((*s - min_time).num_seconds() as f64 / total_duration) * 100.0;
-                                let height = ((*e - *s).num_seconds() as f64 / total_duration) * 100.0;
+                        { for slots.iter().map(|slot| {
+                            let top = ((slot.start - min_time).num_seconds() as f64 / total_duration) * 100.0;
+                            let height = ((slot.end - slot.start).num_seconds() as f64 / total_duration) * 100.0;
+                            let label = |show: bool, time: NaiveTime| if show { time.format("%H:%M").to_string() } else { String::new() };
 
-                                let show_start = last_end != Some(*s);
-                                let p = last_end;
-                                last_end = Some(*e);
-
-                                html! {
-                                    <div style={format!("position: absolute; top: {top}%; height: {height}%; width: 100%;")}
-                                          class={format!("d-flex flex-column justify-content-between align-items-end border-bottom {} m-0", if show_start && p.is_some() { "border-top" } else { "" })}>
-                                        <div class="small pe-1">
-                                            { if show_start { s.format("%H:%M").to_string() } else { "".to_string() } }
-                                        </div>
-                                        <div class="small pe-1">{ e.format("%H:%M").to_string() }</div>
-                                    </div>
-                                }
-                            }).collect::<Vec<_>>()
-                        }}
+                            html! {
+                                <div style={format!("position: absolute; top: {top}%; height: {height}%; width: 100%;")}
+                                      class={format!("d-flex flex-column justify-content-between align-items-end border-bottom {} m-0", if slot.after_break { "border-top" } else { "" })}>
+                                    <div class="small pe-1">{ label(slot.label_start, slot.start) }</div>
+                                    <div class="small pe-1">{ label(slot.label_end, slot.end) }</div>
+                                </div>
+                            }
+                        })}
                     </div>
                     <div class="d-flex flex-grow-1">
                         { for days.iter().map(|day| {
@@ -172,6 +148,47 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
 
 fn current_time() -> NaiveDateTime {
     Local::now().naive_local()
+}
+
+/// A section of the time column during which some lesson takes place
+#[derive(Debug, PartialEq)]
+struct TimeSlot {
+    start: NaiveTime,
+    end: NaiveTime,
+    /// whether the start/end time is written inside this slot, times shared by two slots are only written in one of them
+    label_start: bool,
+    label_end: bool,
+    /// no slot ends where this one starts
+    after_break: bool,
+}
+
+/// Splits the time column at every lesson start and end, so each of those times gets a label
+fn time_slots(lessons: &[LessonBlock]) -> Vec<TimeSlot> {
+    let mut bounds: Vec<NaiveTime> = lessons.iter()
+        .flat_map(|l| [l.time_range.start.time(), l.time_range.end.time()])
+        .collect();
+    bounds.sort();
+    bounds.dedup();
+
+    let spans: Vec<(NaiveTime, NaiveTime)> = bounds.windows(2)
+        .map(|w| (w[0], w[1]))
+        .filter(|&(s, e)| lessons.iter().any(|l| l.time_range.start.time() <= s && e <= l.time_range.end.time()))
+        .collect();
+
+    // a time shared by two slots is written in the longer one, so it doesn't collide with the labels of a short slot
+    (0..spans.len()).map(|i| {
+        let (start, end) = spans[i];
+        let duration = end - start;
+        let prev = i.checked_sub(1).map(|p| spans[p]).filter(|p| p.1 == start);
+        let next = spans.get(i + 1).filter(|n| n.0 == end);
+        TimeSlot {
+            start,
+            end,
+            label_start: prev.is_none_or(|(s, e)| e - s < duration),
+            label_end: next.is_none_or(|(s, e)| *e - *s <= duration),
+            after_break: i > 0 && prev.is_none(),
+        }
+    }).collect()
 }
 
 fn group_by_time(mut lessons: Vec<LessonBlock>) -> Vec<Vec<LessonBlock>> {
@@ -243,4 +260,77 @@ fn fill_breaks(mut lessons: Vec<LessonBlock>, earliest: NaiveTime) -> Vec<Lesson
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    fn lesson(day: u32, start: (u32, u32), end: (u32, u32)) -> LessonBlock {
+        let date = NaiveDate::from_ymd_opt(2026, 9, day).unwrap();
+        LessonBlock {
+            time_range: TimeRange {
+                start: date.and_hms_opt(start.0, start.1, 0).unwrap(),
+                end: date.and_hms_opt(end.0, end.1, 0).unwrap(),
+            },
+            ..Default::default()
+        }
+    }
+
+    fn t(h: u32, m: u32) -> NaiveTime {
+        NaiveTime::from_hms_opt(h, m, 0).unwrap()
+    }
+
+    /// every time written in the column, in order
+    fn labels(slots: &[TimeSlot]) -> Vec<NaiveTime> {
+        slots.iter()
+            .flat_map(|s| [s.label_start.then_some(s.start), s.label_end.then_some(s.end)])
+            .flatten()
+            .collect()
+    }
+
+    #[test]
+    fn shows_latest_end_of_the_week() {
+        let slots = time_slots(&[
+            lesson(14, (8, 0), (8, 45)),
+            lesson(14, (8, 45), (9, 30)),
+            lesson(15, (8, 0), (8, 45)),
+            lesson(16, (8, 0), (10, 15)),
+        ]);
+        assert_eq!(labels(&slots), vec![t(8, 0), t(8, 45), t(9, 30), t(10, 15)]);
+    }
+
+    #[test]
+    fn shows_every_end_between_starts() {
+        let slots = time_slots(&[
+            lesson(14, (8, 0), (8, 45)),
+            lesson(15, (8, 0), (9, 30)),
+            lesson(14, (10, 0), (10, 45)),
+        ]);
+        assert_eq!(labels(&slots), vec![t(8, 0), t(8, 45), t(9, 30), t(10, 0), t(10, 45)]);
+        assert_eq!(slots.iter().map(|s| s.after_break).collect::<Vec<_>>(), vec![false, false, true]);
+    }
+
+    #[test]
+    fn shows_overlapping_lessons() {
+        let slots = time_slots(&[
+            lesson(14, (8, 0), (9, 0)),
+            lesson(15, (8, 30), (9, 30)),
+        ]);
+        assert_eq!(labels(&slots), vec![t(8, 0), t(8, 30), t(9, 0), t(9, 30)]);
+    }
+
+    #[test]
+    fn writes_shared_times_in_the_longer_slot() {
+        // the double lesson creates a 5 minute slot between 9:30 and 9:35
+        let slots = time_slots(&[
+            lesson(14, (8, 45), (9, 30)),
+            lesson(14, (9, 35), (10, 20)),
+            lesson(15, (8, 45), (9, 35)),
+        ]);
+        let short = slots.iter().find(|s| s.start == t(9, 30)).unwrap();
+        assert!(!short.label_start && !short.label_end);
+        assert_eq!(labels(&slots), vec![t(8, 45), t(9, 30), t(9, 35), t(10, 20)]);
+    }
 }
