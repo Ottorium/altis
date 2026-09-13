@@ -6,6 +6,8 @@ use yew::{Callback, Html, Properties, function_component, html};
 pub struct GroupModalProps {
     pub lessons: Vec<LessonBlock>,
     pub on_close: Callback<()>,
+    /// a teacher, class or room was clicked, to show its timetable
+    pub on_entity_click: Callback<Entity>,
 }
 
 #[function_component(GroupDetailModal)]
@@ -58,11 +60,22 @@ pub fn group_detail_modal(props: &GroupModalProps) -> Html {
                                                         Entity::Info(_) => ("bg-secondary", "bi-info-circle"),
                                                     };
 
+                                                    let has_timetable = matches!(entity.inner, Entity::Teacher(_) | Entity::Class(_) | Entity::Room(_));
+                                                    let onclick = has_timetable.then(|| {
+                                                        let (on_entity_click, entity) = (props.on_entity_click.clone(), entity.inner.clone());
+                                                        Callback::from(move |_: MouseEvent| on_entity_click.emit(entity.clone()))
+                                                    });
+
                                                     html! {
                                                         <div class={format!("d-inline-flex align-items-center px-2 py-1 rounded-1 text-black shadow-sm {}", bg_class)}
-                                                             style="width: fit-content; font-size: 0.85rem; min-width: max-content;">
+                                                             style={format!("width: fit-content; font-size: 0.85rem; min-width: max-content;{}", if has_timetable { " cursor: pointer;" } else { "" })}
+                                                             title={has_timetable.then_some("Show timetable")}
+                                                             {onclick}>
                                                             <i class={format!("bi {} me-2", icon)}></i>
                                                             <strong style="letter-spacing: 0.3px;">{ entity.inner.name() }</strong>
+                                                            if has_timetable {
+                                                                <i class="bi bi-chevron-right ms-1"></i>
+                                                            }
                                                         </div>
                                                     }
                                                 })}

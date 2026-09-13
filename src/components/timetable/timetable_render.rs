@@ -1,6 +1,6 @@
 use crate::components::timetable::group_modal::GroupDetailModal;
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
-use crate::data_models::clean_models::untis::{DayTimeTable, LessonBlock, TimeRange, WeekTimeTable};
+use crate::data_models::clean_models::untis::{DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
 use chrono::{Datelike, Local, NaiveDateTime, NaiveTime};
 use gloo_timers::callback::Interval;
@@ -9,6 +9,8 @@ use yew::{Callback, Html, Properties, function_component, html, use_effect_with,
 #[derive(Properties, PartialEq, Clone)]
 pub struct TimeTableRenderProps {
     pub timetable: WeekTimeTable,
+    /// a teacher, class or room was picked in the lesson details, to show its timetable
+    pub on_entity_select: Callback<Entity>,
 }
 
 #[function_component(TimeTableRender)]
@@ -36,6 +38,15 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     let on_close = {
         let selected_group = selected_group.clone();
         Callback::from(move |_| selected_group.set(None))
+    };
+
+    let on_entity_click = {
+        let selected_group = selected_group.clone();
+        let on_entity_select = props.on_entity_select.clone();
+        Callback::from(move |entity| {
+            selected_group.set(None);
+            on_entity_select.emit(entity);
+        })
     };
 
 
@@ -82,7 +93,7 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
     html! {
         <>
             { if let Some(lessons) = (*selected_group).clone() {
-                html! { <GroupDetailModal {lessons} on_close={on_close} /> }
+                html! { <GroupDetailModal {lessons} on_close={on_close} {on_entity_click} /> }
             } else { html! {} } }
 
             <div

@@ -157,13 +157,13 @@ fn resolve(loaded: &LoadedWeeks, week: &Week, category: &str, selected_name: &Op
     }
 }
 
-fn render_panel(week: &Week, left: &str, panel: Panel) -> Html {
+fn render_panel(week: &Week, left: &str, panel: Panel, on_entity_select: Callback<Entity>) -> Html {
     html! {
         <div key={week.start.clone()} class="d-flex flex-column position-absolute top-0 h-100 w-100" style={format!("left: {left}; overflow-y: auto;")}>
             { match panel {
                 Panel::Loading => html! { <LoadingComponent /> },
                 Panel::Error(err) => html! { <div class="alert alert-danger m-3">{ err }</div> },
-                Panel::Table(tt) => html! { <TimeTableRender timetable={tt} /> },
+                Panel::Table(tt) => html! { <TimeTableRender timetable={tt} {on_entity_select} /> },
                 Panel::NoSelection => html! { <p class="text-light"> {"No selection made"} </p> },
             }}
         </div>
@@ -316,6 +316,21 @@ pub fn timetable() -> Html {
         Callback::from(move |name| selected_name.set(Some(name)))
     };
 
+    let on_entity_select = {
+        let category = category.clone();
+        let selected_name = selected_name.clone();
+        Callback::from(move |entity: Entity| {
+            let cat = match entity {
+                Entity::Class(_) => "Class",
+                Entity::Teacher(_) => "Teacher",
+                Entity::Room(_) => "Room",
+                _ => return,
+            };
+            category.set(cat.to_string());
+            selected_name.set(Some(entity.name()));
+        })
+    };
+
     let on_week_change = {
         let selected_week = selected_week.clone();
         Callback::from(move |week| selected_week.set(week))
@@ -441,9 +456,9 @@ pub fn timetable() -> Html {
                     onpointerup={on_pointer_up}
                     onpointercancel={on_pointer_cancel}
                 >
-                    { render_panel(&prev_week, "-100%", prev_panel) }
-                    { render_panel(&selected_week, "0", current.panel) }
-                    { render_panel(&next_week, "100%", next_panel) }
+                    { render_panel(&prev_week, "-100%", prev_panel, on_entity_select.clone()) }
+                    { render_panel(&selected_week, "0", current.panel, on_entity_select.clone()) }
+                    { render_panel(&next_week, "100%", next_panel, on_entity_select) }
                 </div>
             </div>
         </div>
