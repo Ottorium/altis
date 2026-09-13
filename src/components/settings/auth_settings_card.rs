@@ -54,8 +54,13 @@ pub fn auth_settings_card(props: &AuthCardProps) -> Html {
     html! {
         <SettingsCard title={ match props.r#type {AuthType::Untis => "Untis-Authentication", AuthType::Book2Eat => "Book2Eat-Authentication"}}>
             <form>
+                if props.r#type == AuthType::Untis {
+                    <p class="small text-secondary mb-3">
+                        {"You can find this info on https://htl-hl.webuntis.com/profile → Freigaben → Anzeigen"}
+                    </p>
+                }
                 <div class="mb-3">
-                    <label class="form-label small text-secondary">{ match props.r#type {AuthType::Untis => "School", AuthType::Book2Eat => "Canteen-ID"}}</label>
+                    <label class="form-label small text-secondary">{ match props.r#type {AuthType::Untis => "School", AuthType::Book2Eat => "Canteen-ID (2 for STH Hollabrunn)"}}</label>
                     <input type="text" value={(*school).clone()} oninput={on_input(school.clone())} class="form-control" />
                 </div>
                 <div class="mb-3">
