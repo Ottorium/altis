@@ -9,6 +9,25 @@ You need Rust with the `wasm32-unknown-unknown` target, [Trunk](https://trunkrs.
 - `cargo tauri android dev` does the same on a connected device or emulator.
 - Add `--debug` to any build command below to get debug bundles.
 
+### All at once
+
+`scripts/release.sh 0.3.0` bumps the version in `Cargo.toml`, `src-tauri/Cargo.toml`,
+`src-tauri/tauri.conf.json` and the `PKGBUILD` below, builds every bundle it has the
+toolchain for, and collects them in `release/0.3.0/`. It does not commit, tag or push.
+
+- `-t deb,appimage` builds only some of `deb`, `appimage`, `exe`, `apk`.
+- `-n` skips the bump and rebuilds the version that is already in the manifests.
+- Targets whose toolchain is missing are skipped with a warning, so a machine set up
+  for Linux only still gets the .deb and AppImage.
+- `ALTIS_FRONTEND_RELEASE=1` builds the frontend with `trunk build --release`. The
+  default is a debug wasm, which is several times larger and slower.
+
+Paths it guesses can be overridden: `ANDROID_HOME`, `NDK_HOME`, `ALTIS_BUILD_TOOLS`,
+`ALTIS_KEYSTORE`, `ALTIS_KEY_ALIAS`, `ALTIS_KEYSTORE_PASS_FILE`.
+
+The sections below describe what the script does for each target, in case you want to
+run one by hand.
+
 ### Linux (.deb, AppImage)
 
 ```sh
