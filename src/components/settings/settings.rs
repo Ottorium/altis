@@ -1,5 +1,6 @@
 use crate::components::settings::auth_settings_card::{AuthSettingsCard, AuthType};
 use crate::components::settings::clear_settings_button::ClearSettingsButton;
+use crate::components::settings::notification_settings::NotificationSettingsCard;
 use crate::components::settings::share_settings_button::ShareSettingsButton;
 use crate::components::settings::visual_settings::VisualSettingsCard;
 use crate::persistence_manager::*;
@@ -66,6 +67,13 @@ pub fn settings() -> Html {
         })
     };
 
+    let on_notification_save = {
+        let update_settings = update_settings.clone();
+        Callback::from(move |new_notification: NotificationSettings| {
+            update_settings.emit(Box::new(move |s| s.notification_settings = new_notification));
+        })
+    };
+
     html! {
         <div class="container py-5" data-bs-theme="dark">
             <div class="row justify-content-center">
@@ -98,6 +106,11 @@ pub fn settings() -> Html {
                         <VisualSettingsCard
                             initial={settings.clone().visual_settings}
                             on_save={on_visual_save}
+                        />
+
+                        <NotificationSettingsCard
+                            initial={settings.clone().notification_settings}
+                            on_save={on_notification_save}
                         />
 
                     } else {

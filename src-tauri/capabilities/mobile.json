@@ -10,6 +10,7 @@
     "iOS"
   ],
   "permissions": [
-    "barcode-scanner:default"
+    "barcode-scanner:default",
+    "notification:default"
   ]
 }

@@ -6,6 +6,7 @@ mod untis;
 mod book2eat;
 mod errors;
 mod native;
+mod notifications;
 
 use components::app::App;
 

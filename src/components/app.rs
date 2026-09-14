@@ -6,6 +6,7 @@ use crate::components::messages::*;
 use crate::components::navbar::*;
 use crate::components::settings::settings::*;
 use crate::components::timetable::timetable::*;
+use crate::notifications;
 use crate::persistence_manager::PersistenceManager;
 use crate::untis::untis_client::UntisClient;
 use wasm_bindgen_futures::spawn_local;
@@ -38,6 +39,11 @@ pub fn app() -> Html {
         });
     }
 
+    // starts once and keeps polling for as long as the app is open
+    use_effect_with((), |_| {
+        notifications::start();
+        || ()
+    });
 
     html! {
         <>

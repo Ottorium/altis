@@ -139,6 +139,43 @@ async fn open_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
     Ok(Some(contents))
 }
 
+/// Keeps the app running in the background after the window is closed, so the notification poller
+/// (which lives in the frontend's WASM, i.e. only runs while the webview is alive) keeps checking
+/// for timetable changes. The app only fully quits via the tray menu's "Quit" item.
+#[cfg(desktop)]
+fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::Manager;
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+    let quit_item = MenuItem::with_id(app, "quit", "Quit Altis", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&quit_item])?;
+
+    let mut tray = TrayIconBuilder::new()
+        .menu(&menu)
+        .tooltip("Altis")
+        .on_menu_event(|app, event| {
+            if event.id.as_ref() == "quit" {
+                app.exit(0);
+            }
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        });
+
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+
+    tray.build(app)?;
+    Ok(())
+}
+
 /// WebKitGTK denies camera access unless it's allowed explicitly, the webcam is used to scan QR codes
 #[cfg(target_os = "linux")]
 fn allow_camera(app: &tauri::App) {
@@ -180,14 +217,25 @@ pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init());
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init());
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+
+    #[cfg(desktop)]
+    let builder = builder.on_window_event(|window, event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = window.hide();
+        }
+    });
 
     builder
         .setup(|_app| {
             #[cfg(target_os = "linux")]
             allow_camera(_app);
+            #[cfg(desktop)]
+            setup_tray(_app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![proxy, save_file, download_file, open_file])

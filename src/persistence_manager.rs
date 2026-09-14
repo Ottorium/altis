@@ -25,11 +25,25 @@ pub struct MyTimeTableCache {
     pub tables: HashMap<Week, (NaiveDateTime, MyTimeTable)>,
 }
 
+/// Bookkeeping for the background notification poller (see `crate::notifications`), so it knows
+/// what has changed since the last check and doesn't repeat itself
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct NotificationState {
+    /// the personal timetable as of the last poll, per week, diffed against on the next one
+    pub last_my_timetable: HashMap<Week, MyTimeTable>,
+    /// ids of messages that have already been seen, so only new ones trigger a notification
+    pub known_message_ids: BTreeSet<i32>,
+    /// (lesson identity, lead time in minutes) pairs an exam reminder was already sent for
+    pub sent_exam_reminders: BTreeSet<(String, i64)>,
+}
+
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Settings {
     pub untis_auth: AuthSettings,
     pub b2e_auth: AuthSettings,
     pub visual_settings: VisualSettings,
+    #[serde(default)]
+    pub notification_settings: NotificationSettings,
 }
 
 pub const ALL_WEEKDAYS: [Weekday; 7] = [Weekday::Mon, Weekday::Tue, Weekday::Wed, Weekday::Thu, Weekday::Fri, Weekday::Sat, Weekday::Sun];
@@ -152,6 +166,99 @@ pub struct AuthSettings {
     pub secret: String,
 }
 
+fn default_true() -> bool { true }
+fn default_poll_interval_minutes() -> u32 { 5 }
+fn default_exam_lead_times() -> Vec<i64> { vec![1440, 60] }
+
+/// Settings for the background notification poller, see `crate::notifications`. Fully user
+/// customizable from the Settings screen.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct NotificationSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// how often the poller checks Untis for changes
+    #[serde(default = "default_poll_interval_minutes")]
+    pub poll_interval_minutes: u32,
+    #[serde(default)]
+    pub timetable_changes: TimetableChangeSettings,
+    #[serde(default)]
+    pub exam_reminders: ExamReminderSettings,
+    #[serde(default)]
+    pub message_notifications: MessageNotificationSettings,
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            poll_interval_minutes: default_poll_interval_minutes(),
+            timetable_changes: TimetableChangeSettings::default(),
+            exam_reminders: ExamReminderSettings::default(),
+            message_notifications: MessageNotificationSettings::default(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct TimetableChangeSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub notify_cancelled: bool,
+    #[serde(default = "default_true")]
+    pub notify_room_change: bool,
+    #[serde(default = "default_true")]
+    pub notify_time_change: bool,
+    #[serde(default = "default_true")]
+    pub notify_substitution: bool,
+}
+
+impl Default for TimetableChangeSettings {
+    fn default() -> Self {
+        Self { enabled: true, notify_cancelled: true, notify_room_change: true, notify_time_change: true, notify_substitution: true }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct ExamReminderSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// how long before an exam to notify, e.g. `[1440, 60]` for one day and one hour before
+    #[serde(default = "default_exam_lead_times")]
+    pub lead_times_minutes: Vec<i64>,
+}
+
+impl Default for ExamReminderSettings {
+    fn default() -> Self {
+        Self { enabled: true, lead_times_minutes: default_exam_lead_times() }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct MessageNotificationSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for MessageNotificationSettings {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+/// A short human label for a lead time in minutes, e.g. "1 day", "3 hours", "45 minutes"
+pub fn describe_lead_time_minutes(minutes: i64) -> String {
+    if minutes != 0 && minutes % 1440 == 0 {
+        let days = minutes / 1440;
+        format!("{days} day{}", if days == 1 { "" } else { "s" })
+    } else if minutes != 0 && minutes % 60 == 0 {
+        let hours = minutes / 60;
+        format!("{hours} hour{}", if hours == 1 { "" } else { "s" })
+    } else {
+        format!("{minutes} minutes")
+    }
+}
+
 /// Settings as they are shared with other devices, the logins are only included when asked for
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SettingsExport {
@@ -160,6 +267,8 @@ pub struct SettingsExport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub b2e_auth: Option<AuthSettings>,
     pub visual_settings: VisualSettings,
+    #[serde(default)]
+    pub notification_settings: NotificationSettings,
 }
 
 impl SettingsExport {
@@ -168,6 +277,7 @@ impl SettingsExport {
             untis_auth: include_credentials.then(|| settings.untis_auth.clone()),
             b2e_auth: include_credentials.then(|| settings.b2e_auth.clone()),
             visual_settings: settings.visual_settings.clone(),
+            notification_settings: settings.notification_settings.clone(),
         }
     }
 
@@ -188,6 +298,7 @@ impl SettingsExport {
             settings.b2e_auth = auth;
         }
         settings.visual_settings = self.visual_settings;
+        settings.notification_settings = self.notification_settings;
     }
 }
 
@@ -287,6 +398,14 @@ impl PersistenceManager {
 
     pub fn get_my_timetables() -> Result<Option<MyTimeTableCache>, String> {
         Self::get_compressed("cached_my_timetables")
+    }
+
+    pub fn save_notification_state(state: &NotificationState) -> Result<(), String> {
+        Self::save_compressed("notification_state", state)
+    }
+
+    pub fn get_notification_state() -> Result<Option<NotificationState>, String> {
+        Self::get_compressed("notification_state")
     }
 
     fn save_compressed<T: Serialize>(key: &str, value: &T) -> Result<(), String> {

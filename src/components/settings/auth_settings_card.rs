@@ -56,7 +56,7 @@ pub fn auth_settings_card(props: &AuthCardProps) -> Html {
             <form>
                 if props.r#type == AuthType::Untis {
                     <p class="small text-secondary mb-3">
-                        {"You can find this info on https://htl-hl.webuntis.com/profile → Freigaben → Anzeigen"}
+                        {"You can find this info on https://htl-hl.webuntis.com/profile → Data access (Freigaben) → Display (Anzeigen)"}
                     </p>
                 }
                 <div class="mb-3">

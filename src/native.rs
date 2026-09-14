@@ -93,3 +93,39 @@ pub async fn scan_qr_code() -> Result<String, String> {
 pub async fn cancel_scan() -> Result<(), String> {
     call("plugin:barcode-scanner|cancel", &()).await
 }
+
+/// Checks whether the OS has already granted permission to show notifications
+pub async fn is_notification_permission_granted() -> bool {
+    call::<(), Option<bool>>("plugin:notification|is_permission_granted", &())
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+}
+
+/// Asks the user for permission to show notifications, unless it was already granted.
+/// Returns whether notifications may be shown.
+pub async fn ensure_notification_permission() -> bool {
+    if is_notification_permission_granted().await {
+        return true;
+    }
+    let state: Result<String, String> = call("plugin:notification|request_permission", &()).await;
+    state.as_deref() == Ok("granted")
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NotifyOptions<'a> {
+    title: &'a str,
+    body: &'a str,
+}
+
+#[derive(Serialize)]
+struct NotifyArgs<'a> {
+    options: NotifyOptions<'a>,
+}
+
+/// Shows a native OS notification. `ensure_notification_permission` should be called first.
+pub async fn send_notification(title: &str, body: &str) -> Result<(), String> {
+    call("plugin:notification|notify", &NotifyArgs { options: NotifyOptions { title, body } }).await
+}
