@@ -1,7 +1,7 @@
-use reqwest::{header::{HeaderMap, HeaderName, HeaderValue}, Method};
-use rustls::ClientConfig;
+mod background;
+mod http;
+
 use std::collections::HashMap;
-use std::fmt::Write;
 use std::io::{Read, Write as _};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_fs::{FsExt, OpenOptions};
@@ -12,34 +12,7 @@ struct ProxyResponse {
     body: String,
 }
 
-fn http_client() -> Result<reqwest::Client, String> {
-    let mut root_store = rustls::RootCertStore::empty();
-    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-
-    let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-
-    reqwest::Client::builder()
-        .use_preconfigured_tls(config)
-        .build()
-        .map_err(|e| e.to_string())
-}
-
-fn header_map(headers: HashMap<String, Vec<String>>) -> HeaderMap {
-    let mut header_map = HeaderMap::new();
-    for (key, values) in headers {
-        if let Ok(name) = HeaderName::from_bytes(key.as_bytes()) {
-            for value_str in values {
-                if let Ok(val) = HeaderValue::from_str(&value_str) {
-                    header_map.append(name.clone(), val);
-                }
-            }
-        }
-    }
-    header_map
-}
-
+/// CORS won't let the webview talk to Untis directly, so every request goes through here
 #[tauri::command]
 async fn proxy(
     method: String,
@@ -47,30 +20,23 @@ async fn proxy(
     headers: HashMap<String, Vec<String>>,
     body: String,
 ) -> Result<ProxyResponse, String> {
-    let http_method = Method::from_bytes(method.to_uppercase().as_bytes())
-        .map_err(|_| format!("Invalid HTTP method: {}", method))?;
+    let response = http::request(&method, &url, headers, body).await?;
+    Ok(ProxyResponse { headers: response.headers, body: response.body })
+}
 
-    let res = http_client()?.request(http_method, &url)
-        .headers(header_map(headers))
-        .body(body)
-        .send()
-        .await
-        .map_err(|e| report(&e))?;
+/// Hands the Android background poller the settings and session it needs to keep checking on its
+/// own. A no-op on every other platform, where the poller runs in the webview.
+#[tauri::command]
+fn sync_store(entries: HashMap<String, String>) -> Result<(), String> {
+    background::sync_store(entries)
+}
 
-    let mut resp_headers: HashMap<String, Vec<String>> = HashMap::new();
-    for (name, value) in res.headers().iter() {
-        if let Ok(val_str) = value.to_str() {
-            resp_headers
-                .entry(name.to_string())
-                .or_default()
-                .push(val_str.to_string());
-        }
-    }
-
-    Ok(ProxyResponse {
-        headers: resp_headers,
-        body: res.text().await.map_err(|e| e.to_string())?,
-    })
+/// Switches Android background polling between "off", "periodic" and "continuous", returning
+/// whether polling now happens natively. Always `false` elsewhere, where the frontend has to keep
+/// doing it itself.
+#[tauri::command]
+fn set_background_polling(mode: String) -> Result<bool, String> {
+    background::set_mode(&mode)
 }
 
 fn write_file(app: &tauri::AppHandle, path: FilePath, contents: &[u8]) -> Result<(), String> {
@@ -103,12 +69,12 @@ async fn download_file(
     headers: HashMap<String, Vec<String>>,
     file_name: String,
 ) -> Result<bool, String> {
-    let contents = http_client()?.get(&url)
-        .headers(header_map(headers))
+    let contents = http::client()?.get(&url)
+        .headers(http::header_map(headers))
         .send()
         .await
         .and_then(|res| res.error_for_status())
-        .map_err(|e| report(&e))?
+        .map_err(|e| http::report(&e))?
         .bytes()
         .await
         .map_err(|e| e.to_string())?;
@@ -200,19 +166,9 @@ fn allow_camera(app: &tauri::App) {
     });
 }
 
-fn report(err: &dyn std::error::Error) -> String {
-    let mut s = format!("{}", err);
-    let mut current = err.source();
-    while let Some(src) = current {
-        let _ = write!(s, "\n\nCaused by: {}", src);
-        current = src.source();
-    }
-    s
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let _ = rustls::crypto::ring::default_provider().install_default();
+    http::install_crypto_provider();
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -238,7 +194,7 @@ pub fn run() {
             setup_tray(_app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![proxy, save_file, download_file, open_file])
+        .invoke_handler(tauri::generate_handler![proxy, save_file, download_file, open_file, sync_store, set_background_polling])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

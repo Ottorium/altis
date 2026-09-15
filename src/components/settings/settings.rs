@@ -3,8 +3,9 @@ use crate::components::settings::clear_settings_button::ClearSettingsButton;
 use crate::components::settings::notification_settings::NotificationSettingsCard;
 use crate::components::settings::share_settings_button::ShareSettingsButton;
 use crate::components::settings::visual_settings::VisualSettingsCard;
-use crate::persistence_manager::*;
-use crate::untis::untis_client::UntisClient;
+use crate::persistence_manager::PersistenceManager;
+use crate::untis::UntisClient;
+use altis_core::settings::{AuthSettings, NotificationSettings, Settings, VisualSettings};
 use yew::prelude::*;
 
 #[function_component(SettingsComponent)]
@@ -71,6 +72,8 @@ pub fn settings() -> Html {
         let update_settings = update_settings.clone();
         Callback::from(move |new_notification: NotificationSettings| {
             update_settings.emit(Box::new(move |s| s.notification_settings = new_notification));
+            // starts or stops Android's background service to match the new settings
+            wasm_bindgen_futures::spawn_local(crate::notifications::apply_settings());
         })
     };
 

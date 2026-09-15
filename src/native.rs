@@ -51,11 +51,22 @@ pub async fn open_file() -> Result<Option<String>, String> {
     call("open_file", &()).await
 }
 
-/// The native QR scanner only exists in the mobile app
-pub fn has_native_scanner() -> bool {
+fn user_agent() -> String {
     web_sys::window()
         .and_then(|w| w.navigator().user_agent().ok())
-        .is_some_and(|ua| ua.contains("Android") || ua.contains("iPhone") || ua.contains("iPad"))
+        .unwrap_or_default()
+}
+
+/// The native QR scanner only exists in the mobile app
+pub fn has_native_scanner() -> bool {
+    let ua = user_agent();
+    ua.contains("Android") || ua.contains("iPhone") || ua.contains("iPad")
+}
+
+/// Whether this is the Android app, which is the only platform where notifications are polled
+/// outside the webview (see `background_polling`)
+pub fn is_android() -> bool {
+    user_agent().contains("Android")
 }
 
 #[derive(Deserialize)]
@@ -128,4 +139,27 @@ struct NotifyArgs<'a> {
 /// Shows a native OS notification. `ensure_notification_permission` should be called first.
 pub async fn send_notification(title: &str, body: &str) -> Result<(), String> {
     call("plugin:notification|notify", &NotifyArgs { options: NotifyOptions { title, body } }).await
+}
+
+#[derive(Serialize)]
+struct SyncStoreArgs<'a> {
+    entries: &'a HashMap<String, String>,
+}
+
+/// Copies the settings and the current Untis session into the native store, where the Android
+/// background poller can read them without a webview
+pub async fn sync_store(entries: &HashMap<String, String>) -> Result<(), String> {
+    call("sync_store", &SyncStoreArgs { entries }).await
+}
+
+#[derive(Serialize)]
+struct BackgroundPollingArgs<'a> {
+    mode: &'a str,
+}
+
+/// Picks how Android keeps polling once the app is closed ("off", "periodic" or "continuous").
+/// Returns whether polling now runs natively; `false` on every other platform, where the webview
+/// has to stay alive for notifications to happen at all.
+pub async fn set_background_polling(mode: &str) -> Result<bool, String> {
+    call("set_background_polling", &BackgroundPollingArgs { mode }).await
 }

@@ -1,4 +1,4 @@
-use crate::untis::untis_week::Week;
+use altis_core::untis::untis_week::Week;
 use chrono::NaiveDate;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;

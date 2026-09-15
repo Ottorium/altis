@@ -1,7 +1,7 @@
-use crate::data_models::clean_models::untis::{
+use altis_core::data_models::clean_models::untis::{
     ChangeStatus, Class, DayTimeTable, Entity, LessonBlock, WeekTimeTable,
 };
-use crate::errors::ApiError;
+use altis_core::errors::ApiError;
 use std::collections::{BTreeSet, HashMap};
 
 pub fn gen_all_timetables(

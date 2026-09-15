@@ -1,7 +1,7 @@
 use crate::components::loading::LoadingComponent;
-use crate::data_models::response_models::untis_messages::{MessagePreview, MessageSender, StorageAttachment};
 use crate::native;
-use crate::untis::untis_client::UntisClient;
+use crate::untis::UntisClient;
+use altis_core::data_models::response_models::untis_messages::{MessagePreview, MessageSender, StorageAttachment};
 use chrono::{Datelike, Local, NaiveDateTime};
 use std::collections::HashSet;
 use wasm_bindgen_futures::spawn_local;

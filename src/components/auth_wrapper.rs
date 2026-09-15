@@ -1,5 +1,5 @@
 use crate::persistence_manager::PersistenceManager;
-use crate::untis::untis_client::UntisClient;
+use crate::untis::UntisClient;
 use gloo_timers::callback::Timeout;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;

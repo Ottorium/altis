@@ -1,5 +1,6 @@
 use crate::components::settings::settings_card::SettingsCard;
-use crate::persistence_manager::{ALL_WEEKDAYS, PersistenceManager, VisualSettings, is_dark_color};
+use crate::persistence_manager::PersistenceManager;
+use altis_core::settings::{ALL_WEEKDAYS, VisualSettings, is_dark_color};
 use chrono::Weekday;
 use web_sys::HtmlInputElement;
 use yew::{

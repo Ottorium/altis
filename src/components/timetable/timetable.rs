@@ -1,10 +1,10 @@
 use crate::components::loading::LoadingComponent;
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
-use crate::data_models::clean_models::untis::{Entity, MyTimeTable, WeekTimeTable};
-use crate::errors::ApiError;
 use crate::untis::cached_untis_client::{AllTimeTables, CachedUntisClient};
-use crate::untis::untis_week::Week;
+use altis_core::data_models::clean_models::untis::{Entity, MyTimeTable, WeekTimeTable};
+use altis_core::errors::ApiError;
+use altis_core::untis::untis_week::Week;
 use chrono::{Local, NaiveDateTime};
 use gloo_timers::callback::Timeout;
 use std::cell::{Cell, RefCell};

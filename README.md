@@ -1,5 +1,42 @@
 # Altis - An Alternate Untis Client
 
+## Notifications
+
+Altis polls Untis for timetable changes, upcoming exams and new messages, and shows a
+native notification for each. Every poll looks at the current **and** the next week, so a
+lesson dropped on Friday for the Monday after still gets noticed. The interval, and which
+of the three kinds of notification you want, are set in Settings.
+
+The poll itself lives in `core/` (shared code, `altis_core::notifications`). What differs
+per platform is who runs it:
+
+- **Desktop:** the frontend's WASM runs it in the webview. Closing the window only hides
+  it to the tray, so this keeps working; quitting from the tray menu stops it. The app is
+  not started on login, so nothing is checked until you open it again.
+- **Android:** the webview is gone the moment the app is closed, so the poll runs natively
+  instead. Two ways to do that, chosen under "When the app is closed" in Settings:
+
+  - **Check about every 15 minutes** (the default) hands the schedule to WorkManager. No
+    permanent notification, nothing kept running in between - Android starts the process
+    when it is time. 15 minutes is WorkManager's hard floor and it is a floor rather than a
+    promise: the system batches jobs and Doze stretches the gap while the phone is idle, so
+    expect longer. Exam reminders are only ever as punctual as the poll that finds them.
+  - **Check on the interval above** runs `PollService`, a foreground service that keeps to
+    the configured interval. Exact, and the price is the ongoing notification Android
+    demands for a process that survives the app being closed. Since Android 14 the user can
+    swipe that notification away; the service keeps running regardless.
+
+  The service runs in **its own process** (`android:process=":poller"`), and that is not a
+  detail to undo: `tao` ends its Android event loop with `std::process::exit()`, so closing
+  the app tears down the whole process it runs in. A service sharing that process would be
+  killed along with it, taking its notification with it. (The WorkManager job has no such
+  problem - it runs in the default process, which by then has no activity in it.)
+
+  Because the processes share no memory, they talk through two files in the app's data dir -
+  the app writes the settings to `synced_from_app.json` (the `sync_store` command) and the
+  poller reads them; the poller owns `poller_state.json` for its own Untis session and
+  bookkeeping. Neither file is ever written by both.
+
 ## How to build (ai generated)
 
 You need Rust with the `wasm32-unknown-unknown` target, [Trunk](https://trunkrs.dev) and the Tauri CLI (`cargo install trunk tauri-cli`). You also need the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
@@ -74,6 +111,13 @@ cargo tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --config '
 The installer is written to `target/x86_64-pc-windows-msvc/release/bundle/nsis/`.
 
 ### Android (.apk)
+
+Note that a few files under `src-tauri/gen/android` are hand-written and checked in
+(`MainActivity.kt`, `BackgroundPoller.kt`, `PollService.kt`, `PollWorker.kt`,
+`BootReceiver.kt`, `AndroidManifest.xml`, `res/drawable/ic_notification.xml`, `altis.pro`
+and `app/build.gradle.kts`, which carries the WorkManager dependency) - everything else
+there is generated and ignored. `tauri android init` will not put them back, so don't
+regenerate that directory without restoring them from git afterwards.
 
 You need the Android SDK and NDK, with `ANDROID_HOME` and `NDK_HOME` set. You also need the Rust Android targets (`rustup target add aarch64-linux-android armv7-linux-androideabi`).
 

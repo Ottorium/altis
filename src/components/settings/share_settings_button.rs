@@ -1,7 +1,8 @@
 use crate::components::qr_code::QrCode;
 use crate::components::qr_scanner::QrScanner;
 use crate::native;
-use crate::persistence_manager::{PersistenceManager, SettingsExport};
+use crate::persistence_manager::PersistenceManager;
+use altis_core::settings::SettingsExport;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 

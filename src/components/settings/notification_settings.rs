@@ -1,6 +1,6 @@
 use crate::components::settings::settings_card::SettingsCard;
 use crate::native;
-use crate::persistence_manager::{describe_lead_time_minutes, ExamReminderSettings, MessageNotificationSettings, NotificationSettings, TimetableChangeSettings};
+use altis_core::settings::{BackgroundMode, ExamReminderSettings, MessageNotificationSettings, NotificationSettings, PERIODIC_INTERVAL_MINUTES, TimetableChangeSettings, describe_lead_time_minutes};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::{
@@ -21,6 +21,7 @@ const LEAD_TIME_PRESETS: [i64; 6] = [15, 60, 180, 1440, 2880, 10080];
 pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
     let enabled = use_state(|| props.initial.enabled);
     let poll_interval_minutes = use_state(|| props.initial.poll_interval_minutes);
+    let background_mode = use_state(|| props.initial.background_mode);
     let timetable_changes = use_state(|| props.initial.timetable_changes.clone());
     let exam_reminders = use_state(|| props.initial.exam_reminders.clone());
     let message_notifications = use_state(|| props.initial.message_notifications.clone());
@@ -31,6 +32,7 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
     let settings = NotificationSettings {
         enabled: *enabled,
         poll_interval_minutes: *poll_interval_minutes,
+        background_mode: *background_mode,
         timetable_changes: (*timetable_changes).clone(),
         exam_reminders: (*exam_reminders).clone(),
         message_notifications: (*message_notifications).clone(),
@@ -43,6 +45,18 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
     let on_toggle_enabled = {
         let enabled = enabled.clone();
         Callback::from(move |_| enabled.set(!*enabled))
+    };
+
+    let on_background_mode_change = {
+        let background_mode = background_mode.clone();
+        Callback::from(move |e: yew::Event| {
+            let select: HtmlSelectElement = e.target_unchecked_into();
+            background_mode.set(match select.value().as_str() {
+                "off" => BackgroundMode::Off,
+                "continuous" => BackgroundMode::Continuous,
+                _ => BackgroundMode::Periodic,
+            });
+        })
     };
 
     let on_interval_change = {
@@ -202,6 +216,26 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
                         })}
                     </select>
                 </div>
+
+                if native::is_android() {
+                    <div class="mb-3" style={dim(*enabled)}>
+                        <label class="form-label small text-secondary mb-1">{"When the app is closed"}</label>
+                        <select class="form-select form-select-sm bg-dark text-light border-secondary" style="width: auto;" onchange={on_background_mode_change}>
+                            <option value="off" selected={*background_mode == BackgroundMode::Off}>{"Don't check"}</option>
+                            <option value="periodic" selected={*background_mode == BackgroundMode::Periodic}>{ format!("Check about every {PERIODIC_INTERVAL_MINUTES} minutes") }</option>
+                            <option value="continuous" selected={*background_mode == BackgroundMode::Continuous}>{"Check on the interval above"}</option>
+                        </select>
+                        <div class="form-text text-secondary small">
+                            { match *background_mode {
+                                BackgroundMode::Off => "Notifications only arrive while Altis is open.".to_string(),
+                                BackgroundMode::Periodic => format!(
+                                    "No permanent notification. Android decides when the check actually runs, so {PERIODIC_INTERVAL_MINUTES} minutes is a floor rather than a promise - expect longer gaps while the phone is idle."
+                                ),
+                                BackgroundMode::Continuous => "Keeps to the interval above, but Android charges a permanent \"watching your timetable\" notification for staying awake.".to_string(),
+                            } }
+                        </div>
+                    </div>
+                }
 
                 <hr class="border-secondary opacity-25 my-3" />
 

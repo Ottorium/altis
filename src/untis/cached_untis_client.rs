@@ -1,9 +1,9 @@
-use crate::data_models::clean_models::untis::{Entity, MyTimeTable, WeekTimeTable};
-use crate::errors::ApiError;
 use crate::persistence_manager::{MyTimeTableCache, PersistenceManager, TimeTableCache, TimeTables};
+use crate::untis::UntisClient;
 use crate::untis::teacher_table_generator::gen_all_timetables;
-use crate::untis::untis_client::UntisClient;
-use crate::untis::untis_week::Week;
+use altis_core::data_models::clean_models::untis::{Entity, MyTimeTable, WeekTimeTable};
+use altis_core::errors::ApiError;
+use altis_core::untis::untis_week::Week;
 use chrono::{Local, NaiveDateTime, TimeDelta};
 use std::collections::HashMap;
 

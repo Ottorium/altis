@@ -1,7 +1,7 @@
 use crate::components::timetable::group_modal::GroupDetailModal;
 use crate::components::timetable::lessons_render_helper::generate_lessons_html;
-use crate::data_models::clean_models::untis::{DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
 use crate::persistence_manager::PersistenceManager;
+use altis_core::data_models::clean_models::untis::{DayTimeTable, Entity, LessonBlock, TimeRange, WeekTimeTable};
 use chrono::{Datelike, Local, NaiveDateTime, NaiveTime};
 use gloo_timers::callback::Interval;
 use yew::{Callback, Html, Properties, function_component, html, use_effect_with, use_state};

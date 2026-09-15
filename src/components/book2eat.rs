@@ -1,7 +1,7 @@
 use crate::book2eat::client::{get_b2e_token, get_menu};
 use crate::components::qr_code::QrCode;
-use crate::data_models::response_models::book2eat::Meal;
-use crate::untis::untis_week::Week;
+use altis_core::data_models::response_models::book2eat::Meal;
+use altis_core::untis::untis_week::Week;
 use chrono::{Duration, Local, NaiveDate};
 use std::cell::RefCell;
 use std::rc::Rc;

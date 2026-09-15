@@ -8,7 +8,7 @@ use crate::components::settings::settings::*;
 use crate::components::timetable::timetable::*;
 use crate::notifications;
 use crate::persistence_manager::PersistenceManager;
-use crate::untis::untis_client::UntisClient;
+use crate::untis::UntisClient;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- background polling: a foreground service is the only way a process survives the app
+         being closed, and the boot receiver brings it back after a reboot -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <!-- AndroidTV support -->
+    <uses-feature android:name="android.software.leanback" android:required="false"/>
+
+    <application
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.altis"
+            android:usesCleartextTraffic="${usesCleartextTraffic}">
+        android:enableOnBackInvokedCallback="true">
+        <activity
+                android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+                android:launchMode="singleTask"
+                android:label="@string/main_activity_title"
+                android:name=".MainActivity"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+                <!-- AndroidTV support -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <provider
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
+            <meta-data
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/file_paths"/>
+        </provider>
+
+        <!-- Its own process, and this is not optional: tao ends its Android event loop with
+             std::process::exit(), so destroying the activity (closing the app) takes the whole
+             process with it. A service sharing that process would die with it, notification and
+             all. Note that ":poller" gets its own copy of the statics, so it talks to the app
+             through the files in `background::store` rather than shared memory. -->
+        <service
+                android:name=".PollService"
+                android:process=":poller"
+                android:exported="false"
+                android:stopWithTask="false"
+                android:foregroundServiceType="specialUse">
+            <property
+                    android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                    android:value="Checks WebUntis for timetable changes on the interval the user picked, while the app is closed"/>
+        </service>
+
+        <receiver
+                android:name=".BootReceiver"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

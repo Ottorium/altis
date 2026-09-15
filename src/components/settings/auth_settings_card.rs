@@ -1,5 +1,5 @@
 use crate::components::settings::settings_card::SettingsCard;
-use crate::persistence_manager::AuthSettings;
+use altis_core::settings::AuthSettings;
 use web_sys::{HtmlInputElement, InputEvent, MouseEvent};
 use yew::{Callback, Html, Properties, TargetCast, UseStateHandle, function_component, html, use_state};
 

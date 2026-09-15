@@ -1,10 +1,8 @@
 mod components;
 mod request_proxy;
 mod persistence_manager;
-mod data_models;
 mod untis;
 mod book2eat;
-mod errors;
 mod native;
 mod notifications;
 

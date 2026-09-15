@@ -7,6 +7,15 @@
 /src-tauri/gen/android/**/*
 !/src-tauri/gen/android/**/
 !/src-tauri/gen/android/app/src/main/java/com/altis/app/MainActivity.kt
+# hand-written, and `tauri android init` does not put them back
+!/src-tauri/gen/android/app/src/main/java/com/altis/app/BackgroundPoller.kt
+!/src-tauri/gen/android/app/src/main/java/com/altis/app/PollService.kt
+!/src-tauri/gen/android/app/src/main/java/com/altis/app/PollWorker.kt
+!/src-tauri/gen/android/app/src/main/java/com/altis/app/BootReceiver.kt
+!/src-tauri/gen/android/app/src/main/AndroidManifest.xml
+!/src-tauri/gen/android/app/src/main/res/drawable/ic_notification.xml
+!/src-tauri/gen/android/app/altis.pro
+!/src-tauri/gen/android/app/build.gradle.kts
 # Rust artifacts
 **/*.rs.bk
 *.pdb

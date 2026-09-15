@@ -42,11 +42,14 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 name = "altis"
 version = "0.2.0"
 dependencies = [
+ "altis-core",
+ "chrono",
  "jni",
  "ndk-context",
  "reqwest",
  "rustls",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-barcode-scanner",
@@ -54,19 +57,31 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
+ "tokio",
  "webkit2gtk",
  "webpki-roots",
+]
+
+[[package]]
+name = "altis-core"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "futures",
+ "serde",
+ "serde_json",
+ "totp-rs",
 ]
 
 [[package]]
 name = "altis-ui"
 version = "0.2.0"
 dependencies = [
+ "altis-core",
  "base64 0.22.1",
  "chrono",
  "chrono-tz",
  "console_error_panic_hook",
- "futures",
  "gloo-timers",
  "js-sys",
  "log",
@@ -77,7 +92,6 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "serde_urlencoded",
- "totp-rs",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-logger",

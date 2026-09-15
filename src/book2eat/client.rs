@@ -1,8 +1,8 @@
-use crate::data_models::response_models::book2eat::MenuResponse;
-use crate::errors::ApiError;
 use crate::persistence_manager::PersistenceManager;
 use crate::request_proxy::request_proxy;
-use crate::untis::untis_week::Week;
+use altis_core::data_models::response_models::book2eat::MenuResponse;
+use altis_core::errors::ApiError;
+use altis_core::untis::untis_week::Week;
 use serde_json::Value;
 use std::collections::HashMap;
 

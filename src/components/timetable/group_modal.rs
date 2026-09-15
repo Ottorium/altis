@@ -1,4 +1,4 @@
-use crate::data_models::clean_models::untis::{Entity, LessonBlock};
+use altis_core::data_models::clean_models::untis::{Entity, LessonBlock};
 use web_sys::MouseEvent;
 use yew::{Callback, Html, Properties, function_component, html};
 

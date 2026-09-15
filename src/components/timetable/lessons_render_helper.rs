@@ -1,5 +1,5 @@
-use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock};
-use crate::persistence_manager::is_dark_color;
+use altis_core::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock};
+use altis_core::settings::is_dark_color;
 use chrono::{NaiveDateTime, TimeDelta};
 use web_sys::MouseEvent;
 use yew::{Callback, Html, html};

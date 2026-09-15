@@ -1,0 +1,18 @@
+[package]
+name = "altis-core"
+version = "0.2.0"
+edition = "2024"
+
+# Everything the Untis client needs that isn't tied to a browser, so both the WASM frontend and
+# the Tauri backend (which polls in the background on Android) can share it. Must stay free of
+# web-sys/js-sys/wasm-bindgen: the platform bits live behind the `Env` trait.
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+chrono = { version = "0.4.43", features = ["serde"] }
+totp-rs = "5.7.0"
+futures = "0.3.31"
+
+# `Local::now()` needs the browser's clock when this crate is compiled into the frontend
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+chrono = { version = "0.4.43", features = ["serde", "wasmbind"] }

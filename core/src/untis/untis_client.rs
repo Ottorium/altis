@@ -2,34 +2,37 @@ use crate::data_models::clean_models::untis::*;
 use crate::data_models::response_models::untis_messages::*;
 use crate::data_models::response_models::untis_response_models::*;
 use crate::errors::ApiError;
-use crate::persistence_manager::PersistenceManager;
+use crate::env::Env;
+use crate::store::Store;
 use crate::untis::auth::AuthHelper;
 use crate::untis::untis_week::Week;
 use chrono::{Duration, NaiveDate};
 use futures::future::join_all;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
-pub struct UntisClient {
+pub struct UntisClient<E: Env> {
     school_name: String,
+    _env: PhantomData<E>,
 }
 
-impl UntisClient {
+impl<E: Env> UntisClient<E> {
     pub fn new() -> Result<Self, ApiError> {
-        let school_name = PersistenceManager::get_settings()?
+        let school_name = Store::<E>::get_settings()?
             .ok_or(ApiError::Authentication("Settings are empty".to_string()))?
             .untis_auth
             .school_identifier;
 
-        Ok(Self { school_name })
+        Ok(Self { school_name, _env: PhantomData })
     }
 
     pub fn is_authenticated() -> bool {
-        AuthHelper::is_authenticated()
+        AuthHelper::<E>::is_authenticated()
     }
 
     pub async fn authenticate(school_name: String, username: String, secret: String) -> Result<(), ApiError> {
-        AuthHelper::authenticate(school_name, username, secret).await
+        AuthHelper::<E>::authenticate(school_name, username, secret).await
     }
 
     async fn get_classes(&self, week: Week) -> Result<(Vec<Class>, Option<i32>), ApiError> {
@@ -67,7 +70,7 @@ impl UntisClient {
 
     /// Performs an authorized GET request and parses the response, including Untis error checking
     async fn fetch<T: DeserializeOwned>(url: &str) -> Result<T, ApiError> {
-        let response = AuthHelper::authorized_request("GET", url, HashMap::new(), "".to_string())
+        let response = AuthHelper::<E>::authorized_request("GET", url, HashMap::new(), "".to_string())
             .await?;
 
         // checked first, an error response doesn't parse as the expected type
