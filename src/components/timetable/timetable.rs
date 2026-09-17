@@ -224,14 +224,24 @@ pub fn timetable() -> Html {
     {
         let dispatch = loaded.dispatcher();
         let loaded = loaded.clone();
-        use_effect_with(((*selected_week).clone(), *reload_trigger), move |(week, _)| {
+        use_effect_with(((*selected_week).clone(), (*category).clone(), *reload_trigger), move |(week, category, _)| {
             let neighbours = [week.previous(), week.next()];
             dispatch.dispatch(LoadedAction::Retain(vec![neighbours[0].clone(), week.clone(), neighbours[1].clone()]));
 
+            // the personal timetable is its own request; the class, teacher and room tables cost
+            // one request per class and a full regeneration on top, so they are only loaded once
+            // something actually shows them. Loading them for "Me" is what froze a swipe to a
+            // week that wasn't cached yet.
+            let wants_all = category.as_str() != "Me";
+
             let needs_mine = !is_fresh(loaded.mine.get(week));
-            let needs_all = !is_fresh(loaded.all.get(week));
+            let needs_all = wants_all && !is_fresh(loaded.all.get(week));
             let mine_missing: Vec<Week> = neighbours.iter().filter(|w| !is_fresh(loaded.mine.get(w))).cloned().collect();
-            let all_missing: Vec<Week> = neighbours.iter().filter(|w| !is_fresh(loaded.all.get(w))).cloned().collect();
+            let all_missing: Vec<Week> = if wants_all {
+                neighbours.iter().filter(|w| !is_fresh(loaded.all.get(w))).cloned().collect()
+            } else {
+                Vec::new()
+            };
 
             // set when the week changes or the component unmounts, so no further loading is started
             let cancelled = Rc::new(Cell::new(false));
@@ -287,6 +297,13 @@ pub fn timetable() -> Html {
 
     let (prev_week, next_week) = (selected_week.previous(), selected_week.next());
     let current = resolve(&loaded, &selected_week, &category, &selected_name);
+    // "Me" never loads the class/teacher/room tables, so its spinner follows the personal
+    // timetable instead - otherwise the controls would sit on "Loading..." forever
+    let loading = if *category == "Me" {
+        loaded.get_mine(&selected_week).is_none()
+    } else {
+        loaded.get_all(&selected_week).is_none()
+    };
     let prev_panel = resolve(&loaded, &prev_week, &category, &selected_name).panel;
     let next_panel = resolve(&loaded, &next_week, &category, &selected_name).panel;
 
@@ -440,7 +457,7 @@ pub fn timetable() -> Html {
                 selected_name={current.active_name}
                 selected_week={(*selected_week).clone()}
                 filtered_names={current.names}
-                loading={loaded.get_all(&selected_week).is_none()}
+                loading={loading}
                 on_category_change={on_category_change}
                 on_entity_change={on_entity_change}
                 on_week_change={on_week_change}

@@ -29,6 +29,11 @@ pub fn client() -> Result<reqwest::Client, String> {
 
             reqwest::Client::builder()
                 .use_preconfigured_tls(config)
+                // Untis going quiet must not wedge a whole poll: without these, a request that
+                // never comes back hangs until Android kills the background job, which takes the
+                // poll's bookkeeping down with it (see `persist` in `altis_core::notifications`)
+                .connect_timeout(std::time::Duration::from_secs(15))
+                .timeout(std::time::Duration::from_secs(45))
                 .build()
                 .map_err(|e| e.to_string())
         })
