@@ -1,5 +1,6 @@
 use crate::env::Env;
 use crate::settings::{Cookies, NotificationState, Settings};
+use crate::update_check::UpdateState;
 use std::marker::PhantomData;
 
 pub const SETTINGS_KEY: &str = "user_settings";
@@ -7,6 +8,7 @@ pub const JSESSIONID_KEY: &str = "JSESSIONID";
 pub const TENANT_ID_KEY: &str = "Tenant-Id";
 pub const SCHOOLNAME_KEY: &str = "schoolname";
 pub const NOTIFICATION_STATE_KEY: &str = "notification_state";
+pub const UPDATE_STATE_KEY: &str = "update_state";
 
 /// The keys the Android background poller needs a copy of to do its job on its own. The frontend
 /// mirrors exactly these into the native store (see `native::sync_store`); everything else stays
@@ -78,5 +80,19 @@ impl<E: Env> Store<E> {
     pub fn save_notification_state(state: &NotificationState) -> Result<(), String> {
         let serialized = serde_json::to_string(state).map_err(|e| format!("Serialization failed: {e}"))?;
         E::default().set(NOTIFICATION_STATE_KEY, &serialized)
+    }
+
+    pub fn get_update_state() -> Result<Option<UpdateState>, String> {
+        match E::default().get(UPDATE_STATE_KEY) {
+            Some(raw) => serde_json::from_str(&raw)
+                .map(Some)
+                .map_err(|e| format!("Failed to parse update state: {e}")),
+            None => Ok(None),
+        }
+    }
+
+    pub fn save_update_state(state: &UpdateState) -> Result<(), String> {
+        let serialized = serde_json::to_string(state).map_err(|e| format!("Serialization failed: {e}"))?;
+        E::default().set(UPDATE_STATE_KEY, &serialized)
     }
 }

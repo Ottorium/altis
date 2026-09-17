@@ -18,8 +18,11 @@ struct ProxyArgs<'a> {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+    // `catch`, because a command that returns an Err rejects the promise, and a rejection on a
+    // binding without it takes the whole module down instead of coming back as one. Every caller
+    // already handles the error this hands back.
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], catch)]
+    async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
 }
 
 // CORS disallows the requests to other domains, so we need a proxy
@@ -37,6 +40,6 @@ pub async fn request_proxy(
     })
         .map_err(|e| e.to_string())?;
 
-    let response_js = invoke("proxy", args).await;
+    let response_js = invoke("proxy", args).await.map_err(crate::native::error_message)?;
     serde_wasm_bindgen::from_value::<ProxyResponse>(response_js).map_err(|e| e.to_string())
 }
