@@ -14,6 +14,10 @@
 !/src-tauri/gen/android/app/src/main/java/com/altis/app/BootReceiver.kt
 !/src-tauri/gen/android/app/src/main/AndroidManifest.xml
 !/src-tauri/gen/android/app/src/main/res/drawable/ic_notification.xml
+# app icon: `tauri android init` overwrites these with the tauri default
+!/src-tauri/gen/android/app/src/main/res/mipmap-*/ic_launcher*.png
+!/src-tauri/gen/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+!/src-tauri/gen/android/app/src/main/res/values/ic_launcher_background.xml
 !/src-tauri/gen/android/app/altis.pro
 !/src-tauri/gen/android/app/build.gradle.kts
 # Rust artifacts
