@@ -1,4 +1,5 @@
 use crate::components::loading::LoadingComponent;
+use crate::components::timetable::free_rooms::{FreeRooms, FreeRoomsRender};
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
 use crate::untis::cached_untis_client::{AllTimeTables, CachedUntisClient};
@@ -99,6 +100,8 @@ enum Panel {
     Loading,
     Error(String),
     Table(WeekTimeTable),
+    /// the rooms no lesson takes up, for the whole week at once
+    FreeRooms(FreeRooms),
     NoSelection,
 }
 
@@ -128,6 +131,11 @@ fn resolve(loaded: &LoadedWeeks, week: &Week, category: &str, selected_name: &Op
         None => without_names(Panel::Loading),
         Some(Err(err)) => without_names(Panel::Error(err.to_string())),
         Some(Ok((map, initial_id))) => {
+            // the free rooms are the week as a whole, there is nothing to pick an entity from
+            if category == "AvailableRooms" {
+                return without_names(Panel::FreeRooms(FreeRooms::of(map)));
+            }
+
             let mut filtered_data: Vec<(&Entity, &WeekTimeTable)> = map.iter()
                 .filter(|(entity, _)| match (category, entity) {
                     ("Class", Entity::Class(_)) => true,
@@ -164,6 +172,7 @@ fn render_panel(week: &Week, left: &str, panel: Panel, on_entity_select: Callbac
                 Panel::Loading => html! { <LoadingComponent /> },
                 Panel::Error(err) => html! { <div class="alert alert-danger m-3">{ err }</div> },
                 Panel::Table(tt) => html! { <TimeTableRender timetable={tt} {on_entity_select} /> },
+                Panel::FreeRooms(free_rooms) => html! { <FreeRoomsRender {free_rooms} {on_entity_select} /> },
                 Panel::NoSelection => html! { <p class="text-light"> {"No selection made"} </p> },
             }}
         </div>

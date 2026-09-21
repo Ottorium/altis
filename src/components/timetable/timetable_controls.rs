@@ -79,6 +79,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                         <option value="Class" selected={category == "Class"}>{"Class"}</option>
                         <option value="Teacher" selected={category == "Teacher"}>{"Teacher"}</option>
                         <option value="Room" selected={category == "Room"}>{"Room"}</option>
+                        <option value="AvailableRooms" selected={category == "AvailableRooms"}>{"Available Rooms"}</option>
                     </select>
 
                     if !filtered_names.is_empty() {

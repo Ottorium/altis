@@ -3,3 +3,4 @@ pub mod timetable_render;
 mod timetable_controls;
 mod lessons_render_helper;
 mod group_modal;
+mod free_rooms;
