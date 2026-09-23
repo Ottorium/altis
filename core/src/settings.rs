@@ -1,5 +1,5 @@
 use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock, MyTimeTable};
-use chrono::Weekday;
+use chrono::{NaiveTime, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -71,10 +71,40 @@ impl WeekdayOverride {
     }
 }
 
+/// Draws the timetable over at least this range, so a short day doesn't stretch its lessons over
+/// the whole screen and the grid keeps the same scale from week to week. The times are kept while
+/// it is switched off, so turning it back on doesn't mean entering them again.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct TimePadding {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_pad_from")]
+    pub from: NaiveTime,
+    #[serde(default = "default_pad_until")]
+    pub until: NaiveTime,
+}
+
+/// the first period's start and the tenth's end, the school day most weeks fit into
+fn default_pad_from() -> NaiveTime {
+    NaiveTime::from_hms_opt(7, 50, 0).unwrap_or_default()
+}
+
+fn default_pad_until() -> NaiveTime {
+    NaiveTime::from_hms_opt(16, 35, 0).unwrap_or_default()
+}
+
+impl Default for TimePadding {
+    fn default() -> Self {
+        Self { enabled: false, from: default_pad_from(), until: default_pad_until() }
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct VisualSettings {
     #[serde(default)]
     pub force_ascii_timetable: bool,
+    #[serde(default)]
+    pub time_padding: TimePadding,
     #[serde(default)]
     pub weekday_override: WeekdayOverride,
     #[serde(default)]
@@ -82,6 +112,18 @@ pub struct VisualSettings {
 }
 
 impl VisualSettings {
+    /// The time range a day is drawn over: the lessons' own, widened to the configured padding.
+    /// Padding only ever widens - a lesson outside it is still shown.
+    pub fn padded_range(&self, lessons_start: NaiveTime, lessons_end: NaiveTime) -> (NaiveTime, NaiveTime) {
+        match self.time_padding.enabled {
+            true => (
+                lessons_start.min(self.time_padding.from),
+                lessons_end.max(self.time_padding.until),
+            ),
+            false => (lessons_start, lessons_end),
+        }
+    }
+
     /// Look up a color override for a given subject name (case-insensitive).
     pub fn get_subject_color_override(&self, subject_name: &str) -> Option<&String> {
         let trimmed = subject_name.trim();
@@ -363,5 +405,45 @@ impl Cookies {
             "JSESSIONID={}; Tenant-Id={}; schoolname={}",
             self.jsessionid, self.tenant_id, self.school_name_base32
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(hour: u32, minute: u32) -> NaiveTime {
+        NaiveTime::from_hms_opt(hour, minute, 0).unwrap()
+    }
+
+    #[test]
+    fn padding_widens_the_day_but_never_narrows_it() {
+        let settings = VisualSettings {
+            time_padding: TimePadding { enabled: true, from: at(7, 50), until: at(17, 25) },
+            ..Default::default()
+        };
+
+        // a short day is stretched to the configured range
+        assert_eq!(settings.padded_range(at(9, 45), at(11, 25)), (at(7, 50), at(17, 25)));
+        // lessons outside it still widen the day further
+        assert_eq!(settings.padded_range(at(7, 0), at(18, 15)), (at(7, 0), at(18, 15)));
+    }
+
+    #[test]
+    fn without_padding_the_lessons_decide() {
+        let settings = VisualSettings::default();
+
+        assert_eq!(settings.padded_range(at(9, 45), at(11, 25)), (at(9, 45), at(11, 25)));
+    }
+
+    /// switched off it keeps its times, so they are there again when it is switched back on
+    #[test]
+    fn a_disabled_padding_does_nothing() {
+        let settings = VisualSettings {
+            time_padding: TimePadding { enabled: false, from: at(7, 50), until: at(17, 25) },
+            ..Default::default()
+        };
+
+        assert_eq!(settings.padded_range(at(9, 45), at(11, 25)), (at(9, 45), at(11, 25)));
     }
 }

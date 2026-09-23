@@ -85,8 +85,10 @@ pub fn time_table_render(props: &TimeTableRenderProps) -> Html {
         };
     }
 
-    let min_time = lessons.iter().map(|l| l.time_range.start.time()).min().unwrap();
-    let max_time = lessons.iter().map(|l| l.time_range.end.time()).max().unwrap();
+    let (min_time, max_time) = visual_settings.padded_range(
+        lessons.iter().map(|l| l.time_range.start.time()).min().unwrap(),
+        lessons.iter().map(|l| l.time_range.end.time()).max().unwrap(),
+    );
     let total_duration = (max_time - min_time).num_seconds() as f64;
     let slots = time_slots(&lessons);
 

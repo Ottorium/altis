@@ -1,12 +1,17 @@
 use crate::components::settings::settings_card::SettingsCard;
 use crate::persistence_manager::PersistenceManager;
-use altis_core::settings::{ALL_WEEKDAYS, VisualSettings, is_dark_color};
-use chrono::Weekday;
+use altis_core::settings::{ALL_WEEKDAYS, TimePadding, VisualSettings, is_dark_color};
+use chrono::{NaiveTime, Weekday};
 use web_sys::HtmlInputElement;
 use yew::{
-    Callback, Html, InputEvent, KeyboardEvent, MouseEvent, Properties, TargetCast, classes,
-    function_component, html, use_effect_with, use_state,
+    Callback, Event, Html, InputEvent, KeyboardEvent, MouseEvent, Properties, TargetCast,
+    classes, function_component, html, use_effect_with, use_state,
 };
+
+/// The `HH:MM` an `<input type="time">` takes
+fn time_input_value(time: NaiveTime) -> String {
+    time.format("%H:%M").to_string()
+}
 
 #[derive(Properties, PartialEq)]
 pub struct VisualCardProps {
@@ -17,6 +22,7 @@ pub struct VisualCardProps {
 #[function_component(VisualSettingsCard)]
 pub fn visual_settings_card(props: &VisualCardProps) -> Html {
     let force_ascii_timetable = use_state(|| props.initial.force_ascii_timetable);
+    let time_padding = use_state(|| props.initial.time_padding.clone());
     let weekday_override = use_state(|| props.initial.weekday_override.clone());
     let subject_color_overrides = use_state(|| props.initial.subject_color_overrides.clone());
 
@@ -27,6 +33,7 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
     let on_save = props.on_save.clone();
     let settings = VisualSettings {
         force_ascii_timetable: *force_ascii_timetable,
+        time_padding: (*time_padding).clone(),
         weekday_override: (*weekday_override).clone(),
         subject_color_overrides: (*subject_color_overrides).clone(),
     };
@@ -39,6 +46,32 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
         let force_ascii_timetable = force_ascii_timetable.clone();
         Callback::from(move |_| {
             force_ascii_timetable.set(!*force_ascii_timetable);
+        })
+    };
+
+    let on_toggle_padding = {
+        let time_padding = time_padding.clone();
+        Callback::from(move |_| {
+            let updated = TimePadding { enabled: !time_padding.enabled, ..(*time_padding).clone() };
+            time_padding.set(updated);
+        })
+    };
+
+    // `onchange`, not `oninput`: a time input reports a half-typed time as empty, and re-rendering
+    // the field with that empty value wipes what is being typed before it can be finished
+    let on_pad_time_change = |current: NaiveTime, set_end: fn(&mut TimePadding, NaiveTime)| {
+        let time_padding = time_padding.clone();
+        Callback::from(move |e: Event| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            // an unparseable value means the field was cleared, which leaves the time as it was
+            if let Ok(time) = NaiveTime::parse_from_str(&input.value(), "%H:%M") {
+                let mut updated = (*time_padding).clone();
+                set_end(&mut updated, time);
+                time_padding.set(updated);
+            } else {
+                // puts the kept time back in the field the user just emptied
+                input.set_value(&time_input_value(current));
+            }
         })
     };
 
@@ -157,6 +190,30 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
                     <label class="form-check-label small text-secondary" for="asciiCheck" style="cursor: pointer;">
                         {"Force ASCII Timetable"}
                     </label>
+                </div>
+                <hr class="border-secondary opacity-25 my-3" />
+                <div class="mb-3">
+                    <div class="form-check mb-1">
+                        <input type="checkbox" class="form-check-input" id="padEnabled"
+                               checked={time_padding.enabled} onclick={on_toggle_padding} />
+                        <label class="form-check-label fw-bold small text-light" for="padEnabled" style="cursor: pointer;">
+                            {"Always Shown Time Range"}
+                        </label>
+                    </div>
+                    <div class="form-text text-secondary small mb-2">
+                        {"Draws the timetable over at least this range, even where no lessons are. Lessons outside it are still shown."}
+                    </div>
+                    <div class="d-flex align-items-center gap-2 ps-4"
+                         style={if time_padding.enabled { "" } else { "opacity: 0.4; pointer-events: none;" }}>
+                        <label class="small text-secondary" for="padFrom">{"From"}</label>
+                        <input type="time" class="form-control form-control-sm bg-dark text-white border-secondary w-auto"
+                               id="padFrom" value={time_input_value(time_padding.from)}
+                               onchange={on_pad_time_change(time_padding.from, |padding, time| padding.from = time)} />
+                        <label class="small text-secondary" for="padUntil">{"until"}</label>
+                        <input type="time" class="form-control form-control-sm bg-dark text-white border-secondary w-auto"
+                               id="padUntil" value={time_input_value(time_padding.until)}
+                               onchange={on_pad_time_change(time_padding.until, |padding, time| padding.until = time)} />
+                    </div>
                 </div>
                 <hr class="border-secondary opacity-25 my-3" />
                 <div class="mb-3">
