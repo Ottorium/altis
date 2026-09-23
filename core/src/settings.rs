@@ -14,6 +14,9 @@ pub struct NotificationState {
     /// ids of messages that have already been seen, so only new ones trigger a notification
     #[serde(default)]
     pub known_message_ids: BTreeSet<i32>,
+    /// ids of absences that have already been seen, the same way
+    #[serde(default)]
+    pub known_absence_ids: BTreeSet<i32>,
     /// (lesson identity, lead time in minutes) pairs an exam reminder was already sent for
     #[serde(default)]
     pub sent_exam_reminders: BTreeSet<(String, i64)>,
@@ -212,6 +215,8 @@ pub struct NotificationSettings {
     pub exam_reminders: ExamReminderSettings,
     #[serde(default)]
     pub message_notifications: MessageNotificationSettings,
+    #[serde(default)]
+    pub absence_notifications: AbsenceNotificationSettings,
 }
 
 impl Default for NotificationSettings {
@@ -223,6 +228,7 @@ impl Default for NotificationSettings {
             timetable_changes: TimetableChangeSettings::default(),
             exam_reminders: ExamReminderSettings::default(),
             message_notifications: MessageNotificationSettings::default(),
+            absence_notifications: AbsenceNotificationSettings::default(),
         }
     }
 }
@@ -269,6 +275,20 @@ pub struct MessageNotificationSettings {
 }
 
 impl Default for MessageNotificationSettings {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
+/// Absences a teacher enters for the student are the ones worth hearing about, the student's own
+/// are not, so only the former are notified about (see `crate::notifications`)
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct AbsenceNotificationSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for AbsenceNotificationSettings {
     fn default() -> Self {
         Self { enabled: true }
     }

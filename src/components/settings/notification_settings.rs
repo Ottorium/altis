@@ -1,6 +1,6 @@
 use crate::components::settings::settings_card::SettingsCard;
 use crate::native;
-use altis_core::settings::{BackgroundMode, ExamReminderSettings, MessageNotificationSettings, NotificationSettings, PERIODIC_INTERVAL_MINUTES, TimetableChangeSettings, describe_lead_time_minutes};
+use altis_core::settings::{AbsenceNotificationSettings, BackgroundMode, ExamReminderSettings, MessageNotificationSettings, NotificationSettings, PERIODIC_INTERVAL_MINUTES, TimetableChangeSettings, describe_lead_time_minutes};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::{
@@ -25,6 +25,7 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
     let timetable_changes = use_state(|| props.initial.timetable_changes.clone());
     let exam_reminders = use_state(|| props.initial.exam_reminders.clone());
     let message_notifications = use_state(|| props.initial.message_notifications.clone());
+    let absence_notifications = use_state(|| props.initial.absence_notifications.clone());
     let custom_lead = use_state(String::new);
     let test_status = use_state(|| None::<Result<(), String>>);
 
@@ -36,6 +37,7 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
         timetable_changes: (*timetable_changes).clone(),
         exam_reminders: (*exam_reminders).clone(),
         message_notifications: (*message_notifications).clone(),
+        absence_notifications: (*absence_notifications).clone(),
     };
     use_effect_with(settings, move |settings| {
         on_save.emit(settings.clone());
@@ -167,6 +169,14 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
         Callback::from(move |_| {
             let updated = MessageNotificationSettings { enabled: !message_notifications.enabled };
             message_notifications.set(updated);
+        })
+    };
+
+    let on_absence_enabled = {
+        let absence_notifications = absence_notifications.clone();
+        Callback::from(move |_| {
+            let updated = AbsenceNotificationSettings { enabled: !absence_notifications.enabled };
+            absence_notifications.set(updated);
         })
     };
 
@@ -324,6 +334,12 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
                 <div class="mb-3 form-check" style={dim(*enabled)}>
                     <input type="checkbox" class="form-check-input" id="msgEnabled" checked={message_notifications.enabled} onclick={on_msg_enabled} />
                     <label class="form-check-label small text-light fw-bold" for="msgEnabled" style="cursor: pointer;">{"New message alerts"}</label>
+                </div>
+
+                <div class="mb-3 form-check" style={dim(*enabled)}>
+                    <input type="checkbox" class="form-check-input" id="absenceEnabled" checked={absence_notifications.enabled} onclick={on_absence_enabled} />
+                    <label class="form-check-label small text-light fw-bold" for="absenceEnabled" style="cursor: pointer;">{"New absence alerts"}</label>
+                    <div class="form-text small text-secondary">{"When a teacher marks you absent. Absences you report yourself stay quiet."}</div>
                 </div>
 
                 <hr class="border-secondary opacity-25 my-3" />

@@ -1,5 +1,5 @@
-//! Watches for timetable changes, upcoming exams and new messages, and shows a native
-//! notification for each.
+//! Watches for timetable changes, upcoming exams, new messages and new absences, and shows a
+//! native notification for each.
 //!
 //! One poll fetches the current and the next week's personal timetable once and uses it for both
 //! the change diff and the exam reminders. Everything it needs from the platform (the store, HTTP
@@ -8,13 +8,14 @@
 //! run it in (see `altis::background` in the Tauri backend).
 
 use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock, MyTimeTable};
+use crate::data_models::response_models::untis_absences::Absence;
 use crate::env::Env;
 use crate::settings::{
     describe_lead_time_minutes, ExamReminderSettings, NotificationState, TimetableChangeSettings,
 };
 use crate::store::Store;
 use crate::untis::untis_client::UntisClient;
-use crate::untis::untis_week::Week;
+use crate::untis::untis_week::{school_year, Week};
 use chrono::{Local, NaiveDate, TimeDelta};
 
 /// The weeks a poll looks at. Next week matters as much as this one: a lesson dropped on Friday
@@ -58,6 +59,10 @@ pub async fn run_once<E: Env>() {
 
     if cfg.message_notifications.enabled {
         check_messages::<E>(&client, &mut state).await;
+    }
+
+    if cfg.absence_notifications.enabled {
+        check_absences::<E>(&client, &mut state, &settings.untis_auth.user_identifier).await;
     }
 
     let _ = Store::<E>::save_notification_state(&state);
@@ -345,6 +350,50 @@ async fn check_messages<E: Env>(client: &UntisClient<E>, state: &mut Notificatio
     }
 }
 
+/// Notifies about absences that weren't in a previous poll, the same way messages are handled: the
+/// first run only records what is already there, so the app's first start doesn't fire a
+/// notification for every absence of the school year.
+///
+/// An absence the student entered themselves is recorded but never notified about - they were the
+/// one who typed it in a minute ago. What's worth hearing about is a teacher marking them absent.
+async fn check_absences<E: Env>(client: &UntisClient<E>, state: &mut NotificationState, own_user: &str) {
+    let (start, end) = school_year(0);
+    let Ok(data) = client.get_absences(start, end).await else { return };
+    let first_run = state.known_absence_ids.is_empty();
+
+    let mut fresh = Vec::new();
+    for absence in &data.absences {
+        let own = !own_user.is_empty() && absence.created_user.eq_ignore_ascii_case(own_user);
+        if state.known_absence_ids.insert(absence.id) && !first_run && !own {
+            fresh.push(describe_absence(absence));
+        }
+    }
+
+    // keep the known-id set bounded rather than growing forever
+    if state.known_absence_ids.len() > 500 {
+        let current_ids: std::collections::BTreeSet<i32> = data.absences.iter().map(|a| a.id).collect();
+        state.known_absence_ids.retain(|id| current_ids.contains(id));
+    }
+
+    persist::<E>(state);
+    for body in &fresh {
+        notify::<E>("New absence", body).await;
+    }
+}
+
+fn describe_absence(absence: &Absence) -> String {
+    let day = match absence.start_date == absence.end_date {
+        true => absence.start_date.format("%a %d %b").to_string(),
+        false => format!("{} - {}", absence.start_date.format("%a %d %b"), absence.end_date.format("%a %d %b")),
+    };
+    let times = format!("{}-{}", absence.start_time.format("%H:%M"), absence.end_time.format("%H:%M"));
+
+    match absence.reason.is_empty() {
+        true => format!("{day} at {times}"),
+        false => format!("{day} at {times} ({})", absence.reason),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,6 +466,35 @@ mod tests {
 
         assert_eq!(pairs.len(), 1);
         assert!(added.is_empty() && removed.is_empty());
+    }
+
+    fn absence(start: (i32, u32, u32), end: (i32, u32, u32), reason: &str) -> Absence {
+        Absence {
+            id: 1,
+            start_date: NaiveDate::from_ymd_opt(start.0, start.1, start.2).unwrap(),
+            end_date: NaiveDate::from_ymd_opt(end.0, end.1, end.2).unwrap(),
+            start_time: chrono::NaiveTime::from_hms_opt(7, 50, 0).unwrap(),
+            end_time: chrono::NaiveTime::from_hms_opt(8, 40, 0).unwrap(),
+            reason: reason.to_string(),
+            reason_id: 0,
+            text: String::new(),
+            created_user: "fimi".to_string(),
+            can_edit: false,
+            excuse_status: String::new(),
+            is_excused: false,
+        }
+    }
+
+    #[test]
+    fn describes_an_absence_by_when_it_is() {
+        let one_day = absence((2026, 10, 7), (2026, 10, 7), "Arzt");
+        assert_eq!(describe_absence(&one_day), "Wed 07 Oct at 07:50-08:40 (Arzt)");
+
+        let no_reason = absence((2026, 10, 7), (2026, 10, 7), "");
+        assert_eq!(describe_absence(&no_reason), "Wed 07 Oct at 07:50-08:40");
+
+        let several_days = absence((2026, 10, 7), (2026, 10, 9), "");
+        assert_eq!(describe_absence(&several_days), "Wed 07 Oct - Fri 09 Oct at 07:50-08:40");
     }
 
     #[test]
