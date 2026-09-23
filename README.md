@@ -1,8 +1,9 @@
 # Altis - An Alternate Untis Client
 
 A WebUntis client for desktop and Android that does the things the official one makes hard:
-a timetable you can actually read, notifications that arrive on their own, and a view of your
-absences you can act on. Written in Rust - [Yew](https://yew.rs) in WebAssembly for the UI,
+notifications that actually arrive, timetables for every teacher even though students are not
+allowed to see them, and settings that let you decide how the app behaves instead of the other
+way round. Written in Rust - [Yew](https://yew.rs) in WebAssembly for the UI,
 [Tauri](https://tauri.app) around it, and no server of its own: the app talks to WebUntis
 directly with your credentials.
 
@@ -19,59 +20,27 @@ official app does.
 
 The canteen (Book2Eat) is separate and optional: a canteen ID, a mail address and a password.
 
-Settings can be moved to another device from the Settings screen, as a QR code to scan or a
-JSON file to open - with or without the credentials in them.
-
-## What it does
-
-### Timetable
-
-The week for **you**, or for any class, teacher or room, picked from the two dropdowns.
-**Available Rooms** turns the same data inside out and shows which rooms are free in each
-period, which is the one question the official client cannot answer at all.
-
-Move between weeks with the arrows, the date picker or a swipe. Cancelled, moved and
-substituted lessons are marked as such, exams stand out, and a red line marks the current
-time. Tapping a block opens its details; tapping a teacher, class or room in there jumps
-straight to that timetable.
-
-Loaded weeks are cached for an hour, so paging back and forth is instant and does not hammer
-Untis.
-
-The Visual Settings shape what the grid looks like:
-
-- **Always Shown Time Range** draws every day over at least the times you set, even where no
-  lessons are, so a short day doesn't stretch its lessons over the whole screen and the grid
-  keeps its scale from week to week. Lessons outside the range still show and widen it.
-- **Weekday Override** decides whether empty weekdays are shown at all, and which ones.
-- **Subject Colour Overrides** give a subject a colour of your own.
-- **Force ASCII Timetable** renders the week as text, for when that is what you want.
-
-### Absences
-
-Every absence of the school year with its excuse status, newest first, and a count of the
-ones nobody has excused yet. Where the school allows it you can report an absence yourself,
-change one you reported, and withdraw it again; where it doesn't, Untis' own refusal is shown
-rather than a generic error. The excuse note - the PDF the school wants signed - downloads
-from the same screen, and the year picker reaches back into previous ones.
-
-### Messages
-
-The Untis inbox with unread marked, and attachments that download to wherever you point them.
-
-### Canteen
-
-The week's menu with the QR code the canteen scans, a swipe from day to day.
-
 ## Notifications
 
-Altis polls Untis for timetable changes, upcoming exams, new messages and new absences, and
-shows a native notification for each. Every poll looks at the current **and** the next week,
-so a lesson dropped on Friday for the Monday after still gets noticed. The interval, and
-which kinds of notification you want, are set in Settings.
+This is the main reason Altis exists. The official app's notifications are unreliable: changes
+show up late, not at all, or only once you open the app and look for yourself - at which point
+you did not need a notification.
+
+Altis polls Untis itself and shows a native notification for each:
+
+- **Timetable changes** - cancelled, moved and substituted lessons.
+- **Upcoming exams.**
+- **New messages** in the Untis inbox.
+- **New absences.**
+
+Every poll looks at the current **and** the next week, so a lesson dropped on Friday for the
+Monday after still gets noticed. How often it polls, and which of these kinds you want, is up to
+you in Settings.
 
 Absences you report yourself stay quiet - you typed them in a minute ago. What is worth
 hearing about is a teacher marking you absent.
+
+### How it keeps running
 
 The poll itself lives in `core/` (shared code, `altis_core::notifications`). What differs
 per platform is who runs it:
@@ -102,6 +71,73 @@ per platform is who runs it:
   the app writes the settings to `synced_from_app.json` (the `sync_store` command) and the
   poller reads them; the poller owns `poller_state.json` for its own Untis session and
   bookkeeping. Neither file is ever written by both.
+
+## Timetables
+
+### Teachers
+
+Students have no permission to open a teacher's timetable in Untis. Altis shows it anyway: it
+loads the timetables of all classes, which students may see, and puts together each teacher's
+week from every lesson they appear in. Pick a teacher from the dropdown and you see where they
+are, when they are free, and what they are substituting.
+
+Since it is assembled from class timetables, it shows exactly what those contain - anything a
+teacher has that belongs to no class does not appear.
+
+### Everything else
+
+The week for **you**, or for any class or room, picked from the same two dropdowns.
+**Available Rooms** turns the data inside out and shows which rooms are free in each period,
+another question the official client cannot answer at all.
+
+Move between weeks with the arrows, the date picker or a swipe. Cancelled, moved and
+substituted lessons are marked as such, exams stand out, and a red line marks the current
+time. Tapping a block opens its details; tapping a teacher, class or room in there jumps
+straight to that timetable.
+
+Loaded weeks are cached for an hour, so paging back and forth is instant and does not hammer
+Untis.
+
+## Settings
+
+Most of what the official app decides for you, Altis leaves to you.
+
+**Notifications**
+
+- The poll interval.
+- Which kinds of notification you want: timetable changes, exams, messages, absences.
+- On Android, what happens when the app is closed: WorkManager or the foreground service (see
+  [How it keeps running](#how-it-keeps-running)).
+
+**Visual Settings**
+
+- **Always Shown Time Range** draws every day over at least the times you set, even where no
+  lessons are, so a short day doesn't stretch its lessons over the whole screen and the grid
+  keeps its scale from week to week. Lessons outside the range still show and widen it.
+- **Weekday Override** decides whether empty weekdays are shown at all, and which ones.
+- **Subject Colour Overrides** give a subject a colour of your own.
+- **Force ASCII Timetable** renders the week as text, for when that is what you want.
+
+**Moving to another device**
+
+All settings can be exported from the Settings screen as a QR code to scan or a JSON file to
+open, with or without the credentials in them. Setting up a second device is one scan.
+
+## Absences
+
+Every absence of the school year with its excuse status, newest first, and a count of the
+ones nobody has excused yet. Where the school allows it you can report an absence yourself,
+change one you reported, and withdraw it again; where it doesn't, Untis' own refusal is shown
+rather than a generic error. The excuse note - the PDF the school wants signed - downloads
+from the same screen, and the year picker reaches back into previous ones.
+
+## Messages
+
+The Untis inbox with unread marked, and attachments that download to wherever you point them.
+
+## Canteen
+
+The week's menu with the QR code the canteen scans, a swipe from day to day.
 
 ## How the code is laid out
 
