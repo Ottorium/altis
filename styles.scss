@@ -26,6 +26,35 @@ $warning: #fa8a44;
   -webkit-appearance: none;
 }
 
+// a closed <select> is as wide as its widest option, so one long entry ("Available Rooms", a
+// teacher's full name) stretches the control for every other one and pushes the controls bar past
+// the screen. The hidden label sizes the control to the option that is actually selected: both
+// share one grid cell, the select painted over the label, and `min-width: 0` lets it shrink
+// further when even that doesn't fit.
+.select-fit {
+  display: inline-grid;
+  min-width: 0;
+
+  > * {
+    grid-area: 1 / 1;
+  }
+
+  select {
+    width: 100%;
+    text-overflow: ellipsis;
+  }
+
+  .select-fit-label {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    // .form-select's own padding, so the label measures what the control needs
+    padding-left: 0.75rem;
+    padding-right: 2.25rem;
+  }
+}
+
 // horizontal swipes between weeks are handled in code. Scroll containers (like the week panels) re-enable panning for
 // everything inside them, so the browser would take over the swipe, unless it's disabled on every element of the track
 .week-track,

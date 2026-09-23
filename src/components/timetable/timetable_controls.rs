@@ -3,6 +3,21 @@ use chrono::NaiveDate;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
+/// What can be shown, as the value the timetable uses and the label the picker shows
+const CATEGORIES: [(&str, &str); 5] = [
+    ("Me", "Me"),
+    ("Class", "Class"),
+    ("Teacher", "Teacher"),
+    ("Room", "Room"),
+    ("AvailableRooms", "Available Rooms"),
+];
+
+fn category_label(category: &str) -> &'static str {
+    CATEGORIES.iter()
+        .find(|(value, _)| *value == category)
+        .map_or("", |(_, label)| *label)
+}
+
 #[derive(Properties, PartialEq)]
 pub struct ControlsProps {
     pub category: String,
@@ -74,24 +89,31 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                         <span>{"Loading..."}</span>
                     </div>
                 } else {
-                    <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_cat_change}>
-                        <option value="Me" selected={category == "Me"}>{"Me"}</option>
-                        <option value="Class" selected={category == "Class"}>{"Class"}</option>
-                        <option value="Teacher" selected={category == "Teacher"}>{"Teacher"}</option>
-                        <option value="Room" selected={category == "Room"}>{"Room"}</option>
-                        <option value="AvailableRooms" selected={category == "AvailableRooms"}>{"Available Rooms"}</option>
-                    </select>
-
-                    if !filtered_names.is_empty() {
-                        <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm w-auto me-2 select-primary-dropdown-icon" onchange={on_ent_change}>
-                            {for filtered_names.iter().map(|name| {
-                                html! {
-                                    <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>
-                                        { name }
-                                    </option>
-                                }
+                    <div class="select-fit me-2">
+                        <span class="select-fit-label">{ category_label(&category) }</span>
+                        <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_cat_change}>
+                            {for CATEGORIES.iter().map(|(value, label)| html! {
+                                <option value={*value} selected={category == *value}>{ *label }</option>
                             })}
                         </select>
+                    </div>
+
+                    if !filtered_names.is_empty() {
+                        <div class="select-fit me-2">
+                            // with nothing selected the browser shows the first option
+                            <span class="select-fit-label">
+                                { selected_name.clone().or_else(|| filtered_names.first().cloned()).unwrap_or_default() }
+                            </span>
+                            <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_ent_change}>
+                                {for filtered_names.iter().map(|name| {
+                                    html! {
+                                        <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>
+                                            { name }
+                                        </option>
+                                    }
+                                })}
+                            </select>
+                        </div>
                     }
                 }
 
