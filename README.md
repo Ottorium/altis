@@ -1,11 +1,77 @@
 # Altis - An Alternate Untis Client
 
+A WebUntis client for desktop and Android that does the things the official one makes hard:
+a timetable you can actually read, notifications that arrive on their own, and a view of your
+absences you can act on. Written in Rust - [Yew](https://yew.rs) in WebAssembly for the UI,
+[Tauri](https://tauri.app) around it, and no server of its own: the app talks to WebUntis
+directly with your credentials.
+
+Downloads for Linux, Windows and Android are on the
+[releases page](https://github.com/Ottorium/altis/releases). The app checks once a day
+whether a newer one is out and says so in a banner.
+
+## Setting it up
+
+Untis is signed into with a **school**, a **username** and a **secret** - not your password.
+The secret is the one WebUntis hands out for other apps: profile → *Data access* →
+*Display secret key*. Altis turns it into a one-time code for every login, the same way the
+official app does.
+
+The canteen (Book2Eat) is separate and optional: a canteen ID, a mail address and a password.
+
+Settings can be moved to another device from the Settings screen, as a QR code to scan or a
+JSON file to open - with or without the credentials in them.
+
+## What it does
+
+### Timetable
+
+The week for **you**, or for any class, teacher or room, picked from the two dropdowns.
+**Available Rooms** turns the same data inside out and shows which rooms are free in each
+period, which is the one question the official client cannot answer at all.
+
+Move between weeks with the arrows, the date picker or a swipe. Cancelled, moved and
+substituted lessons are marked as such, exams stand out, and a red line marks the current
+time. Tapping a block opens its details; tapping a teacher, class or room in there jumps
+straight to that timetable.
+
+Loaded weeks are cached for an hour, so paging back and forth is instant and does not hammer
+Untis.
+
+The Visual Settings shape what the grid looks like:
+
+- **Always Shown Time Range** draws every day over at least the times you set, even where no
+  lessons are, so a short day doesn't stretch its lessons over the whole screen and the grid
+  keeps its scale from week to week. Lessons outside the range still show and widen it.
+- **Weekday Override** decides whether empty weekdays are shown at all, and which ones.
+- **Subject Colour Overrides** give a subject a colour of your own.
+- **Force ASCII Timetable** renders the week as text, for when that is what you want.
+
+### Absences
+
+Every absence of the school year with its excuse status, newest first, and a count of the
+ones nobody has excused yet. Where the school allows it you can report an absence yourself,
+change one you reported, and withdraw it again; where it doesn't, Untis' own refusal is shown
+rather than a generic error. The excuse note - the PDF the school wants signed - downloads
+from the same screen, and the year picker reaches back into previous ones.
+
+### Messages
+
+The Untis inbox with unread marked, and attachments that download to wherever you point them.
+
+### Canteen
+
+The week's menu with the QR code the canteen scans, a swipe from day to day.
+
 ## Notifications
 
-Altis polls Untis for timetable changes, upcoming exams and new messages, and shows a
-native notification for each. Every poll looks at the current **and** the next week, so a
-lesson dropped on Friday for the Monday after still gets noticed. The interval, and which
-of the three kinds of notification you want, are set in Settings.
+Altis polls Untis for timetable changes, upcoming exams, new messages and new absences, and
+shows a native notification for each. Every poll looks at the current **and** the next week,
+so a lesson dropped on Friday for the Monday after still gets noticed. The interval, and
+which kinds of notification you want, are set in Settings.
+
+Absences you report yourself stay quiet - you typed them in a minute ago. What is worth
+hearing about is a teacher marking you absent.
 
 The poll itself lives in `core/` (shared code, `altis_core::notifications`). What differs
 per platform is who runs it:
@@ -37,9 +103,30 @@ per platform is who runs it:
   poller reads them; the poller owns `poller_state.json` for its own Untis session and
   bookkeeping. Neither file is ever written by both.
 
-## How to build (ai generated)
+## How the code is laid out
 
-You need Rust with the `wasm32-unknown-unknown` target, [Trunk](https://trunkrs.dev) and the Tauri CLI (`cargo install trunk tauri-cli`). You also need the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
+- `core/` - everything Untis that isn't tied to a browser: the client, the data models, the
+  notification poll, the settings. It must stay free of `web-sys`/`js-sys`/`wasm-bindgen`.
+  Whatever it needs from a platform - a key-value store, an HTTP client that CORS can't stop,
+  the clock, a notification - it asks for through the `Env` trait. That is what lets the same
+  poll run in the webview on desktop and natively in the Android service.
+- `src/` - the Yew frontend, which binds `Env` to localStorage and the Tauri `proxy` command.
+- `src-tauri/` - the shell: the `proxy`, file and store commands, the tray, and the Android
+  background poller that binds `Env` to a JSON file and reqwest.
+
+Two notes on talking to WebUntis, both of which cost an afternoon to find out:
+
+- The timetable and message APIs take a bearer token, but the older `classreg` API the
+  absences live on only knows the session cookie.
+- Writing through that API additionally needs the session's CSRF token, which WebUntis ships
+  in the config its pages bootstrap from rather than handing it out through an endpoint.
+  Without it, a write is answered with the login page.
+
+## Building
+
+You need Rust with the `wasm32-unknown-unknown` target, [Trunk](https://trunkrs.dev) and the
+Tauri CLI (`cargo install trunk tauri-cli`). You also need the
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
 
 **Debug builds:**
 - `cargo tauri dev` runs the app with live reload.
@@ -48,9 +135,9 @@ You need Rust with the `wasm32-unknown-unknown` target, [Trunk](https://trunkrs.
 
 ### All at once
 
-`scripts/release.sh 0.3.0` bumps the version in `Cargo.toml`, `src-tauri/Cargo.toml`,
+`scripts/release.sh 1.0.0` bumps the version in `Cargo.toml`, `src-tauri/Cargo.toml`,
 `src-tauri/tauri.conf.json` and the `PKGBUILD` below, builds every bundle it has the
-toolchain for, and collects them in `release/0.3.0/`. It does not commit, tag or push.
+toolchain for, and collects them in `release/1.0.0/`. It does not commit, tag or push.
 
 - `-t deb,appimage` builds only some of `deb`, `appimage`, `exe`, `apk`.
 - `-n` skips the bump and rebuilds the version that is already in the manifests.
@@ -79,7 +166,7 @@ Either run the AppImage, or turn the .deb into a pacman package. For the package
 
 ```sh
 pkgname=altis
-pkgver=0.3.0
+pkgver=1.0.0
 pkgrel=1
 pkgdesc="An alternate Untis client"
 arch=('x86_64')
@@ -140,3 +227,7 @@ apksigner sign --ks release.jks --ks-key-alias altis --out altis.apk aligned.apk
 ```
 
 `zipalign` and `apksigner` are in `$ANDROID_HOME/build-tools/<version>/`.
+
+## License
+
+GPL-3.0-only. See [LICENSE](LICENSE).
