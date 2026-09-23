@@ -467,8 +467,10 @@ fn absence_form_modal(props: &AbsenceFormModalProps) -> Html {
         })
     };
 
-    let on_input = |state: UseStateHandle<String>| {
-        Callback::from(move |e: InputEvent| {
+    // `onchange`, not `oninput`: a date or time input reports a half-typed value as empty, and
+    // re-rendering the field with that empty value wipes what is being typed
+    let on_change = |state: UseStateHandle<String>| {
+        Callback::from(move |e: Event| {
             state.set(e.target_unchecked_into::<HtmlInputElement>().value());
         })
     };
@@ -481,18 +483,18 @@ fn absence_form_modal(props: &AbsenceFormModalProps) -> Html {
                     <label class="form-label small text-secondary">{"From"}</label>
                     <div class="d-flex gap-2">
                         <input type="date" class="form-control bg-dark text-white border-secondary"
-                               value={(*date).clone()} oninput={on_input(date.clone())} />
+                               value={(*date).clone()} onchange={on_change(date.clone())} />
                         <input type="time" class="form-control bg-dark text-white border-secondary"
-                               value={(*start_time).clone()} oninput={on_input(start_time.clone())} />
+                               value={(*start_time).clone()} onchange={on_change(start_time.clone())} />
                     </div>
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label small text-secondary">{"To"}</label>
                     <div class="d-flex gap-2">
                         <input type="date" class="form-control bg-dark text-white border-secondary"
-                               value={(*end_date).clone()} oninput={on_input(end_date.clone())} />
+                               value={(*end_date).clone()} onchange={on_change(end_date.clone())} />
                         <input type="time" class="form-control bg-dark text-white border-secondary"
-                               value={(*end_time).clone()} oninput={on_input(end_time.clone())} />
+                               value={(*end_time).clone()} onchange={on_change(end_time.clone())} />
                     </div>
                 </div>
                 if !props.reasons.is_empty() {
