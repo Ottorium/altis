@@ -4,6 +4,13 @@ $warning: #fa8a44;
 
 @import "./node_modules/bootstrap/scss/bootstrap.scss";
 
+// WebView2 rubber-bands the page past its edges on touchpad scrolls, which in an app looks like
+// the whole window is coming loose
+html,
+body {
+  overscroll-behavior: none;
+}
+
 .selected-gradient {
   --bg-gradient: linear-gradient(to right, rgba(255, 221, 103, 0.25) 0%, rgba(255, 221, 103, 0) 100%);
   background: var(--bg-gradient) !important;

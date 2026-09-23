@@ -170,7 +170,21 @@ fn allow_camera(app: &tauri::App) {
 pub fn run() {
     http::install_crypto_provider();
 
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // closing the window only hides it, so launching the app again would start a second process
+    // (and a second tray icon) next to the hidden one. Instead the running one is brought back.
+    // Has to be the first plugin registered.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        use tauri::Manager;
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
+    }));
+
+    let builder = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
