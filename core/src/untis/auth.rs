@@ -154,6 +154,89 @@ impl<E: Env> AuthHelper<E> {
         })
     }
 
+    /// Performs a request authenticated with the session cookies. The classreg API is older than
+    /// the token one and only knows the session, so a bearer token is no use to it.
+    pub async fn session_request(
+        method: &str,
+        url: &str,
+        headers: HashMap<String, Vec<String>>,
+        body: String,
+    ) -> Result<HttpResponse, ApiError> {
+        let cookies = match Store::<E>::get_cookies() {
+            Some(cookies) => cookies,
+            None => Self::reauthenticate().await?,
+        };
+        let res = Self::send_with_session(&cookies, method, url, headers.clone(), body.clone()).await?;
+
+        // a session that's gone gets the login page rather than an error, so anything that isn't
+        // JSON means we have to log in again instead of that the request itself failed
+        if res.body.trim_start().starts_with('{') {
+            return Ok(res);
+        }
+
+        let fresh_cookies = Self::reauthenticate().await?;
+        Self::send_with_session(&fresh_cookies, method, url, headers, body).await
+    }
+
+    async fn send_with_session(
+        cookies: &Cookies,
+        method: &str,
+        url: &str,
+        mut headers: HashMap<String, Vec<String>>,
+        body: String,
+    ) -> Result<HttpResponse, ApiError> {
+        Self::set_cookie_headers(&mut headers, cookies);
+
+        // reading is allowed on the cookie alone, writing also wants the session's CSRF token
+        if !method.eq_ignore_ascii_case("GET") {
+            let token = Self::csrf_token(cookies).await?;
+            headers.insert("X-CSRF-TOKEN".to_string(), vec![token]);
+        }
+
+        Ok(E::default().request(method, url, headers, body).await?)
+    }
+
+    /// The CSRF token of the session, which Untis ships in the config its pages bootstrap from
+    /// rather than handing out through an endpoint, so it has to be read off one of them
+    async fn csrf_token(cookies: &Cookies) -> Result<String, ApiError> {
+        let school_name = Self::school_name()?;
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/?school={}",
+            school_name, school_name,
+        );
+
+        let mut headers = HashMap::new();
+        headers.insert("Cookie".to_string(), vec![cookies.to_header_value()]);
+        let page = E::default().request("GET", &url, headers, String::new()).await?.body;
+
+        extract_csrf_token(&page)
+            .ok_or(ApiError::Authentication("No CSRF token in the WebUntis page".to_string()))
+    }
+
+    fn school_name() -> Result<String, ApiError> {
+        Ok(Store::<E>::get_settings()?
+            .ok_or(ApiError::Miscellaneous("Settings are empty".to_string()))?
+            .untis_auth
+            .school_identifier)
+    }
+
+    /// The headers of a session-authenticated request, for a caller that fetches a URL itself
+    /// rather than through `session_request` (the native downloader does)
+    pub fn session_headers() -> Result<HashMap<String, Vec<String>>, ApiError> {
+        let cookies = Store::<E>::get_cookies()
+            .ok_or(ApiError::Authentication("Not logged in".to_string()))?;
+
+        let mut headers = HashMap::new();
+        Self::set_cookie_headers(&mut headers, &cookies);
+        Ok(headers)
+    }
+
+    /// The tenant travels in a header of its own next to the cookie, the way the web client sends it
+    fn set_cookie_headers(headers: &mut HashMap<String, Vec<String>>, cookies: &Cookies) {
+        headers.insert("Cookie".to_string(), vec![cookies.to_header_value()]);
+        headers.insert("Tenant-Id".to_string(), vec![cookies.tenant_id.clone()]);
+    }
+
     pub async fn authorized_request(
         method: &str,
         url: &str,
@@ -174,5 +257,31 @@ impl<E: Env> AuthHelper<E> {
         }
 
         Ok(res)
+    }
+}
+
+/// Picks `"csrfToken":"..."` out of the config blob a WebUntis page bootstraps from
+fn extract_csrf_token(page: &str) -> Option<String> {
+    const KEY: &str = "\"csrfToken\":\"";
+
+    let value = &page[page.find(KEY)? + KEY.len()..];
+    Some(value[..value.find('"')?].to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_csrf_token;
+
+    #[test]
+    fn reads_the_token_out_of_a_page() {
+        let page = r#"<html><script>window.config = {"playgrounds":[],"hasPrivacyPolicy":false,"csrfHeader":"X-CSRF-TOKEN","csrfToken":"EG-kpVugFDsDJATk7a3Jb0PcSI8A9Srd","school":"htl-hl"}</script></html>"#;
+
+        assert_eq!(extract_csrf_token(page).as_deref(), Some("EG-kpVugFDsDJATk7a3Jb0PcSI8A9Srd"));
+    }
+
+    #[test]
+    fn has_no_token_without_one() {
+        assert_eq!(extract_csrf_token("<html>Session expired</html>"), None);
+        assert_eq!(extract_csrf_token(r#"{"csrfToken":"#), None);
     }
 }

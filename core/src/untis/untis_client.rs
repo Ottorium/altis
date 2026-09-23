@@ -1,4 +1,5 @@
 use crate::data_models::clean_models::untis::*;
+use crate::data_models::response_models::untis_absences::*;
 use crate::data_models::response_models::untis_messages::*;
 use crate::data_models::response_models::untis_response_models::*;
 use crate::errors::ApiError;
@@ -9,6 +10,7 @@ use crate::untis::untis_week::Week;
 use chrono::{Duration, NaiveDate};
 use futures::future::join_all;
 use serde::de::DeserializeOwned;
+use serde_json::json;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -78,10 +80,15 @@ impl<E: Env> UntisClient<E> {
             Self::check_untis_error(&untis_error)?;
         }
 
-        serde_json::from_str(&response.body).map_err(|e| {
+        Self::parse(&response.body)
+    }
+
+    /// Parses a response body, reporting where it stopped making sense
+    fn parse<T: DeserializeOwned>(body: &str) -> Result<T, ApiError> {
+        serde_json::from_str(body).map_err(|e| {
             let line = e.line();
             let col = e.column();
-            let line_content = response.body.lines().nth(line.saturating_sub(1)).unwrap_or("");
+            let line_content = body.lines().nth(line.saturating_sub(1)).unwrap_or("");
 
             let start = col.saturating_sub(20);
 
@@ -234,5 +241,148 @@ impl<E: Env> UntisClient<E> {
             attachment_id,
         );
         Self::fetch(&url).await
+    }
+
+    /// Performs a session-authorized classreg request and parses the response, including the
+    /// error shape that API answers a refusal with
+    async fn classreg<T: DeserializeOwned>(method: &str, url: &str, body: String) -> Result<T, ApiError> {
+        let mut headers = HashMap::new();
+        headers.insert("Accept".to_string(), vec!["application/json".to_string()]);
+        if !body.is_empty() {
+            headers.insert("Content-Type".to_string(), vec!["application/json".to_string()]);
+        }
+
+        let response = AuthHelper::<E>::session_request(method, url, headers, body).await?;
+
+        // checked first, an error response doesn't parse as the expected type
+        if let Ok(errors) = serde_json::from_str::<ErrorResponse>(&response.body) {
+            let message = errors.message();
+            if !message.is_empty() {
+                return Err(ApiError::Miscellaneous(message));
+            }
+        }
+
+        Self::parse(&response.body)
+    }
+
+    /// The id the classreg API knows the logged in student by, which is the one their personal
+    /// timetable is addressed with
+    async fn student_id(&self) -> Result<i32, ApiError> {
+        Ok(self.get_me(&Week::current()).await?
+            .ok_or(ApiError::Miscellaneous("Untis did not return a student for this account".to_string()))?
+            .id)
+    }
+
+    /// The student's own absences in the given range, along with what the school lets them do
+    pub async fn get_absences(&self, start: NaiveDate, end: NaiveDate) -> Result<AbsencesData, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/classreg/absences/students?startDate={}&endDate={}&studentId={}&excuseStatusId=-1",
+            self.school_name,
+            to_untis_date(start),
+            to_untis_date(end),
+            self.student_id().await?,
+        );
+
+        Ok(Self::classreg::<AbsencesResponse>("GET", &url, String::new()).await?.data)
+    }
+
+    /// What the school allows and the defaults it pre-fills the report form with
+    pub async fn get_absence_meta(&self) -> Result<AbsenceMeta, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/classreg/absences/meta",
+            self.school_name,
+        );
+
+        Ok(Self::classreg::<AbsenceMetaResponse>("GET", &url, String::new()).await?.data)
+    }
+
+    /// The fields both reporting and editing an absence send
+    fn absence_payload(absence: &NewAbsence) -> serde_json::Value {
+        json!({
+            "startDate": to_untis_date(absence.start_date),
+            "startTime": to_untis_time(absence.start_time),
+            "endDate": to_untis_date(absence.end_date),
+            "endTime": to_untis_time(absence.end_time),
+            "text": absence.text,
+            // 0 is what the web client sends for "no reason given"
+            "reasonId": absence.reason_id.unwrap_or(0),
+        })
+    }
+
+    /// Reports an absence for the logged in student
+    pub async fn create_absence(&self, absence: &NewAbsence) -> Result<Absence, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/classreg/absences/students/self",
+            self.school_name,
+        );
+
+        let mut body = Self::absence_payload(absence);
+        body["studentId"] = json!(self.student_id().await?);
+
+        Ok(Self::classreg::<CreateAbsenceResponse>("POST", &url, body.to_string()).await?.data.result)
+    }
+
+    /// Changes an absence the student reported themselves. Untis wants the whole absence back,
+    /// not only the fields that changed.
+    pub async fn edit_absence(&self, id: i32, absence: &NewAbsence) -> Result<Absence, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/classreg/absences/students/edit",
+            self.school_name,
+        );
+
+        let mut body = Self::absence_payload(absence);
+        body["absenceId"] = json!(id);
+
+        Ok(Self::classreg::<CreateAbsenceResponse>("POST", &url, body.to_string()).await?.data.result)
+    }
+
+    /// The excuse note for a range, the PDF a student hands in signed. Untis renders it first and
+    /// answers with the parameters its download URL is made of, so the file is fetched separately.
+    pub async fn get_excuse_report(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+        excuse_group: Option<i32>,
+    ) -> Result<ReportDownload, ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/reports.do?name=Excuse&format=pdf&rpt_sd={}&rpt_ed={}&excuseStatusId=-1&withLateness=true&withAbsences=true&excuseGroup={}",
+            self.school_name,
+            to_untis_date(start),
+            to_untis_date(end),
+            // the schools that don't assign students a group of their own print the first one
+            excuse_group.filter(|group| *group > 0).unwrap_or(1),
+        );
+
+        let report = Self::classreg::<ReportResponse>("GET", &url, String::new()).await?.data;
+        if report.error || report.report_params.is_empty() {
+            return Err(ApiError::Miscellaneous("Untis could not render the excuse note".to_string()));
+        }
+
+        let format = if report.format.is_empty() { "pdf" } else { &report.format };
+        Ok(ReportDownload {
+            url: format!(
+                "https://{}.webuntis.com/WebUntis/reports.do?{}",
+                self.school_name, report.report_params,
+            ),
+            file_name: format!("{}.{}", report.report_name, format),
+            headers: AuthHelper::<E>::session_headers()?,
+        })
+    }
+
+    /// Withdraws absences. Untis refuses the ones a teacher entered or already excused, and says
+    /// so in the response rather than in a status code
+    pub async fn delete_absences(&self, ids: &[i32]) -> Result<(), ApiError> {
+        let url = format!(
+            "https://{}.webuntis.com/WebUntis/api/classreg/absences/students",
+            self.school_name,
+        );
+
+        let body = json!({ "absenceIds": ids });
+        let response: SuccessResponse = Self::classreg("DELETE", &url, body.to_string()).await?;
+
+        match response.data.success {
+            true => Ok(()),
+            false => Err(ApiError::Miscellaneous("Untis did not delete the absence".to_string())),
+        }
     }
 }

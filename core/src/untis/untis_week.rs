@@ -7,6 +7,18 @@ pub struct Week {
     pub end: String,
 }
 
+/// The school year's first and last day. Untis starts one in September and groups the things it
+/// keeps per year, absences among them, by it. `offset` counts years back from the running one.
+pub fn school_year(offset: i32) -> (NaiveDate, NaiveDate) {
+    let today = chrono::Local::now().date_naive();
+    let first_year = if today.month() >= 9 { today.year() } else { today.year() - 1 } - offset;
+
+    (
+        NaiveDate::from_ymd_opt(first_year, 9, 1).unwrap_or(today),
+        NaiveDate::from_ymd_opt(first_year + 1, 8, 31).unwrap_or(today),
+    )
+}
+
 impl Week {
     pub fn current() -> Self {
         Self::current_plus(0)
