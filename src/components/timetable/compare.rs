@@ -1,5 +1,5 @@
 use crate::persistence_manager::PersistenceManager;
-use altis_core::data_models::clean_models::untis::{Entity, LessonBlock, WeekTimeTable};
+use altis_core::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock, WeekTimeTable};
 use altis_core::settings::{Favorites, is_dark_color};
 use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use gloo_timers::callback::Interval;
@@ -219,21 +219,33 @@ fn format_span((from, until): Span) -> String {
 }
 
 fn render_lesson(lesson: &LessonBlock, position: String, now: NaiveDateTime) -> Html {
-    let subject = lesson.entities.iter()
-        .find_map(|e| match &e.inner { Entity::Subject(s) => Some(s.short_name.clone()), _ => None })
-        .unwrap_or_else(|| lesson.r#type.clone());
-    let color = lesson.color_hex.trim_start_matches('#');
-    let text = if is_dark_color(color) { "#fff" } else { "#000" };
-    let cancelled = lesson.status == "CANCELLED";
-    let past = lesson.time_range.end <= now;
+    let first_name = |wanted: fn(&Entity) -> bool| lesson.entities.iter()
+        .filter(|e| e.status != ChangeStatus::Removed && wanted(&e.inner))
+        .map(|e| e.inner.name())
+        .find(|name| !name.is_empty());
+    let subject = first_name(|e| matches!(e, Entity::Subject(_))).unwrap_or_else(|| lesson.r#type.clone());
+    let room = first_name(|e| matches!(e, Entity::Room(_)));
 
-    let mut style = format!("{position} background-color: #{color}; color: {text};");
-    if cancelled { style.push_str(" opacity: 0.3; text-decoration: line-through;"); }
-    else if past { style.push_str(" opacity: 0.65;"); }
+    let color = lesson.color_hex.trim_start_matches('#');
+    let text_cls = if is_dark_color(color) { "text-white" } else { "text-black" };
+    let status_cls = match lesson.status.as_str() {
+        "CANCELLED" => Some("compare-lesson-cancelled"),
+        "CHANGED" => Some("compare-lesson-changed"),
+        "ADDITIONAL" => Some("compare-lesson-additional"),
+        _ if lesson.r#type == "EXAM" => Some("compare-lesson-exam"),
+        _ => None,
+    };
+    let past = lesson.time_range.end <= now;
+    let title = format!("{subject} {}", format_span((lesson.time_range.start.time(), lesson.time_range.end.time())));
 
     html! {
-        <div class="compare-lesson" {style} title={format!("{subject} {}", format_span((lesson.time_range.start.time(), lesson.time_range.end.time())))}>
-            { subject }
+        <div class={classes!("compare-lesson", past.then_some("compare-lesson-past"))} style={position} {title}>
+            <div class={classes!("compare-lesson-inner", text_cls, status_cls)} style={format!("background-color: #{color};")}>
+                <span class="fw-semibold">{ subject }</span>
+                if let Some(room) = room {
+                    <span class="compare-lesson-detail">{ room }</span>
+                }
+            </div>
         </div>
     }
 }
