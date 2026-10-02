@@ -2,6 +2,7 @@
 //! and the notification plugin into [`altis_core::env::Env`], and `PersistenceManager` keeps the
 //! app's own timetable caches, which are compressed and never leave the webview.
 
+use crate::components::timetable::compare::Compared;
 use crate::request_proxy::request_proxy;
 use altis_core::data_models::clean_models::untis::{Class, Entity, MyTimeTable, WeekTimeTable};
 use altis_core::env::{Env, HttpResponse};
@@ -19,7 +20,9 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{HtmlDocument, Storage};
 
-pub type TimeTables = (HashMap<Class, WeekTimeTable>, Option<i32>);
+const COMPARED_KEY: &str = "compared_timetables";
+
+pub type TimeTables =(HashMap<Class, WeekTimeTable>, Option<i32>);
 
 #[allow(dead_code)]
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -181,6 +184,18 @@ impl PersistenceManager {
         postcard::from_bytes(&decompressed)
             .map(Some)
             .map_err(|e| format!("Postcard failed: {}", e))
+    }
+
+    /// The timetables picked for comparing last time, so they don't have to be picked again
+    pub fn get_compared() -> Vec<Compared> {
+        WebEnv.get(COMPARED_KEY)
+            .and_then(|raw| serde_json::from_str(&raw).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn save_compared(compared: &[Compared]) -> Result<(), String> {
+        let serialized = serde_json::to_string(compared).map_err(|e| format!("Serialization failed: {e}"))?;
+        WebEnv.set(COMPARED_KEY, &serialized)
     }
 
     pub fn get_known_subjects() -> Vec<String> {

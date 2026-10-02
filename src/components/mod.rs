@@ -1,7 +1,7 @@
 pub mod app;
 mod navbar;
 mod settings;
-mod timetable;
+pub(crate) mod timetable;
 mod absences;
 mod messages;
 mod book2eat;

@@ -98,6 +98,21 @@ straight to that timetable.
 Loaded weeks are cached for an hour, so paging back and forth is instant and does not hammer
 Untis.
 
+### Favourites
+
+The star next to a class, teacher or room marks it as a favourite. Favourites are listed first
+in the dropdown, and switching to a category opens on its first favourite (or, for classes,
+your own class). They are part of the settings, so they move along with an export.
+
+### Comparing timetables
+
+**Compare** puts two or more timetables side by side - yours, classes, teachers, rooms, in any
+mix - with a lane per timetable in each day, and marks in green the breaks they all share: the
+times none of them has a lesson while every one of them is at school, from the latest first
+lesson of the day to the earliest last one. A cancelled lesson counts as free. The shared
+breaks are listed with their times below the grid. The picker offers your favourites first and
+remembers what was compared last.
+
 ## Settings
 
 Most of what the official app decides for you, Altis leaves to you.

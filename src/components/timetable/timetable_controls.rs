@@ -1,15 +1,18 @@
+use crate::components::timetable::compare::Compared;
+use altis_core::settings::Favorites;
 use altis_core::untis::untis_week::Week;
 use chrono::NaiveDate;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
 /// What can be shown, as the value the timetable uses and the label the picker shows
-const CATEGORIES: [(&str, &str); 5] = [
+const CATEGORIES: [(&str, &str); 6] = [
     ("Me", "Me"),
     ("Class", "Class"),
     ("Teacher", "Teacher"),
     ("Room", "Room"),
     ("AvailableRooms", "Available Rooms"),
+    ("Compare", "Compare"),
 ];
 
 fn category_label(category: &str) -> &'static str {
@@ -24,11 +27,17 @@ pub struct ControlsProps {
     pub selected_name: Option<String>,
     pub selected_week: Week,
     pub filtered_names: Vec<String>,
+    pub favorites: Favorites,
+    /// the timetables picked for the "Compare" category
+    pub compared: Vec<Compared>,
     pub loading: bool,
     pub on_category_change: Callback<String>,
     pub on_entity_change: Callback<String>,
     pub on_week_change: Callback<Week>,
     pub on_reload: Callback<()>,
+    /// the selected class, teacher or room was starred or unstarred
+    pub on_toggle_favorite: Callback<String>,
+    pub on_open_picker: Callback<()>,
 }
 
 #[function_component(TimetableControls)]
@@ -52,6 +61,38 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
             let val = e.target_unchecked_into::<HtmlSelectElement>().value();
             cb.emit(val);
         })
+    };
+
+    // favourites come first, so they're found without scrolling through every teacher
+    let (favorite_names, other_names): (Vec<&String>, Vec<&String>) = filtered_names.iter()
+        .partition(|name| props.favorites.contains(&category, name));
+    let option = |name: &String| html! {
+        <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>{ name }</option>
+    };
+
+    let favorite_button = selected_name.clone()
+        .filter(|_| matches!(category.as_str(), "Class" | "Teacher" | "Room"))
+        .map(|name| {
+            let is_favorite = props.favorites.contains(&category, &name);
+            let onclick = {
+                let cb = props.on_toggle_favorite.clone();
+                Callback::from(move |_| cb.emit(name.clone()))
+            };
+            html! {
+                <button type="button" class="btn btn-link p-1 me-2 flex-shrink-0" {onclick}
+                        title={if is_favorite { "Remove from favourites" } else { "Add to favourites" }}>
+                    <i class={classes!("bi", "fs-5", if is_favorite { "bi-star-fill text-primary" } else { "bi-star text-secondary" })}></i>
+                </button>
+            }
+        });
+
+    let compare_label = match props.compared.is_empty() {
+        true => "Pick timetables".to_string(),
+        false => props.compared.iter().map(Compared::label).collect::<Vec<_>>().join(", "),
+    };
+    let on_pick = {
+        let cb = props.on_open_picker.clone();
+        Callback::from(move |_| cb.emit(()))
     };
 
     let on_prev_week = {
@@ -105,15 +146,23 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                                 { selected_name.clone().or_else(|| filtered_names.first().cloned()).unwrap_or_default() }
                             </span>
                             <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_ent_change}>
-                                {for filtered_names.iter().map(|name| {
-                                    html! {
-                                        <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>
-                                            { name }
-                                        </option>
-                                    }
-                                })}
+                                if favorite_names.is_empty() {
+                                    { for other_names.into_iter().map(option) }
+                                } else {
+                                    <optgroup label="Favourites">{ for favorite_names.into_iter().map(option) }</optgroup>
+                                    <optgroup label="Others">{ for other_names.into_iter().map(option) }</optgroup>
+                                }
                             </select>
                         </div>
+                        { favorite_button }
+                    }
+
+                    if category == "Compare" {
+                        <button type="button" onclick={on_pick}
+                                class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon text-start text-truncate me-2"
+                                style="width: auto; min-width: 0; max-width: 16rem;">
+                            <i class="bi bi-ui-checks me-1"></i>{ compare_label }
+                        </button>
                     }
                 }
 
