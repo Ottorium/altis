@@ -105,7 +105,7 @@ enum Panel {
     Table(WeekTimeTable),
     /// the rooms no lesson takes up, for the whole week at once
     FreeRooms(FreeRooms),
-    /// several timetables side by side, with the breaks they share
+    /// several timetables side by side
     Compare(Comparison),
     /// fewer than two timetables are picked for comparing
     CompareHint,
@@ -242,7 +242,7 @@ fn render_panel(week: &Week, left: &str, panel: Panel, on_entity_select: Callbac
                 Panel::FreeRooms(free_rooms) => html! { <FreeRoomsRender {free_rooms} {on_entity_select} /> },
                 Panel::Compare(comparison) => html! { <CompareRender {comparison} /> },
                 Panel::CompareHint => html! {
-                    <p class="text-secondary p-3">{ "Pick two or more timetables to see where their breaks overlap." }</p>
+                    <p class="text-secondary p-3">{ "Pick two or more timetables to compare." }</p>
                 },
                 Panel::NoSelection => html! { <p class="text-light"> {"No selection made"} </p> },
             }}

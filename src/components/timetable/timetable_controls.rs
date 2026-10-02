@@ -55,6 +55,21 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
         })
     };
 
+    let entity_select = use_node_ref();
+    {
+        let entity_select = entity_select.clone();
+        let selected_name = selected_name.clone();
+        // the `selected` attribute stops deciding what a select shows once the user picked an option
+        // by hand, and moving options in and out of the favourites group can leave WebKit showing
+        // another one, so the shown entry is set directly after every render
+        use_effect(move || {
+            if let (Some(select), Some(name)) = (entity_select.cast::<HtmlSelectElement>(), selected_name)
+                && select.value() != name {
+                select.set_value(&name);
+            }
+        });
+    }
+
     let on_ent_change = {
         let cb = props.on_entity_change.clone();
         Callback::from(move |e: Event| {
@@ -145,7 +160,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                             <span class="select-fit-label">
                                 { selected_name.clone().or_else(|| filtered_names.first().cloned()).unwrap_or_default() }
                             </span>
-                            <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_ent_change}>
+                            <select ref={entity_select} class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_ent_change}>
                                 if favorite_names.is_empty() {
                                     { for other_names.into_iter().map(option) }
                                 } else {

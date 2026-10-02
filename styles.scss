@@ -204,8 +204,8 @@ html.qr-scanning body {
   }
 }
 
-// several timetables compared: a column per day, split into a lane per timetable, with the breaks
-// all of them share laid across every lane
+// several timetables compared: a column per day, split into a lane per timetable. The line between
+// two days is drawn heavier than the one between two lanes, so the days stay apart
 .compare-time-column {
   width: 2.6rem;
   flex-shrink: 0;
@@ -219,11 +219,12 @@ html.qr-scanning body {
   padding-top: 0.1rem;
 }
 
-.compare-day {
+.compare-day,
+.compare-day-head {
   position: relative;
   flex: 1 1 0;
   min-width: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 2px solid rgba(255, 255, 255, 0.45);
 }
 
 .compare-hour-line {
@@ -264,16 +265,6 @@ html.qr-scanning body {
   white-space: nowrap;
 }
 
-.compare-break {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 5;
-  background-color: rgba(0, 171, 91, 0.35);
-  border-top: 1px solid #00ab5b;
-  border-bottom: 1px solid #00ab5b;
-}
-
 .compare-now-line {
   position: absolute;
   left: 0;
@@ -283,21 +274,6 @@ html.qr-scanning body {
   background: #ff3b30;
   z-index: 20;
   pointer-events: none;
-}
-
-.compare-break-swatch {
-  display: inline-block;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 0.15rem;
-  vertical-align: -0.1rem;
-  background-color: rgba(0, 171, 91, 0.6);
-}
-
-.compare-break-badge {
-  background-color: rgba(0, 171, 91, 0.25);
-  color: #4cd68f;
-  font-weight: 500;
 }
 
 .compare-legend {

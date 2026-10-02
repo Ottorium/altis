@@ -107,11 +107,8 @@ your own class). They are part of the settings, so they move along with an expor
 ### Comparing timetables
 
 **Compare** puts two or more timetables side by side - yours, classes, teachers, rooms, in any
-mix - with a lane per timetable in each day, and marks in green the breaks they all share: the
-times none of them has a lesson while every one of them is at school, from the latest first
-lesson of the day to the earliest last one. A cancelled lesson counts as free. The shared
-breaks are listed with their times below the grid. The picker offers your favourites first and
-remembers what was compared last.
+mix - with a lane per timetable in each day, so free times that line up are easy to spot. The
+picker offers your favourites first and remembers what was compared last.
 
 ## Settings
 
