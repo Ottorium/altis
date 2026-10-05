@@ -203,3 +203,132 @@ html.qr-scanning body {
     font-size: 0.65rem;
   }
 }
+
+// several timetables compared: a column per day, split into a lane per timetable. The line between
+// two days is drawn heavier than the one between two lanes, so the days stay apart
+.compare-time-column {
+  width: 2.6rem;
+  flex-shrink: 0;
+}
+
+.compare-hour-label {
+  position: absolute;
+  right: 0.25rem;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding-top: 0.1rem;
+}
+
+.compare-day,
+.compare-day-head {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border-left: 2px solid rgba(255, 255, 255, 0.45);
+}
+
+.compare-hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.compare-lane {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+
+  & + & {
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+.compare-lane-numbers > span {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 0.65rem;
+  color: $primary;
+}
+
+// a block is sized by the lesson's duration and the number of lanes, so its text scales with the
+// block and the room is only shown where there is room for it
+.compare-lesson {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 1px 2px;
+  container-type: size;
+}
+
+.compare-lesson-past {
+  filter: grayscale(0.4);
+  opacity: 0.65;
+}
+
+.compare-lesson-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.3rem;
+  text-align: center;
+  line-height: 1.1;
+  font-size: clamp(0.5rem, 26cqw, 0.9rem);
+  white-space: nowrap;
+}
+
+.compare-lesson-detail {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+@container (max-height: 2.6rem) or (max-width: 2.8rem) {
+  .compare-lesson-detail {
+    display: none;
+  }
+}
+
+// the same markers the regular timetable uses
+.compare-lesson-cancelled {
+  opacity: 0.35;
+  border: 2px solid #ff4d4d;
+  text-decoration: line-through;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255, 0, 0, 0.15) 6px, rgba(255, 0, 0, 0.15) 12px);
+}
+
+.compare-lesson-changed {
+  box-shadow: inset 0 0 0 2px #00d4ff, inset 0 0 8px #00d4ff;
+}
+
+.compare-lesson-additional {
+  box-shadow: inset 0 0 0 2px #00ab5b, inset 0 0 8px #00ab5b;
+}
+
+.compare-lesson-exam {
+  box-shadow: inset 0 0 0 2px #ffcc00, inset 0 0 8px #ffcc00;
+}
+
+.compare-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform: translateY(-1px);
+  background: #ff3b30;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.compare-legend {
+  background-color: rgba(255, 255, 255, 0.08);
+  font-weight: 500;
+}
+
+.compare-lane-number {
+  color: $primary;
+  margin-right: 0.3rem;
+}

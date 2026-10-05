@@ -29,6 +29,48 @@ pub struct Settings {
     pub visual_settings: VisualSettings,
     #[serde(default)]
     pub notification_settings: NotificationSettings,
+    #[serde(default)]
+    pub favorites: Favorites,
+}
+
+/// Classes, teachers and rooms marked to be found quicker, by the name the timetable picker shows
+/// them under. Categories are the timetable's own: "Class", "Teacher" and "Room".
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct Favorites {
+    #[serde(default)]
+    pub classes: BTreeSet<String>,
+    #[serde(default)]
+    pub teachers: BTreeSet<String>,
+    #[serde(default)]
+    pub rooms: BTreeSet<String>,
+}
+
+impl Favorites {
+    fn names_mut(&mut self, category: &str) -> Option<&mut BTreeSet<String>> {
+        match category {
+            "Class" => Some(&mut self.classes),
+            "Teacher" => Some(&mut self.teachers),
+            "Room" => Some(&mut self.rooms),
+            _ => None,
+        }
+    }
+
+    pub fn contains(&self, category: &str, name: &str) -> bool {
+        match category {
+            "Class" => self.classes.contains(name),
+            "Teacher" => self.teachers.contains(name),
+            "Room" => self.rooms.contains(name),
+            _ => false,
+        }
+    }
+
+    /// Marks the name as a favourite or unmarks it. Anything but a class, teacher or room is left alone
+    pub fn toggle(&mut self, category: &str, name: &str) {
+        let Some(names) = self.names_mut(category) else { return };
+        if !names.remove(name) {
+            names.insert(name.to_string());
+        }
+    }
 }
 
 pub const ALL_WEEKDAYS: [Weekday; 7] = [Weekday::Mon, Weekday::Tue, Weekday::Wed, Weekday::Thu, Weekday::Fri, Weekday::Sat, Weekday::Sun];
@@ -359,6 +401,9 @@ pub struct SettingsExport {
     pub visual_settings: VisualSettings,
     #[serde(default)]
     pub notification_settings: NotificationSettings,
+    /// absent from exports made before favourites existed, which then keep the ones already there
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub favorites: Option<Favorites>,
 }
 
 impl SettingsExport {
@@ -368,6 +413,7 @@ impl SettingsExport {
             b2e_auth: include_credentials.then(|| settings.b2e_auth.clone()),
             visual_settings: settings.visual_settings.clone(),
             notification_settings: settings.notification_settings.clone(),
+            favorites: Some(settings.favorites.clone()),
         }
     }
 
@@ -389,6 +435,9 @@ impl SettingsExport {
         }
         settings.visual_settings = self.visual_settings;
         settings.notification_settings = self.notification_settings;
+        if let Some(favorites) = self.favorites {
+            settings.favorites = favorites;
+        }
     }
 }
 
@@ -445,5 +494,40 @@ mod tests {
         };
 
         assert_eq!(settings.padded_range(at(9, 45), at(11, 25)), (at(9, 45), at(11, 25)));
+    }
+
+    #[test]
+    fn toggling_a_favourite_twice_removes_it() {
+        let mut favorites = Favorites::default();
+
+        favorites.toggle("Teacher", "MAR");
+        assert!(favorites.contains("Teacher", "MAR"));
+        // the same name in another category is another favourite
+        assert!(!favorites.contains("Room", "MAR"));
+
+        favorites.toggle("Teacher", "MAR");
+        assert!(!favorites.contains("Teacher", "MAR"));
+    }
+
+    #[test]
+    fn only_classes_teachers_and_rooms_can_be_favourites() {
+        let mut favorites = Favorites::default();
+        favorites.toggle("Me", "Max");
+        assert_eq!(favorites, Favorites::default());
+    }
+
+    /// an export from before favourites existed must not wipe the ones on the importing device
+    #[test]
+    fn an_old_export_keeps_the_favourites() {
+        let mut settings = Settings::default();
+        settings.favorites.toggle("Class", "4AHIT");
+
+        let old_export = r#"{"visual_settings": {}, "notification_settings": {}}"#;
+        SettingsExport::parse(old_export).unwrap().apply_to(&mut settings);
+        assert!(settings.favorites.contains("Class", "4AHIT"));
+
+        let mut other = Settings::default();
+        SettingsExport::new(&settings, false).apply_to(&mut other);
+        assert!(other.favorites.contains("Class", "4AHIT"));
     }
 }

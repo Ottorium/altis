@@ -1,10 +1,13 @@
 use crate::components::loading::LoadingComponent;
+use crate::components::timetable::compare::{ComparePicker, CompareRender, Compared, Comparison};
 use crate::components::timetable::free_rooms::{FreeRooms, FreeRoomsRender};
 use crate::components::timetable::timetable_controls::TimetableControls;
 use crate::components::timetable::timetable_render::TimeTableRender;
+use crate::persistence_manager::PersistenceManager;
 use crate::untis::cached_untis_client::{AllTimeTables, CachedUntisClient};
 use altis_core::data_models::clean_models::untis::{Entity, MyTimeTable, WeekTimeTable};
 use altis_core::errors::ApiError;
+use altis_core::settings::Favorites;
 use altis_core::untis::untis_week::Week;
 use chrono::{Local, NaiveDateTime};
 use gloo_timers::callback::Timeout;
@@ -102,6 +105,10 @@ enum Panel {
     Table(WeekTimeTable),
     /// the rooms no lesson takes up, for the whole week at once
     FreeRooms(FreeRooms),
+    /// several timetables side by side
+    Compare(Comparison),
+    /// fewer than two timetables are picked for comparing
+    CompareHint,
     NoSelection,
 }
 
@@ -111,9 +118,66 @@ struct Resolved {
     panel: Panel,
 }
 
+/// The timetable picker's category for an entity, `None` for one that has no timetable
+fn category_of(entity: &Entity) -> Option<&'static str> {
+    match entity {
+        Entity::Class(_) => Some("Class"),
+        Entity::Teacher(_) => Some("Teacher"),
+        Entity::Room(_) => Some("Room"),
+        _ => None,
+    }
+}
+
+/// Puts the compared timetables of a week side by side, once every one of them is loaded
+fn compare_panel(loaded: &LoadedWeeks, week: &Week, compared: &[Compared]) -> Panel {
+    if compared.len() < 2 {
+        return Panel::CompareHint;
+    }
+
+    let mine = match compared.iter().any(Compared::is_me).then(|| loaded.get_mine(week)) {
+        Some(None) => return Panel::Loading,
+        Some(Some(Err(err))) => return Panel::Error(err.to_string()),
+        Some(Some(Ok(mine))) => Some(mine),
+        None => None,
+    };
+    let all = match compared.iter().any(|c| !c.is_me()).then(|| loaded.get_all(week)) {
+        Some(None) => return Panel::Loading,
+        Some(Some(Err(err))) => return Panel::Error(err.to_string()),
+        Some(Some(Ok((map, _)))) => Some(map),
+        None => None,
+    };
+
+    let mut tables = vec![];
+    let mut missing = vec![];
+    for item in compared {
+        let table = match item.is_me() {
+            true => mine.map(|mine| &mine.timetable),
+            false => all.and_then(|map| map.iter()
+                .find(|(e, _)| category_of(e) == Some(item.category.as_str()) && e.name() == item.name)
+                .map(|(_, table)| table)),
+        };
+        match table {
+            Some(table) => tables.push((item.label(), table)),
+            None => missing.push(item.label()),
+        }
+    }
+    Panel::Compare(Comparison::of(&tables, missing))
+}
+
 /// Picks what to show for a week, given the selected category and entity
-fn resolve(loaded: &LoadedWeeks, week: &Week, category: &str, selected_name: &Option<String>) -> Resolved {
+fn resolve(
+    loaded: &LoadedWeeks,
+    week: &Week,
+    category: &str,
+    selected_name: &Option<String>,
+    favorites: &Favorites,
+    compared: &[Compared],
+) -> Resolved {
     let without_names = |panel| Resolved { names: vec![], active_name: None, panel };
+
+    if category == "Compare" {
+        return without_names(compare_panel(loaded, week, compared));
+    }
 
     if category == "Me" {
         return match loaded.get_mine(week) {
@@ -150,7 +214,10 @@ fn resolve(loaded: &LoadedWeeks, week: &Week, category: &str, selected_name: &Op
                 .then(|| map.keys().find(|e| matches!(e, Entity::Class(c) if Some(c.id) == *initial_id)))
                 .flatten()
                 .map(|e| e.name());
-            let wanted_name = selected_name.clone().or(initial_class);
+            let first_favorite = filtered_data.iter()
+                .map(|(e, _)| e.name())
+                .find(|name| favorites.contains(category, name));
+            let wanted_name = selected_name.clone().or(initial_class).or(first_favorite);
 
             let active = filtered_data.iter()
                 .find(|(e, _)| Some(e.name()) == wanted_name)
@@ -173,6 +240,10 @@ fn render_panel(week: &Week, left: &str, panel: Panel, on_entity_select: Callbac
                 Panel::Error(err) => html! { <div class="alert alert-danger m-3">{ err }</div> },
                 Panel::Table(tt) => html! { <TimeTableRender timetable={tt} {on_entity_select} /> },
                 Panel::FreeRooms(free_rooms) => html! { <FreeRoomsRender {free_rooms} {on_entity_select} /> },
+                Panel::Compare(comparison) => html! { <CompareRender {comparison} /> },
+                Panel::CompareHint => html! {
+                    <p class="text-secondary p-3">{ "Pick two or more timetables to compare." }</p>
+                },
                 Panel::NoSelection => html! { <p class="text-light"> {"No selection made"} </p> },
             }}
         </div>
@@ -229,6 +300,9 @@ pub fn timetable() -> Html {
     let loaded = use_reducer(LoadedWeeks::default);
     let track_ref = use_node_ref();
     let swipe = use_mut_ref(Swipe::default);
+    let favorites = use_state(|| PersistenceManager::get_settings().ok().flatten().map(|s| s.favorites).unwrap_or_default());
+    let compared = use_state(PersistenceManager::get_compared);
+    let picker_open = use_state(|| false);
 
     {
         let dispatch = loaded.dispatcher();
@@ -305,7 +379,7 @@ pub fn timetable() -> Html {
     }
 
     let (prev_week, next_week) = (selected_week.previous(), selected_week.next());
-    let current = resolve(&loaded, &selected_week, &category, &selected_name);
+    let current = resolve(&loaded, &selected_week, &category, &selected_name, &favorites, &compared);
     // "Me" never loads the class/teacher/room tables, so its spinner follows the personal
     // timetable instead - otherwise the controls would sit on "Loading..." forever
     let loading = if *category == "Me" {
@@ -313,8 +387,8 @@ pub fn timetable() -> Html {
     } else {
         loaded.get_all(&selected_week).is_none()
     };
-    let prev_panel = resolve(&loaded, &prev_week, &category, &selected_name).panel;
-    let next_panel = resolve(&loaded, &next_week, &category, &selected_name).panel;
+    let prev_panel = resolve(&loaded, &prev_week, &category, &selected_name, &favorites, &compared).panel;
+    let next_panel = resolve(&loaded, &next_week, &category, &selected_name, &favorites, &compared).panel;
 
     let on_category_change = {
         let category = category.clone();
@@ -346,16 +420,68 @@ pub fn timetable() -> Html {
         let category = category.clone();
         let selected_name = selected_name.clone();
         Callback::from(move |entity: Entity| {
-            let cat = match entity {
-                Entity::Class(_) => "Class",
-                Entity::Teacher(_) => "Teacher",
-                Entity::Room(_) => "Room",
-                _ => return,
-            };
+            let Some(cat) = category_of(&entity) else { return };
             category.set(cat.to_string());
             selected_name.set(Some(entity.name()));
         })
     };
+
+    let on_toggle_favorite = {
+        let favorites = favorites.clone();
+        let category = category.clone();
+        Callback::from(move |name: String| {
+            let mut settings = PersistenceManager::get_settings().ok().flatten().unwrap_or_default();
+            settings.favorites.toggle(&category, &name);
+            if PersistenceManager::save_settings(&settings).is_ok() {
+                favorites.set(settings.favorites);
+            }
+        })
+    };
+
+    let on_compared_change = {
+        let compared = compared.clone();
+        Callback::from(move |next: Vec<Compared>| {
+            let _ = PersistenceManager::save_compared(&next);
+            compared.set(next);
+        })
+    };
+
+    let on_open_picker = {
+        let picker_open = picker_open.clone();
+        Callback::from(move |_| picker_open.set(true))
+    };
+
+    let on_close_picker = {
+        let picker_open = picker_open.clone();
+        Callback::from(move |_| picker_open.set(false))
+    };
+
+    let picker = picker_open.then(|| {
+        let options: Vec<(&'static str, Vec<String>)> = match loaded.get_all(&selected_week) {
+            Some(Ok((map, _))) => ["Class", "Teacher", "Room"].into_iter()
+                .map(|cat| {
+                    let mut names: Vec<String> = map.keys()
+                        .filter(|e| category_of(e) == Some(cat))
+                        .map(Entity::name)
+                        .filter(|name| !name.is_empty())
+                        .collect();
+                    names.sort();
+                    names.dedup();
+                    (cat, names)
+                })
+                .collect(),
+            _ => vec![],
+        };
+        html! {
+            <ComparePicker
+                {options}
+                favorites={(*favorites).clone()}
+                compared={(*compared).clone()}
+                on_change={on_compared_change}
+                on_close={on_close_picker}
+            />
+        }
+    });
 
     let on_week_change = {
         let selected_week = selected_week.clone();
@@ -466,12 +592,17 @@ pub fn timetable() -> Html {
                 selected_name={current.active_name}
                 selected_week={(*selected_week).clone()}
                 filtered_names={current.names}
+                favorites={(*favorites).clone()}
+                compared={(*compared).clone()}
                 loading={loading}
                 on_category_change={on_category_change}
                 on_entity_change={on_entity_change}
                 on_week_change={on_week_change}
                 on_reload={on_reload}
+                on_toggle_favorite={on_toggle_favorite}
+                on_open_picker={on_open_picker}
             />
+            { picker }
             <div class="flex-grow-1 w-100 position-relative overflow-hidden">
                 <div
                     ref={track_ref}
