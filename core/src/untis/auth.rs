@@ -2,10 +2,15 @@ use crate::env::{Env, HttpResponse};
 use crate::errors::ApiError;
 use crate::settings::Cookies;
 use crate::store::Store;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::json;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use totp_rs::{Algorithm, Secret, TOTP};
+
+/// How long before its expiry a cached token is replaced, so it can't run out mid-request
+const TOKEN_EXPIRY_MARGIN_MS: u64 = 60_000;
 
 pub struct AuthHelper<E: Env>(PhantomData<E>);
 
@@ -137,6 +142,13 @@ impl<E: Env> AuthHelper<E> {
         }
         let school_name = &settings.untis_auth.school_identifier;
 
+        // a token is good for many requests, fetching one per request doubles every round trip
+        let now_ms = E::default().now_ms();
+        if let Some(token) = Store::<E>::get_token()
+            && token_expiry_ms(&token).is_some_and(|expiry| expiry > now_ms + TOKEN_EXPIRY_MARGIN_MS) {
+            return Ok(token);
+        }
+
         let cookies = match Store::<E>::get_cookies() {
             Some(cookies) => cookies,
             None => Self::reauthenticate().await?,
@@ -144,14 +156,20 @@ impl<E: Env> AuthHelper<E> {
 
         let body = Self::request_token(&cookies, school_name).await?;
         if let Some(token) = Self::as_jwt(&body) {
-            return Ok(token);
+            return Self::cache_token(token);
         }
 
         let fresh_cookies = Self::reauthenticate().await?;
         let retry_body = Self::request_token(&fresh_cookies, school_name).await?;
-        Self::as_jwt(&retry_body).ok_or_else(|| {
+        let token = Self::as_jwt(&retry_body).ok_or_else(|| {
             ApiError::Authentication(format!("Failed to obtain JWT token: {}", retry_body.trim()))
-        })
+        })?;
+        Self::cache_token(token)
+    }
+
+    fn cache_token(token: String) -> Result<String, ApiError> {
+        Store::<E>::save_token(&token).map_err(ApiError::Miscellaneous)?;
+        Ok(token)
     }
 
     /// Performs a request authenticated with the session cookies. The classreg API is older than
@@ -250,6 +268,7 @@ impl<E: Env> AuthHelper<E> {
         let res = env.request(method, url, headers.clone(), body.clone()).await?;
 
         if res.body.contains("UNAUTHORIZED") || res.body.contains("TOKEN_EXPIRED") {
+            Store::<E>::clear_token();
             Self::reauthenticate().await?;
             let new_token = Self::get_token().await?;
             headers.insert("Authorization".to_string(), vec![format!("Bearer {new_token}")]);
@@ -258,6 +277,14 @@ impl<E: Env> AuthHelper<E> {
 
         Ok(res)
     }
+}
+
+/// When a JWT expires, in milliseconds since the epoch, read from its `exp` claim. `None` if the
+/// token doesn't say, in which case it isn't trusted to still be valid.
+fn token_expiry_ms(token: &str) -> Option<u64> {
+    let payload = URL_SAFE_NO_PAD.decode(token.split('.').nth(1)?.trim_end_matches('=')).ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&payload).ok()?;
+    claims["exp"].as_u64()?.checked_mul(1000)
 }
 
 /// Picks `"csrfToken":"..."` out of the config blob a WebUntis page bootstraps from
@@ -270,13 +297,26 @@ fn extract_csrf_token(page: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_csrf_token;
+    use super::{extract_csrf_token, token_expiry_ms};
 
     #[test]
     fn reads_the_token_out_of_a_page() {
         let page = r#"<html><script>window.config = {"playgrounds":[],"hasPrivacyPolicy":false,"csrfHeader":"X-CSRF-TOKEN","csrfToken":"EG-kpVugFDsDJATk7a3Jb0PcSI8A9Srd","school":"htl-hl"}</script></html>"#;
 
         assert_eq!(extract_csrf_token(page).as_deref(), Some("EG-kpVugFDsDJATk7a3Jb0PcSI8A9Srd"));
+    }
+
+    #[test]
+    fn reads_the_expiry_out_of_a_jwt() {
+        // header and payload are base64url of {"alg":"HS256"} and {"exp":1700000000}
+        let token = "eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3MDAwMDAwMDB9.c2ln";
+        assert_eq!(token_expiry_ms(token), Some(1_700_000_000_000));
+    }
+
+    #[test]
+    fn has_no_expiry_without_one() {
+        assert_eq!(token_expiry_ms("eyJhbGciOiJIUzI1NiJ9.e30.c2ln"), None);
+        assert_eq!(token_expiry_ms("not a jwt"), None);
     }
 
     #[test]
