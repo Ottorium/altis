@@ -1,5 +1,5 @@
 use crate::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock, MyTimeTable};
-use chrono::{NaiveTime, Weekday};
+use chrono::{NaiveDate, NaiveTime, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,6 +20,10 @@ pub struct NotificationState {
     /// (lesson identity, lead time in minutes) pairs an exam reminder was already sent for
     #[serde(default)]
     pub sent_exam_reminders: BTreeSet<(String, i64)>,
+    /// (day, title, body) of every timetable change notification sent, so the very same one is
+    /// never sent twice, whatever the diff makes of the next poll
+    #[serde(default)]
+    pub sent_change_notifications: BTreeSet<(NaiveDate, String, String)>,
 }
 
 #[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
