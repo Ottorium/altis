@@ -7,6 +7,7 @@ pub const SETTINGS_KEY: &str = "user_settings";
 pub const JSESSIONID_KEY: &str = "JSESSIONID";
 pub const TENANT_ID_KEY: &str = "Tenant-Id";
 pub const SCHOOLNAME_KEY: &str = "schoolname";
+pub const TOKEN_KEY: &str = "untis_token";
 pub const NOTIFICATION_STATE_KEY: &str = "notification_state";
 pub const UPDATE_STATE_KEY: &str = "update_state";
 
@@ -38,14 +39,29 @@ impl<E: Env> Store<E> {
         let env = E::default();
         env.set(JSESSIONID_KEY, &cookies.jsessionid)?;
         env.set(TENANT_ID_KEY, &cookies.tenant_id)?;
-        env.set(SCHOOLNAME_KEY, &cookies.school_name_base32)
+        env.set(SCHOOLNAME_KEY, &cookies.school_name_base32)?;
+        // a token handed out for the previous session isn't one we want to keep using
+        env.remove(TOKEN_KEY);
+        Ok(())
     }
 
     pub fn clear_cookies() {
         let env = E::default();
-        for key in [JSESSIONID_KEY, TENANT_ID_KEY, SCHOOLNAME_KEY] {
+        for key in [JSESSIONID_KEY, TENANT_ID_KEY, SCHOOLNAME_KEY, TOKEN_KEY] {
             env.remove(key);
         }
+    }
+
+    pub fn get_token() -> Option<String> {
+        E::default().get(TOKEN_KEY)
+    }
+
+    pub fn save_token(token: &str) -> Result<(), String> {
+        E::default().set(TOKEN_KEY, token)
+    }
+
+    pub fn clear_token() {
+        E::default().remove(TOKEN_KEY);
     }
 
     pub fn get_settings() -> Result<Option<Settings>, String> {
