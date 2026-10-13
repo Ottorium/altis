@@ -84,25 +84,43 @@ async fn check_timetable<E: Env>(
         let Ok(fresh) = client.get_my_timetable(week.clone()).await else { continue };
 
         if changes.enabled {
-            // the fresh week becomes the baseline and is written out first, and only then is
-            // anything sent: see `persist`
             let previous = state.last_my_timetable.insert(week.start.clone(), fresh.clone());
-            persist::<E>(state);
+            let due = previous
+                .map(|previous| unsent(state, timetable_changes(&previous, &fresh, changes)))
+                .unwrap_or_default();
 
-            if let Some(previous) = previous {
-                diff_and_notify::<E>(&previous, &fresh, changes).await;
+            // the fresh week becomes the baseline and is written out first, along with what is
+            // about to be sent, and only then is anything sent: see `persist`
+            persist::<E>(state);
+            for (title, body) in &due {
+                notify::<E>(title, body).await;
             }
         }
 
         fetched.push(fresh);
     }
 
-    // a week that has rolled out of the tracked range is never diffed against again
+    // a week that has rolled out of the tracked range is never diffed against again, and a day
+    // that is over can't have its notifications repeated any more
     state.last_my_timetable.retain(|start, _| weeks.iter().any(|week| &week.start == start));
+    let today = Local::now().date_naive();
+    state.sent_change_notifications.retain(|(date, _, _)| *date >= today);
 
     if exams.enabled {
         check_exam_reminders::<E>(&fetched, state, exams).await;
     }
+}
+
+/// A notification about a lesson on the given day, as (day, title, body)
+type Change = (NaiveDate, String, String);
+
+/// The changes that haven't been notified about yet, recorded as notified. However a poll pairs
+/// the lessons up, the very same notification for the same day is never sent twice.
+fn unsent(state: &mut NotificationState, changes: Vec<Change>) -> Vec<(String, String)> {
+    changes.into_iter()
+        .filter(|change| state.sent_change_notifications.insert(change.clone()))
+        .map(|(_, title, body)| (title, body))
+        .collect()
 }
 
 /// Pairs a day's lessons up across two polls, returning the pairs along with what was only in the
@@ -115,10 +133,16 @@ async fn check_timetable<E: Env>(
 /// happened, for as long as both lessons stand.
 ///
 /// The first pass takes the lessons that are identical anyway and consumes both sides, so only
-/// what actually differs is left to guess about. The second pairs the rest off by subject in
-/// start-time order. Teacher is deliberately not part of the second key: a substitution changes
-/// the teacher, which is the very thing worth reporting, so matching on it would stop the two
-/// halves of one lesson ever meeting.
+/// what actually differs is left to guess about. Identical means everything a notification is
+/// about, rooms and status included: Untis lists a cancelled lesson next to its replacement, often
+/// with the same subject, teacher and time, and in no fixed order. Matched on less, the two were
+/// paired the wrong way round whenever the order flipped, and every such poll reported the same
+/// cancellation again.
+///
+/// The second pairs the rest off by subject, preferring one at the same time, in start-time order.
+/// Teacher is deliberately not part of that key: a substitution changes the teacher, which is the
+/// very thing worth reporting, so matching on it would stop the two halves of one lesson ever
+/// meeting.
 fn pair_lessons<'a>(
     previous: &'a [LessonBlock],
     fresh: &'a [LessonBlock],
@@ -134,8 +158,10 @@ fn pair_lessons<'a>(
     for new_lesson in new_left {
         let unchanged = old_left.iter().position(|old| {
             old.time_range == new_lesson.time_range
+                && old.status == new_lesson.status
                 && subject_name(old) == subject_name(new_lesson)
                 && teacher_names(old) == teacher_names(new_lesson)
+                && room_names(old) == room_names(new_lesson)
         });
 
         match unchanged {
@@ -144,9 +170,18 @@ fn pair_lessons<'a>(
         }
     }
 
+    // a lesson Untis marks as additional is new by its own account, so it only gets an old lesson
+    // nothing else wants: a cancelled lesson keeps its own old self rather than its replacement
+    // taking it, whichever order the two came in
+    changed.sort_by_key(|lesson| lesson.status == "ADDITIONAL");
+
     let mut added = Vec::new();
     for new_lesson in changed {
-        match old_left.iter().position(|old| subject_name(old) == subject_name(new_lesson)) {
+        let same_subject = |old: &&LessonBlock| subject_name(old) == subject_name(new_lesson);
+        let counterpart = old_left.iter()
+            .position(|old| same_subject(old) && old.time_range == new_lesson.time_range)
+            .or_else(|| old_left.iter().position(same_subject));
+        match counterpart {
             Some(index) => pairs.push((old_left.remove(index), new_lesson)),
             None => added.push(new_lesson),
         }
@@ -155,21 +190,26 @@ fn pair_lessons<'a>(
     (pairs, added, old_left)
 }
 
-async fn diff_and_notify<E: Env>(previous: &MyTimeTable, fresh: &MyTimeTable, cfg: &TimetableChangeSettings) {
+/// Everything that changed between two polls of a week, worth a notification
+fn timetable_changes(previous: &MyTimeTable, fresh: &MyTimeTable, cfg: &TimetableChangeSettings) -> Vec<Change> {
+    let mut changes = Vec::new();
+
     for (prev_day, new_day) in previous.timetable.days.iter().zip(fresh.timetable.days.iter()) {
         if prev_day.date != new_day.date {
             continue;
         }
+        let date = new_day.date;
+        let mut push = |(title, body): (String, String)| changes.push((date, title, body));
 
         let (pairs, added, removed) = pair_lessons(&prev_day.lessons, &new_day.lessons);
 
         for (old_lesson, new_lesson) in pairs {
-            notify_lesson_diff::<E>(old_lesson, new_lesson, new_day.date, cfg).await;
+            lesson_changes(old_lesson, new_lesson, date, cfg).into_iter().for_each(&mut push);
         }
 
         if cfg.notify_substitution {
             for new_lesson in added.iter().filter(|lesson| lesson.status != "CANCELLED") {
-                notify_new_lesson::<E>(new_lesson, new_day.date).await;
+                push(("New lesson added".to_string(), describe_lesson(new_lesson, date)));
             }
         }
 
@@ -177,35 +217,35 @@ async fn diff_and_notify<E: Env>(previous: &MyTimeTable, fresh: &MyTimeTable, cf
             // one that was already cancelled was reported as such when it happened, and dropping
             // out of the timetable afterwards is not a second thing to hear about
             for old_lesson in removed.iter().filter(|lesson| lesson.status != "CANCELLED") {
-                notify_removed_lesson::<E>(old_lesson, new_day.date).await;
+                push(("Lesson removed".to_string(), describe_lesson(old_lesson, date)));
             }
         }
     }
+    changes
 }
 
-async fn notify_lesson_diff<E: Env>(old_lesson: &LessonBlock, new_lesson: &LessonBlock, date: NaiveDate, cfg: &TimetableChangeSettings) {
+/// What changed about one lesson, as (title, body) pairs
+fn lesson_changes(old_lesson: &LessonBlock, new_lesson: &LessonBlock, date: NaiveDate, cfg: &TimetableChangeSettings) -> Vec<(String, String)> {
     let subject = subject_name(new_lesson);
     let day_str = date.format("%a %d %b").to_string();
     let time_str = format_time_range(new_lesson);
+    let mut changes = Vec::new();
 
     if cfg.notify_cancelled && new_lesson.status == "CANCELLED" && old_lesson.status != "CANCELLED" {
-        let body = format!("{subject} on {day_str} at {time_str} was cancelled");
-        notify::<E>("Lesson cancelled", &body).await;
-        return;
+        changes.push(("Lesson cancelled".to_string(), format!("{subject} on {day_str} at {time_str} was cancelled")));
+        return changes;
     }
     if cfg.notify_cancelled && old_lesson.status == "CANCELLED" && new_lesson.status != "CANCELLED" {
-        let body = format!("{subject} on {day_str} at {time_str} is back on");
-        notify::<E>("Lesson reinstated", &body).await;
-        return;
+        changes.push(("Lesson reinstated".to_string(), format!("{subject} on {day_str} at {time_str} is back on")));
+        return changes;
     }
     if new_lesson.status == "CANCELLED" {
-        return;
+        return changes;
     }
 
     if cfg.notify_time_change && old_lesson.time_range != new_lesson.time_range {
         let old_time = format_time_range(old_lesson);
-        let body = format!("{subject} on {day_str} is now at {time_str} (was {old_time})");
-        notify::<E>("Time changed", &body).await;
+        changes.push(("Time changed".to_string(), format!("{subject} on {day_str} is now at {time_str} (was {old_time})")));
     }
 
     if cfg.notify_room_change {
@@ -216,7 +256,7 @@ async fn notify_lesson_diff<E: Env>(old_lesson: &LessonBlock, new_lesson: &Lesso
                 format_names(&new_rooms),
                 format_names(&old_rooms),
             );
-            notify::<E>("Room changed", &body).await;
+            changes.push(("Room changed".to_string(), body));
         }
     }
 
@@ -228,22 +268,16 @@ async fn notify_lesson_diff<E: Env>(old_lesson: &LessonBlock, new_lesson: &Lesso
                 format_names(&new_teachers),
                 format_names(&old_teachers),
             );
-            notify::<E>("Teacher changed", &body).await;
+            changes.push(("Teacher changed".to_string(), body));
         } else if old_lesson.status != new_lesson.status && new_lesson.status == "CHANGED" {
-            let body = format!("{subject} on {day_str} at {time_str} was changed");
-            notify::<E>("Lesson changed", &body).await;
+            changes.push(("Lesson changed".to_string(), format!("{subject} on {day_str} at {time_str} was changed")));
         }
     }
+    changes
 }
 
-async fn notify_new_lesson<E: Env>(lesson: &LessonBlock, date: NaiveDate) {
-    let body = format!("{} on {} at {}", subject_name(lesson), date.format("%a %d %b"), format_time_range(lesson));
-    notify::<E>("New lesson added", &body).await;
-}
-
-async fn notify_removed_lesson<E: Env>(lesson: &LessonBlock, date: NaiveDate) {
-    let body = format!("{} on {} at {}", subject_name(lesson), date.format("%a %d %b"), format_time_range(lesson));
-    notify::<E>("Lesson removed", &body).await;
+fn describe_lesson(lesson: &LessonBlock, date: NaiveDate) -> String {
+    format!("{} on {} at {}", subject_name(lesson), date.format("%a %d %b"), format_time_range(lesson))
 }
 
 fn subject_name(lesson: &LessonBlock) -> String {
@@ -466,6 +500,69 @@ mod tests {
 
         assert_eq!(pairs.len(), 1);
         assert!(added.is_empty() && removed.is_empty());
+    }
+
+    fn with_status(mut lesson: LessonBlock, status: &str) -> LessonBlock {
+        lesson.status = status.to_string();
+        lesson
+    }
+
+    fn week_of(lessons: Vec<LessonBlock>) -> MyTimeTable {
+        let date = NaiveDate::from_ymd_opt(2026, 9, 14).unwrap();
+        MyTimeTable {
+            timetable: crate::data_models::clean_models::untis::WeekTimeTable {
+                days: vec![crate::data_models::clean_models::untis::DayTimeTable { date, lessons }],
+            },
+            ..Default::default()
+        }
+    }
+
+    fn titles(changes: &[Change]) -> Vec<&str> {
+        changes.iter().map(|(_, title, _)| title.as_str()).collect()
+    }
+
+    /// The bug that kept repeating the same cancellation: Untis lists a cancelled lesson next to
+    /// its replacement with the same subject, teacher and time, in no fixed order, and pairing them
+    /// up on those alone swapped the two whenever the order flipped
+    #[test]
+    fn a_cancelled_lesson_and_its_replacement_in_another_order_are_no_change() {
+        let cancelled = with_status(lesson("D", "SMI", "R1", (8, 0), (8, 50)), "CANCELLED");
+        let replacement = with_status(lesson("D", "SMI", "R2", (8, 0), (8, 50)), "ADDITIONAL");
+
+        let previous = week_of(vec![cancelled.clone(), replacement.clone()]);
+        let fresh = week_of(vec![replacement, cancelled]);
+
+        let changes = timetable_changes(&previous, &fresh, &TimetableChangeSettings::default());
+        assert_eq!(titles(&changes), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn a_lesson_that_gets_cancelled_and_replaced_is_reported_once() {
+        let regular = lesson("D", "SMI", "R1", (8, 0), (8, 50));
+        let previous = week_of(vec![regular.clone()]);
+        let fresh = week_of(vec![
+            with_status(lesson("D", "SMI", "R2", (8, 0), (8, 50)), "ADDITIONAL"),
+            with_status(regular, "CANCELLED"),
+        ]);
+
+        let changes = timetable_changes(&previous, &fresh, &TimetableChangeSettings::default());
+        assert_eq!(titles(&changes), vec!["Lesson cancelled", "New lesson added"]);
+
+        // the next poll sees the same timetable and has nothing to say about it
+        let again = timetable_changes(&fresh, &fresh, &TimetableChangeSettings::default());
+        assert_eq!(titles(&again), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn the_same_notification_is_never_sent_twice() {
+        let mut state = NotificationState::default();
+        let day = NaiveDate::from_ymd_opt(2026, 9, 14).unwrap();
+        let change = |date| (date, "Lesson cancelled".to_string(), "D on Mon 14 Sep at 08:00-08:50 was cancelled".to_string());
+
+        assert_eq!(unsent(&mut state, vec![change(day)]).len(), 1);
+        assert_eq!(unsent(&mut state, vec![change(day)]).len(), 0);
+        // the same words about another day are another notification
+        assert_eq!(unsent(&mut state, vec![change(day.succ_opt().unwrap())]).len(), 1);
     }
 
     fn absence(start: (i32, u32, u32), end: (i32, u32, u32), reason: &str) -> Absence {
