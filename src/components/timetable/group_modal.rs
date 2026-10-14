@@ -1,4 +1,4 @@
-use altis_core::data_models::clean_models::untis::{Entity, LessonBlock};
+use altis_core::data_models::clean_models::untis::{ChangeStatus, Entity, LessonBlock};
 use web_sys::MouseEvent;
 use yew::{Callback, Html, Properties, function_component, html};
 
@@ -51,7 +51,7 @@ pub fn group_detail_modal(props: &GroupModalProps) -> Html {
 
                                         if !l.entities.iter().any(|e| e.inner.name().is_empty()) {
                                             <div class="d-flex flex-wrap gap-2">
-                                                { for l.entities.iter().map(|entity| {
+                                                { for l.entities.iter().filter(|e| e.status != ChangeStatus::Removed).map(|entity| {
                                                     let (bg_class, icon) = match entity.inner {
                                                         Entity::Teacher(_) => ("bg-primary", "bi-person-badge"),
                                                         Entity::Class(_) => ("bg-success", "bi-people"),
