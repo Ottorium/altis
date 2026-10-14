@@ -24,11 +24,22 @@ pub fn generate_lessons_html(
         on_group_click.emit(lessons_to_emit.clone());
     });
 
-    let priority = lessons.iter().find(|l| l.r#type == "EXAM")
-        .or_else(|| lessons.iter().find(|l| l.status == "CHANGED"))
-        .or_else(|| lessons.iter().find(|l| l.status == "ADDITIONAL"))
-        .or_else(|| lessons.iter().find(|l| l.status != "CANCELLED"))
-        .unwrap_or(&lessons[0]);
+    // mobile shows the most important lessons up front - as many as fit without overlapping, so two
+    // single lessons over a cancelled double one both show - and only counts the rest
+    let mut by_priority: Vec<&LessonBlock> = lessons.iter().collect();
+    by_priority.sort_by_key(|l| {
+        let rank = if l.r#type == "EXAM" { 0 }
+            else if l.status == "CHANGED" { 1 }
+            else if l.status == "ADDITIONAL" { 2 }
+            else if l.status != "CANCELLED" { 3 }
+            else { 4 };
+        (rank, l.time_range.start)
+    });
+    let mut front: Vec<&LessonBlock> = Vec::new();
+    for l in by_priority {
+        if !front.iter().any(|f| f.overlaps(l)) { front.push(l); }
+    }
+    let hidden = lessons.len() - front.len();
 
     html! {
         <div class="w-100 group-block" style={format!("height: {}%; position: relative; cursor: pointer;", (group_duration / total) * 100.0)} {onclick}>
@@ -45,13 +56,13 @@ pub fn generate_lessons_html(
                 { render_lanes(lessons, group_duration, start, now) }
             </div>
             <div class="d-flex d-md-none h-100 w-100 mobile-p-half">
-                <div style={format!("width: {}%; height: 100%; position: relative;", if lessons.len() > 1 { 80 } else { 100 })}>
-                    { render_lesson(priority, group_duration, start, 100.0, 0.0, true, now) }
+                <div style={format!("width: {}%; height: 100%; position: relative;", if hidden > 0 { 80 } else { 100 })}>
+                    { for front.iter().map(|l| render_lesson(l, group_duration, start, 100.0, 0.0, true, now)) }
                 </div>
-                if lessons.len() > 1 {
+                if hidden > 0 {
                     <div class="d-flex flex-column justify-content-center align-items-center text-white rounded ms-1 bg-primary"
                          style={format!("width: 20%; height: 100%; font-size: 0.8rem; opacity: 0.8; z-index: 10; {}", if end <= now { PAST_STYLE } else { "" })}>
-                        <span class="text-black fw-bold">{ lessons.len() - 1 }</span>
+                        <span class="text-black fw-bold">{ hidden }</span>
                     </div>
                 }
             </div>
