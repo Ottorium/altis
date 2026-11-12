@@ -42,12 +42,14 @@ impl From<UntisTeacher> for Teacher {
     }
 }
 
-impl From<UntisDuration> for TimeRange {
-    fn from(duration: UntisDuration) -> Self {
-        Self {
-            start: NaiveDateTime::parse_from_str(&duration.start, DATE_TIME_FORMAT).expect("Failed to parse start date"),
-            end: NaiveDateTime::parse_from_str(&duration.end, DATE_TIME_FORMAT).expect("Failed to parse end date"),
-        }
+impl TryFrom<UntisDuration> for TimeRange {
+    type Error = chrono::ParseError;
+
+    fn try_from(duration: UntisDuration) -> Result<Self, Self::Error> {
+        Ok(Self {
+            start: NaiveDateTime::parse_from_str(&duration.start, DATE_TIME_FORMAT)?,
+            end: NaiveDateTime::parse_from_str(&duration.end, DATE_TIME_FORMAT)?,
+        })
     }
 }
 
@@ -68,7 +70,11 @@ impl From<UntisResource> for Entity {
             "room" => Entity::Room(Room { name: resource.short_name }),
             "klasse" | "class" => Entity::Class(Class { name: resource.short_name, ..Default::default() }),
             "lesson_info" | "info" => Entity::Info(Info { text: resource.text.unwrap_or_default() }),
-            _ => panic!("Unrecognized resource type: {}", resource.r#type),
+            // a sort of resource the app has never seen is shown as a note, by whatever it is called
+            _ => {
+                let names = [resource.text.unwrap_or_default(), resource.display_name, resource.long_name, resource.short_name];
+                Entity::Info(Info { text: names.into_iter().find(|name| !name.is_empty()).unwrap_or_default() })
+            }
         }
     }
 }
@@ -85,8 +91,10 @@ fn tracked_entities(position: UntisPosition) -> impl Iterator<Item = Tracked<Ent
     current.into_iter().chain(removed)
 }
 
-impl From<UntisGridEntry> for LessonBlock {
-    fn from(entry: UntisGridEntry) -> Self {
+impl TryFrom<UntisGridEntry> for LessonBlock {
+    type Error = chrono::ParseError;
+
+    fn try_from(entry: UntisGridEntry) -> Result<Self, Self::Error> {
         let positions = [
             entry.position1,
             entry.position2,
@@ -109,8 +117,8 @@ impl From<UntisGridEntry> for LessonBlock {
             }
         }
 
-        Self {
-            time_range: TimeRange::from(entry.duration),
+        Ok(Self {
+            time_range: TimeRange::try_from(entry.duration)?,
             entities: positions.into_iter().flatten().flatten().flat_map(tracked_entities).collect(),
             kind: LessonKind::from(entry.r#type),
             status: LessonStatus::from(entry.status),
@@ -118,7 +126,7 @@ impl From<UntisGridEntry> for LessonBlock {
             icons: entry.icons,
             texts: vec![texts],
             link: entry.link.unwrap_or_default(),
-        }
+        })
     }
 }
 
@@ -126,7 +134,8 @@ impl From<UntisDayEntry> for DayTimeTable {
     fn from(entry: UntisDayEntry) -> Self {
         Self {
             date: NaiveDate::parse_from_str(&entry.date, DATE_FORMAT).unwrap_or_default(),
-            lessons: entry.grid_entries.into_iter().map(LessonBlock::from).collect(),
+            // an entry without a time it takes place at has no place in a timetable
+            lessons: entry.grid_entries.into_iter().filter_map(|entry| LessonBlock::try_from(entry).ok()).collect(),
         }
     }
 }
@@ -136,7 +145,7 @@ mod tests {
     use super::*;
 
     fn grid_entry(json: &str) -> LessonBlock {
-        serde_json::from_str::<UntisGridEntry>(json).unwrap().into()
+        serde_json::from_str::<UntisGridEntry>(json).unwrap().try_into().unwrap()
     }
 
     const SUBSTITUTED: &str = r##"{
@@ -178,5 +187,32 @@ mod tests {
         assert_eq!(texts["substitutionText"], "");
         assert_eq!(texts["userName"], "smi");
         assert!(!texts.contains_key("statusDetail"));
+    }
+
+    /// Untis adds sorts of resources now and then, and one the app doesn't know used to take
+    /// the whole app down with it
+    #[test]
+    fn a_resource_of_an_unknown_sort_is_shown_as_a_note() {
+        let lesson = grid_entry(r#"{
+            "duration": {"start": "2026-09-14T07:50", "end": "2026-09-14T08:40"},
+            "position1": [{"current": {"type": "STUDENT_GROUP", "shortName": "4A_G1", "longName": "Group 1"}}],
+            "position2": [{"current": {"type": "SOMETHING", "text": "see notice board", "shortName": "x"}}]
+        }"#);
+
+        let notes: Vec<&Entity> = lesson.entities.iter().map(|entity| &entity.inner).collect();
+        assert_eq!(notes, vec![
+            &Entity::Info(Info { text: "Group 1".to_string() }),
+            &Entity::Info(Info { text: "see notice board".to_string() }),
+        ]);
+    }
+
+    #[test]
+    fn an_entry_without_a_readable_time_is_left_out_of_the_day() {
+        let day: UntisDayEntry = serde_json::from_str(r#"{"date": "2026-09-14", "gridEntries": [
+            {"duration": {"start": "2026-09-14T07:50", "end": "2026-09-14T08:40"}},
+            {"duration": {"start": "whenever", "end": "2026-09-14T09:30"}}
+        ]}"#).unwrap();
+
+        assert_eq!(DayTimeTable::from(day).lessons.len(), 1);
     }
 }
