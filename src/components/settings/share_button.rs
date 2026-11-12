@@ -194,9 +194,9 @@ pub fn share_settings_button() -> Html {
             <div class="modal-body">
                 <p class="mb-0">
                     { if import.has_credentials() {
-                        "This replaces your visual settings and your Untis and Book2Eat credentials."
+                        "This replaces your settings and your Untis and Book2Eat credentials."
                     } else {
-                        "This replaces your visual settings. Your credentials are kept."
+                        "This replaces your settings. Your credentials are kept."
                     }}
                 </p>
             </div>

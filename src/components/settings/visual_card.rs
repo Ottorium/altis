@@ -68,7 +68,7 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
                     <div class="form-text text-secondary small mb-2">
                         {"Draws the timetable over at least this range, even where no lessons are. Lessons outside it are still shown."}
                     </div>
-                    <div class="d-flex align-items-center gap-2 ps-4" style={dimmed_unless(time_padding.enabled)}>
+                    <div class="d-flex flex-wrap align-items-center gap-2 ps-4" style={dimmed_unless(time_padding.enabled)}>
                         <label class="small text-secondary" for="padFrom">{"From"}</label>
                         <input type="time" class="form-control form-control-sm bg-dark text-white border-secondary w-auto"
                                id="padFrom" value={time_input_value(time_padding.from)}
