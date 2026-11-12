@@ -29,14 +29,14 @@ pub fn app() -> Html {
         Tab::Book2Eat => html! { <Book2EatPage /> },
     };
 
-    if let Ok(Some(settings)) = storage::settings() {
-        spawn_local(async move {
-            let _ = UntisClient::authenticate(&settings.untis_auth).await;
-        });
-    }
-
-    // starts once and keeps polling for as long as the app is open
+    // once, as the app starts: logs in and starts the poller, which keeps going for as long as
+    // the app is open. A session that runs out later is renewed by the request that finds out.
     use_effect_with((), |_| {
+        if let Ok(Some(settings)) = storage::settings() {
+            spawn_local(async move {
+                let _ = UntisClient::authenticate(&settings.untis_auth).await;
+            });
+        }
         notification_poller::start();
         || ()
     });
