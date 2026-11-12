@@ -1,4 +1,4 @@
-use super::{AuthSettings, Favorites, NotificationSettings, Settings, VisualSettings};
+use super::{AuthSettings, Favorites, GeneralSettings, NotificationSettings, Settings, VisualSettings};
 use serde::{Deserialize, Serialize};
 
 /// Settings as they are shared with other devices, the logins are only included when asked for
@@ -14,6 +14,9 @@ pub struct SettingsExport {
     /// absent from exports made before favourites existed, which then keep the ones already there
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub favorites: Option<Favorites>,
+    /// absent from exports made before these existed, the same way
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub general: Option<GeneralSettings>,
 }
 
 impl SettingsExport {
@@ -24,6 +27,7 @@ impl SettingsExport {
             visual_settings: settings.visual_settings.clone(),
             notification_settings: settings.notification_settings.clone(),
             favorites: Some(settings.favorites.clone()),
+            general: Some(settings.general.clone()),
         }
     }
 
@@ -48,6 +52,9 @@ impl SettingsExport {
         if let Some(favorites) = self.favorites {
             settings.favorites = favorites;
         }
+        if let Some(general) = self.general {
+            settings.general = general;
+        }
     }
 }
 
@@ -69,6 +76,19 @@ mod tests {
         let mut other = Settings::default();
         SettingsExport::new(&settings, false).apply_to(&mut other);
         assert!(other.favorites.contains(EntityKind::Class, "4AHIT"));
+    }
+
+    #[test]
+    fn an_old_export_keeps_the_general_settings_and_a_new_one_brings_its_own() {
+        let mut settings = Settings::default();
+        settings.general.week_swipe = false;
+
+        SettingsExport::parse(r#"{"visual_settings": {}}"#).unwrap().apply_to(&mut settings);
+        assert!(!settings.general.week_swipe);
+
+        let mut other = Settings::default();
+        SettingsExport::new(&settings, false).apply_to(&mut other);
+        assert!(!other.general.week_swipe);
     }
 
     #[test]

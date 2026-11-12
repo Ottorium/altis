@@ -1,19 +1,21 @@
 use super::{Comparison, Day};
-use crate::components::timetable::day_heading;
+use crate::components::timetable::{day_heading, lesson_text_style};
 use crate::hooks::use_now;
 use altis_core::models::timetable::{Entity, LessonBlock, LessonStatus};
-use altis_core::settings::is_dark_color;
-use chrono::{NaiveDateTime, NaiveTime, Timelike};
+use altis_core::settings::{is_dark_color, VisualSettings};
+use chrono::{NaiveTime, Timelike};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct CompareViewProps {
     pub comparison: Comparison,
+    pub visual: VisualSettings,
 }
 
 #[function_component(CompareView)]
 pub fn compare_view(props: &CompareViewProps) -> Html {
     let Comparison { names, missing, days, start, end } = &props.comparison;
+    let display = &props.visual.lesson_display;
     let now = use_now();
 
     let missing_note = (!missing.is_empty()).then(|| html! {
@@ -44,7 +46,7 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
     }).collect::<Html>();
 
     let render_day = |day: &Day| {
-        let now_top = (day.date == now.date() && (*start..=*end).contains(&now.time())).then(|| percent(now.time()));
+        let now_top = (display.show_now_line && day.date == now.date() && (*start..=*end).contains(&now.time())).then(|| percent(now.time()));
         html! {
             <div class="compare-day">
                 { for hours.iter().map(|&hour| html! {
@@ -53,7 +55,7 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
                 <div class="d-flex h-100">
                     { for day.lanes.iter().map(|lessons| html! {
                         <div class="compare-lane">
-                            { for lessons.iter().map(|lesson| render_lesson(lesson, position(lesson), now)) }
+                            { for lessons.iter().map(|lesson| render_lesson(lesson, position(lesson), display.dim_past_lessons && lesson.time_range.end <= now)) }
                         </div>
                     })}
                 </div>
@@ -65,7 +67,7 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
     };
 
     html! {
-        <div class="d-flex flex-column p-2 gap-2" style="min-height: 100%;">
+        <div class="d-flex flex-column p-2 gap-2" style={format!("min-height: 100%;{}", lesson_text_style(&props.visual.lesson_text).unwrap_or_default())}>
             <div class="d-flex flex-wrap align-items-center gap-1">{ legend }</div>
             { missing_note }
 
@@ -98,7 +100,7 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
 }
 
 /// A lesson in its lane: the subject and, where there is room for it, the room
-fn render_lesson(lesson: &LessonBlock, position: String, now: NaiveDateTime) -> Html {
+fn render_lesson(lesson: &LessonBlock, position: String, dimmed: bool) -> Html {
     let first_name = |wanted: fn(&Entity) -> bool| lesson.current_names(wanted).find(|name| !name.is_empty());
     let subject = first_name(Entity::is_subject).unwrap_or_else(|| lesson.kind.as_str().to_string());
     let room = first_name(Entity::is_room);
@@ -111,11 +113,10 @@ fn render_lesson(lesson: &LessonBlock, position: String, now: NaiveDateTime) -> 
         LessonStatus::Additional => Some("compare-lesson-additional"),
         LessonStatus::Other(_) => lesson.is_exam().then_some("compare-lesson-exam"),
     };
-    let is_over = lesson.time_range.end <= now;
     let title = format!("{subject} {}-{}", lesson.time_range.start.format("%H:%M"), lesson.time_range.end.format("%H:%M"));
 
     html! {
-        <div class={classes!("compare-lesson", is_over.then_some("compare-lesson-past"))} style={position} {title}>
+        <div class={classes!("compare-lesson", dimmed.then_some("compare-lesson-past"))} style={position} {title}>
             <div class={classes!("compare-lesson-inner", text_class, status_class)} style={format!("background-color: #{color};")}>
                 <span class="fw-semibold">{ subject }</span>
                 if let Some(room) = room {

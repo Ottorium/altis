@@ -1,7 +1,8 @@
 use super::card::{autosaved_badge, divider, SettingsCard};
+use super::lesson_sections::{LessonDisplaySection, LessonTextSection};
 use super::subject_colors::SubjectColors;
 use crate::components::forms::{dimmed_unless, input_value, update, Checkbox};
-use altis_core::settings::{TimePadding, VisualSettings, ALL_WEEKDAYS};
+use altis_core::settings::{LessonDisplaySettings, LessonTextSettings, TimePadding, VisualSettings, ALL_WEEKDAYS};
 use chrono::{NaiveTime, Weekday};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -102,6 +103,16 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
                         <label class="form-check-label small text-secondary" for="modeOnlyLessons" style="cursor: pointer;">{"Only show days with scheduled lessons"}</label>
                     </div>
                 </div>
+                { divider() }
+                <LessonTextSection
+                    settings={settings.lesson_text.clone()}
+                    on_change={update(&settings, |settings: &mut VisualSettings, text: LessonTextSettings| settings.lesson_text = text)}
+                />
+                { divider() }
+                <LessonDisplaySection
+                    settings={settings.lesson_display.clone()}
+                    on_change={update(&settings, |settings: &mut VisualSettings, display: LessonDisplaySettings| settings.lesson_display = display)}
+                />
                 { divider() }
                 <SubjectColors
                     colors={settings.subject_color_overrides.clone()}

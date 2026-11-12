@@ -123,12 +123,12 @@ pub(super) fn timetable_changes(previous: &MyTimeTable, fresh: &MyTimeTable, set
             changes.extend(lesson_changes(old_lesson, new_lesson, date, settings));
         }
 
-        if settings.notify_substitution {
+        if settings.notify_added {
             let appeared = added.iter().filter(|lesson| !lesson.is_cancelled());
             changes.extend(appeared.map(|lesson| Change::new(date, "New lesson added", describe_lesson(lesson, date))));
         }
 
-        if settings.notify_cancelled {
+        if settings.notify_removed {
             // one that was already cancelled was reported as such when it happened, and dropping
             // out of the timetable afterwards is not a second thing to hear about
             let dropped = removed.iter().filter(|lesson| !lesson.is_cancelled());
@@ -363,7 +363,15 @@ mod tests {
         let old = lesson("Math", "SMI", "R1", (8, 0), (8, 45));
         let moved = lesson("Math", "JON", "R2", (10, 0), (10, 45));
         let only = |change: fn(&mut TimetableChangeSettings)| {
-            let mut settings = TimetableChangeSettings { enabled: true, notify_cancelled: false, notify_room_change: false, notify_time_change: false, notify_substitution: false };
+            let mut settings = TimetableChangeSettings {
+                enabled: true,
+                notify_cancelled: false,
+                notify_room_change: false,
+                notify_time_change: false,
+                notify_substitution: false,
+                notify_added: false,
+                notify_removed: false,
+            };
             change(&mut settings);
             settings
         };
@@ -380,6 +388,24 @@ mod tests {
         let cancelled = with_status(moved.clone(), LessonStatus::Cancelled);
         let everything_else = TimetableChangeSettings { notify_cancelled: false, ..Default::default() };
         assert_eq!(changes(vec![old.clone()], vec![cancelled], &everything_else), vec![]);
+    }
+
+    #[test]
+    fn added_and_removed_lessons_have_switches_of_their_own() {
+        let old = lesson("Math", "SMI", "R1", (8, 0), (8, 45));
+        let new = lesson("Bio", "GRA", "R3", (10, 0), (10, 45));
+        let titles = |settings: TimetableChangeSettings| -> Vec<String> {
+            changes(vec![old.clone()], vec![new.clone()], &settings).into_iter().map(|(title, _)| title).collect()
+        };
+
+        assert_eq!(titles(TimetableChangeSettings::default()), vec!["New lesson added", "Lesson removed"]);
+        assert_eq!(titles(TimetableChangeSettings { notify_added: false, ..Default::default() }), vec!["Lesson removed"]);
+        assert_eq!(titles(TimetableChangeSettings { notify_removed: false, ..Default::default() }), vec!["New lesson added"]);
+        // and they no longer hang on the switches they used to be part of
+        assert_eq!(
+            titles(TimetableChangeSettings { notify_substitution: false, notify_cancelled: false, ..Default::default() }),
+            vec!["New lesson added", "Lesson removed"],
+        );
     }
 
     #[test]

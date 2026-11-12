@@ -1,5 +1,5 @@
 use crate::components::forms::{dimmed_unless, on_enter, on_text_input, Checkbox};
-use altis_core::settings::{describe_lead_time_minutes, ExamReminderSettings};
+use altis_core::settings::{describe_minutes, ExamReminderSettings};
 use yew::prelude::*;
 
 /// The lead times offered as buttons, in minutes: from a quarter of an hour to a week
@@ -63,7 +63,7 @@ pub fn exam_reminders(props: &ExamRemindersProps) -> Html {
                         let button_class = if settings.has_lead_time(minutes) { "btn-primary" } else { "btn-outline-secondary" };
                         html! {
                             <button type="button" class={classes!("btn", "btn-sm", button_class)} onclick={on_toggle_lead_time.reform(move |_| minutes)}>
-                                { format!("{} before", describe_lead_time_minutes(minutes)) }
+                                { format!("{} before", describe_minutes(minutes)) }
                             </button>
                         }
                     })}
@@ -73,7 +73,7 @@ pub fn exam_reminders(props: &ExamRemindersProps) -> Html {
                     <div class="d-flex flex-column gap-2 mb-3">
                         { for custom_lead_times.into_iter().map(|minutes| html! {
                             <div class="d-flex align-items-center justify-content-between p-2 rounded bg-dark border border-secondary border-opacity-25" key={minutes.to_string()}>
-                                <span class="small text-light">{ format!("{} before", describe_lead_time_minutes(minutes)) }</span>
+                                <span class="small text-light">{ format!("{} before", describe_minutes(minutes)) }</span>
                                 <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1" onclick={on_remove_lead_time.reform(move |_| minutes)}>
                                     <i class="bi bi-trash"></i>
                                 </button>

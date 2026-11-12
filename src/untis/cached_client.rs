@@ -4,11 +4,8 @@ use crate::untis::entity_timetables::entity_timetables;
 use altis_core::errors::ApiError;
 use altis_core::models::timetable::{Entity, MyTimeTable, WeekTimeTable};
 use altis_core::untis::week::Week;
-use chrono::{Local, NaiveDateTime, TimeDelta};
+use chrono::{Local, NaiveDateTime};
 use std::collections::HashMap;
-
-/// How long loaded timetables are valid before they are requested again
-const CACHE_DURATION: TimeDelta = TimeDelta::hours(1);
 
 /// The timetable of every class, teacher and room of a week, and the id of the class the student
 /// is in
@@ -19,6 +16,11 @@ pub type Expiring<T> = (NaiveDateTime, T);
 
 fn now() -> NaiveDateTime {
     Local::now().naive_local()
+}
+
+/// When a timetable loaded now is due to be requested again
+fn expiry_from(now: NaiveDateTime) -> NaiveDateTime {
+    now + storage::settings_or_default().general.cache_duration()
 }
 
 fn with_teachers_and_rooms((classes, own_class_id): ClassTimeTables) -> AllTimeTables {
@@ -86,7 +88,7 @@ impl CachedUntisClient {
 
         let timetables = self.untis_client.get_all_class_timetables(&week).await?;
         let now = now();
-        let expiry = now + CACHE_DURATION;
+        let expiry = expiry_from(now);
 
         // re-read the cache, other weeks might have been cached while we were loading
         let mut cache = storage::class_timetables().ok().flatten().unwrap_or_default();
@@ -109,7 +111,7 @@ impl CachedUntisClient {
 
         let timetable = self.untis_client.get_my_timetable(&week).await?;
         let now = now();
-        let expiry = now + CACHE_DURATION;
+        let expiry = expiry_from(now);
 
         // the personal timetable is only a small convenience cache, failing to save it shouldn't fail the request
         let mut cache = storage::my_timetables().ok().flatten().unwrap_or_default();

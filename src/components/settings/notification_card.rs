@@ -2,7 +2,7 @@ use super::card::{autosaved_badge, divider, SettingsCard};
 use super::exam_reminders::ExamReminders;
 use crate::components::forms::{dimmed_unless, select_value, update, Checkbox};
 use crate::native;
-use altis_core::settings::{BackgroundMode, ExamReminderSettings, NotificationSettings, PERIODIC_INTERVAL_MINUTES};
+use altis_core::settings::{BackgroundMode, ExamReminderSettings, NotificationSettings, MAX_WEEKS_AHEAD, PERIODIC_INTERVAL_MINUTES};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
@@ -22,6 +22,15 @@ fn background_mode_label(mode: BackgroundMode) -> String {
         BackgroundMode::Off => "Don't check".to_string(),
         BackgroundMode::Periodic => format!("Check about every {PERIODIC_INTERVAL_MINUTES} minutes"),
         BackgroundMode::Continuous => "Check on the interval above".to_string(),
+    }
+}
+
+/// The weeks that are watched, in words
+fn weeks_ahead_label(weeks_ahead: u32) -> String {
+    match weeks_ahead {
+        0 => "This week".to_string(),
+        1 => "This week and the next".to_string(),
+        more => format!("This week and the next {more}"),
     }
 }
 
@@ -63,6 +72,11 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
     let on_interval_change = update(&settings, |settings: &mut NotificationSettings, e: Event| {
         if let Ok(minutes) = select_value(&e).parse() {
             settings.poll_interval_minutes = minutes;
+        }
+    });
+    let on_weeks_ahead_change = update(&settings, |settings: &mut NotificationSettings, e: Event| {
+        if let Ok(weeks) = select_value(&e).parse() {
+            settings.weeks_ahead = weeks;
         }
     });
     let on_background_mode_change = update(&settings, |settings: &mut NotificationSettings, e: Event| {
@@ -107,6 +121,18 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
                     </select>
                 </div>
 
+                <div class="mb-3" style={dimmed_unless(enabled)}>
+                    <label class="form-label small text-secondary mb-1" for="weeksAhead">{"Watch the timetable of"}</label>
+                    <select id="weeksAhead" class="form-select form-select-sm bg-dark text-light border-secondary" style="width: auto;" onchange={on_weeks_ahead_change}>
+                        { for (0..=MAX_WEEKS_AHEAD).map(|weeks| html! {
+                            <option value={weeks.to_string()} selected={settings.weeks_ahead() == weeks}>{ weeks_ahead_label(weeks) }</option>
+                        })}
+                    </select>
+                    <div class="form-text text-secondary small">
+                        {"Changes and exams are only noticed in these weeks. Every week more is two more requests a check."}
+                    </div>
+                </div>
+
                 if native::is_android() {
                     <div class="mb-3" style={dimmed_unless(enabled)}>
                         <label class="form-label small text-secondary mb-1">{"When the app is closed"}</label>
@@ -135,6 +161,10 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
                                   checked={changes.notify_time_change} on_toggle={toggle(|settings| &mut settings.timetable_changes.notify_time_change)} />
                         <Checkbox id="ttSub" label="Teacher / substitution changes"
                                   checked={changes.notify_substitution} on_toggle={toggle(|settings| &mut settings.timetable_changes.notify_substitution)} />
+                        <Checkbox id="ttAdded" label="New lessons"
+                                  checked={changes.notify_added} on_toggle={toggle(|settings| &mut settings.timetable_changes.notify_added)} />
+                        <Checkbox id="ttRemoved" label="Removed lessons"
+                                  checked={changes.notify_removed} on_toggle={toggle(|settings| &mut settings.timetable_changes.notify_removed)} />
                     </div>
                 </div>
 
@@ -151,7 +181,9 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
 
                 <Checkbox id="absenceEnabled" label="New absence alerts" class="mb-3 form-check" label_class={SECTION_LABEL_CLASS} style={dimmed_unless(enabled)}
                           checked={settings.absence_notifications.enabled} on_toggle={toggle(|settings| &mut settings.absence_notifications.enabled)}>
-                    <div class="form-text small text-secondary">{"When a teacher marks you absent. Absences you report yourself stay quiet."}</div>
+                    <div class="form-text small text-secondary">{"When a teacher marks you absent."}</div>
+                    <Checkbox id="absenceOwn" label="Also for absences I report myself" class="form-check mt-1" style={dimmed_unless(settings.absence_notifications.enabled)}
+                              checked={settings.absence_notifications.include_own} on_toggle={toggle(|settings| &mut settings.absence_notifications.include_own)} />
                 </Checkbox>
 
                 { divider() }

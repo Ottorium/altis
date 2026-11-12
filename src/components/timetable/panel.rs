@@ -2,12 +2,11 @@
 
 use super::compare::{CompareView, Compared, Comparison};
 use super::free_rooms::{FreeRooms, FreeRoomsView};
-use super::view::TimetableView;
 use super::week_grid::WeekGrid;
 use super::weeks::LoadedWeeks;
 use crate::components::loading::Loading;
 use altis_core::models::timetable::{Entity, EntityKind, WeekTimeTable};
-use altis_core::settings::{Favorites, VisualSettings};
+use altis_core::settings::{Favorites, TimetableView, VisualSettings};
 use altis_core::untis::week::Week;
 use std::collections::HashMap;
 use yew::prelude::*;
@@ -147,8 +146,8 @@ pub fn render_panel(week: &Week, left: &str, panel: Panel, visual: &VisualSettin
                 Panel::Loading => html! { <Loading /> },
                 Panel::Error(err) => html! { <div class="alert alert-danger m-3">{ err }</div> },
                 Panel::Table(timetable) => html! { <WeekGrid {timetable} visual={visual.clone()} {on_entity_select} /> },
-                Panel::FreeRooms(free_rooms) => html! { <FreeRoomsView {free_rooms} {on_entity_select} /> },
-                Panel::Compare(comparison) => html! { <CompareView {comparison} /> },
+                Panel::FreeRooms(free_rooms) => html! { <FreeRoomsView {free_rooms} show_now_line={visual.lesson_display.show_now_line} {on_entity_select} /> },
+                Panel::Compare(comparison) => html! { <CompareView {comparison} visual={visual.clone()} /> },
                 Panel::CompareHint => html! {
                     <p class="text-secondary p-3">{ "Pick two or more timetables to compare." }</p>
                 },

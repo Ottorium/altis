@@ -107,7 +107,12 @@ impl Comparison {
         dates.dedup();
 
         let lane = |table: &WeekTimeTable, date: NaiveDate| -> Vec<LessonBlock> {
-            let mut lessons: Vec<LessonBlock> = table.days.iter().filter(|day| day.date == date).flat_map(|day| day.lessons.iter().cloned()).collect();
+            let mut lessons: Vec<LessonBlock> = table
+                .days
+                .iter()
+                .filter(|day| day.date == date)
+                .flat_map(|day| day.lessons.iter().filter(|lesson| visual.lesson_display.shows(lesson)).cloned())
+                .collect();
             lessons.iter_mut().for_each(|lesson| visual.apply_color_override(lesson));
             lessons
         };
@@ -166,6 +171,19 @@ mod tests {
             })
             .collect();
         WeekTimeTable { days }
+    }
+
+    #[test]
+    fn cancelled_lessons_can_be_left_out() {
+        let mut cancelled = table(&[(14, 8, 9), (15, 9, 10)]);
+        cancelled.days[0].lessons[0].status = altis_core::models::timetable::LessonStatus::Cancelled;
+        let mut visual = VisualSettings::default();
+        visual.lesson_display.hide_cancelled = true;
+
+        let comparison = Comparison::of(&[("A".to_string(), &cancelled)], vec![], &visual);
+
+        // the Monday is still one of the days that are always shown, it just has nothing on it
+        assert_eq!(comparison.days.iter().map(Day::has_lessons).collect::<Vec<_>>(), vec![false, true]);
     }
 
     #[test]

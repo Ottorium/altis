@@ -1,42 +1,20 @@
+use altis_core::settings::Tab;
 use yew::prelude::*;
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum Tab {
-    Timetable,
-    Messages,
-    Absences,
-    Book2Eat,
-    Settings,
-}
-
-impl Tab {
-    /// The tabs in the order the navigation lists them. Settings goes last: at the end of the
-    /// bar on a phone, at the bottom of the sidebar on a desktop.
-    const MAIN: [Tab; 4] = [Tab::Timetable, Tab::Messages, Tab::Absences, Tab::Book2Eat];
-
-    fn label(self) -> &'static str {
-        match self {
-            Tab::Timetable => "Timetable",
-            Tab::Messages => "Messages",
-            Tab::Absences => "Absences",
-            Tab::Book2Eat => "Book2Eat",
-            Tab::Settings => "Settings",
-        }
-    }
-
-    fn icon(self) -> &'static str {
-        match self {
-            Tab::Timetable => "bi-calendar3",
-            Tab::Messages => "bi-chat-dots",
-            Tab::Absences => "bi-person-exclamation",
-            Tab::Book2Eat => "bi-fork-knife",
-            Tab::Settings => "bi-gear",
-        }
+fn icon(tab: Tab) -> &'static str {
+    match tab {
+        Tab::Timetable => "bi-calendar3",
+        Tab::Messages => "bi-chat-dots",
+        Tab::Absences => "bi-person-exclamation",
+        Tab::Book2Eat => "bi-fork-knife",
+        Tab::Settings => "bi-gear",
     }
 }
 
 #[derive(Properties, PartialEq)]
 pub struct NavProps {
+    /// the tabs on offer, in order
+    pub tabs: Vec<Tab>,
     pub active_tab: Tab,
     pub on_change: Callback<Tab>,
 }
@@ -44,6 +22,9 @@ pub struct NavProps {
 /// The app's navigation: a sidebar on a desktop, a bar along the bottom on a phone
 #[function_component(NavBar)]
 pub fn navbar(props: &NavProps) -> Html {
+    // the sidebar sets the settings apart, at its bottom
+    let (settings, main): (Vec<Tab>, Vec<Tab>) = props.tabs.iter().partition(|tab| **tab == Tab::Settings);
+
     html! {
         <>
             <nav class="d-none d-md-flex vh-100 shadow p-4 flex-column justify-content-between sticky-top"
@@ -54,17 +35,17 @@ pub fn navbar(props: &NavProps) -> Html {
                     </div>
 
                     <ul class="nav nav-pills flex-column gap-1 border-top border-primary border-opacity-100 pt-4">
-                        { for Tab::MAIN.into_iter().map(|tab| render_sidebar_item(tab, props)) }
+                        { for main.into_iter().map(|tab| render_sidebar_item(tab, props)) }
                     </ul>
                 </div>
                 <div class="nav nav-pills flex-column gap-1 border-top border-primary border-opacity-100 pt-4">
-                    { render_sidebar_item(Tab::Settings, props) }
+                    { for settings.into_iter().map(|tab| render_sidebar_item(tab, props)) }
                 </div>
             </nav>
 
             <nav class="d-md-none order-last px-2 shadow-lg" style="background-color: #1a1a1a; border-top: 1px solid rgba(255,255,255,0.1); z-index: 1050;">
                 <div class="d-flex justify-content-around py-2">
-                    { for Tab::MAIN.into_iter().chain([Tab::Settings]).map(|tab| render_bottom_bar_item(tab, props)) }
+                    { for props.tabs.iter().map(|tab| render_bottom_bar_item(*tab, props)) }
                 </div>
             </nav>
         </>
@@ -84,7 +65,7 @@ fn render_sidebar_item(tab: Tab, props: &NavProps) -> Html {
                 class={classes!("nav-link", "py-3", "text-start", "d-flex", "align-items-center", active_class)}
                 style="border: none; background: transparent; width: 100%; transition: all 0.25s;"
             >
-                <i class={classes!("bi", tab.icon(), "me-3", "fs-5")}></i>
+                <i class={classes!("bi", icon(tab), "me-3", "fs-5")}></i>
                 <span class="fw-semibold">{ tab.label() }</span>
             </button>
         </li>
@@ -104,7 +85,7 @@ fn render_bottom_bar_item(tab: Tab, props: &NavProps) -> Html {
             style="background: transparent; transition: color 0.2s ease;"
         >
             <div class="d-flex flex-column align-items-center justify-content-center py-2">
-                <i class={classes!("bi", tab.icon())} style="font-size: 1.6rem; line-height: 1;"></i>
+                <i class={classes!("bi", icon(tab))} style="font-size: 1.6rem; line-height: 1;"></i>
                 <span style="font-size: 0.7rem; letter-spacing: 0.03rem; margin-top: 4px;" class="text-uppercase">
                     { tab.label() }
                 </span>

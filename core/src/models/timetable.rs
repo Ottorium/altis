@@ -187,6 +187,19 @@ impl Entity {
         }
     }
 
+    /// The name written out in full, for the entities Untis knows by more than an abbreviation
+    pub fn long_name(&self) -> String {
+        let long_name = match self {
+            Entity::Teacher(teacher) => &teacher.long_name,
+            Entity::Subject(subject) => &subject.long_name,
+            Entity::Class(_) | Entity::Room(_) | Entity::Info(_) => return self.name(),
+        };
+        match long_name.is_empty() {
+            true => self.name(),
+            false => long_name.clone(),
+        }
+    }
+
     /// Which sort of timetable the entity has, `None` for one that has none of its own
     pub fn kind(&self) -> Option<EntityKind> {
         match self {
@@ -261,6 +274,15 @@ pub enum ChangeStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_long_name_falls_back_to_the_abbreviation() {
+        let subject = |long_name: &str| Entity::Subject(Subject { short_name: "M".to_string(), long_name: long_name.to_string(), ..Default::default() });
+
+        assert_eq!(subject("Mathematik").long_name(), "Mathematik");
+        assert_eq!(subject("").long_name(), "M");
+        assert_eq!(Entity::Room(Room { name: "R1".to_string() }).long_name(), "R1");
+    }
 
     #[test]
     fn a_status_is_stored_as_the_text_untis_sent() {

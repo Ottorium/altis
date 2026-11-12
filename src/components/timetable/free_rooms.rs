@@ -134,6 +134,8 @@ impl FreeRooms {
 #[derive(Properties, PartialEq)]
 pub struct FreeRoomsProps {
     pub free_rooms: FreeRooms,
+    /// whether to mark the current time
+    pub show_now_line: bool,
     /// a room was clicked, to show its timetable
     pub on_entity_select: Callback<Entity>,
 }
@@ -174,7 +176,9 @@ pub fn free_rooms_view(props: &FreeRoomsProps) -> Html {
                                         .map(|name| render_room(name, &props.on_entity_select))
                                         .collect::<Html>()
                                 }}
-                                { render_now_line(period, *date, now) }
+                                if props.show_now_line {
+                                    { render_now_line(period, *date, now) }
+                                }
                             </div>
                         })}
                     </>
