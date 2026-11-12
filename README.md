@@ -34,11 +34,11 @@ Altis polls Untis itself and shows a native notification for each:
 - **New absences.**
 
 Every poll looks at the current **and** the next week, so a lesson dropped on Friday for the
-Monday after still gets noticed. How often it polls, and which of these kinds you want, is up to
-you in Settings.
+Monday after still gets noticed. How often it polls, how many weeks ahead it watches, and which
+of these kinds you want, is up to you in Settings.
 
-Absences you report yourself stay quiet - you typed them in a minute ago. What is worth
-hearing about is a teacher marking you absent.
+Absences you report yourself stay quiet unless you ask for them too - you typed them in a
+minute ago. What is worth hearing about is a teacher marking you absent.
 
 ### How it keeps running
 
@@ -95,8 +95,8 @@ substituted lessons are marked as such, exams stand out, and a red line marks th
 time. Tapping a block opens its details; tapping a teacher, class or room in there jumps
 straight to that timetable.
 
-Loaded weeks are cached for an hour, so paging back and forth is instant and does not hammer
-Untis.
+Loaded weeks are cached for an hour (or however long you set), so paging back and forth is
+instant and does not hammer Untis.
 
 ### Favourites
 
@@ -114,10 +114,21 @@ picker offers your favourites first and remembers what was compared last.
 
 Most of what the official app decides for you, Altis leaves to you.
 
+**General**
+
+- The tab the app opens on, and what the timetable opens with: you, a class, a teacher, a room,
+  the available rooms or the comparison.
+- Which tabs the navigation offers, so the ones you never use are out of the way.
+- Whether swiping the timetable changes the week.
+- How long loaded timetables are kept before Untis is asked again.
+- Whether to check for new versions.
+
 **Notifications**
 
-- The poll interval.
-- Which kinds of notification you want: timetable changes, exams, messages, absences.
+- The poll interval, and how many weeks ahead are watched.
+- Which kinds of notification you want: timetable changes (cancelled, moved, another room,
+  another teacher, added and removed lessons, each with a switch of its own), exams and how
+  long before them, messages, absences.
 - On Android, what happens when the app is closed: WorkManager or the foreground service (see
   [How it keeps running](#how-it-keeps-running)).
 
@@ -127,6 +138,10 @@ Most of what the official app decides for you, Altis leaves to you.
   lessons are, so a short day doesn't stretch its lessons over the whole screen and the grid
   keeps its scale from week to week. Lessons outside the range still show and widen it.
 - **Weekday Override** decides whether empty weekdays are shown at all, and which ones.
+- **Lesson Text** decides what is written on a lesson - subject, teacher, room, class, time, in
+  short or in full - and in which font, size and weight.
+- **Lesson Display** greys out the lessons that are over, marks the current time with a line
+  and hides cancelled lessons, each if you want it to.
 - **Subject Colour Overrides** give a subject a colour of your own.
 - **Force ASCII Timetable** renders the week as text, for when that is what you want.
 
@@ -134,6 +149,8 @@ Most of what the official app decides for you, Altis leaves to you.
 
 All settings can be exported from the Settings screen as a QR code to scan or a JSON file to
 open, with or without the credentials in them. Setting up a second device is one scan.
+
+The version you are running is written at the bottom of the Settings screen.
 
 ## Absences
 
@@ -153,14 +170,26 @@ The week's menu with the QR code the canteen scans, a swipe from day to day.
 
 ## How the code is laid out
 
-- `core/` - everything Untis that isn't tied to a browser: the client, the data models, the
-  notification poll, the settings. It must stay free of `web-sys`/`js-sys`/`wasm-bindgen`.
-  Whatever it needs from a platform - a key-value store, an HTTP client that CORS can't stop,
-  the clock, a notification - it asks for through the `Env` trait. That is what lets the same
-  poll run in the webview on desktop and natively in the Android service.
-- `src/` - the Yew frontend, which binds `Env` to localStorage and the Tauri `proxy` command.
-- `src-tauri/` - the shell: the `proxy`, file and store commands, the tray, and the Android
-  background poller that binds `Env` to a JSON file and reqwest.
+- `core/` - everything Untis that isn't tied to a browser. It must stay free of
+  `web-sys`/`js-sys`/`wasm-bindgen`. Whatever it needs from a platform - a key-value store, an
+  HTTP client that CORS can't stop, the clock, a notification - it asks for through the `Env`
+  trait. That is what lets the same poll run in the webview on desktop and natively in the
+  Android service.
+  - `models/` - the timetable in the app's own terms, the absences and messages as their APIs
+    answer, and under `untis_api/` the raw timetable responses and their conversion.
+  - `untis/` - logging in and keeping the session (`auth`), the requests (`client`), weeks.
+  - `notifications/` - the poll: what changed in a timetable, exam reminders, the bookkeeping
+    that keeps it from repeating itself.
+  - `settings/` - everything that can be set, one file per group. Stored as one JSON document,
+    so a field added later needs a default.
+- `src/` - the Yew frontend.
+  - `native.rs` is the only file that knows there is a Tauri shell around the app: the proxy,
+    files, the scanner, notifications. Hosting the frontend somewhere else means replacing it.
+  - `web_env.rs` binds `Env` to localStorage and `native.rs`; `storage.rs` adds the timetable
+    caches on top.
+  - `components/` has a folder per screen, split into the page and the parts it is made of.
+- `src-tauri/` - the shell, kept as thin as it can be: the `proxy`, file and store commands,
+  the tray, and the Android background poller that binds `Env` to a JSON file and reqwest.
 
 Two notes on talking to WebUntis, both of which cost an afternoon to find out:
 
