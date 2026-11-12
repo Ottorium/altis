@@ -2,11 +2,11 @@ use super::compare::{ComparePicker, Compared};
 use super::controls::TimetableControls;
 use super::panel::{render_panel, resolve, Selection};
 use super::swipe::use_week_swipe;
-use super::view::TimetableView;
 use super::weeks::{use_loaded_weeks, LoadedAction, LoadedWeeks};
 use crate::storage;
 use crate::untis::cached_client::CachedUntisClient;
 use altis_core::models::timetable::{Entity, EntityKind};
+use altis_core::settings::TimetableView;
 use altis_core::untis::week::Week;
 use yew::prelude::*;
 
@@ -30,18 +30,19 @@ fn compare_options(loaded: &LoadedWeeks, week: &Week) -> Vec<(EntityKind, Vec<St
 /// the free rooms, or several timetables compared - with the neighbouring weeks a swipe away
 #[function_component(TimetablePage)]
 pub fn timetable_page() -> Html {
+    let settings = storage::settings_or_default();
     let reload_trigger = use_state(|| 0u32);
-    let view = use_state(|| TimetableView::Me);
+    let view = use_state(|| settings.general.start_view);
     let selected_name = use_state(|| None::<String>);
     let selected_week = use_state(Week::current);
-    let favorites = use_state(|| storage::settings_or_default().favorites);
+    let favorites = use_state(|| settings.favorites.clone());
     let compared = use_state(storage::compared);
     let picker_open = use_state(|| false);
 
     let loaded = use_loaded_weeks(&selected_week, *view, *reload_trigger);
-    let swipe = use_week_swipe(&selected_week);
+    let swipe = use_week_swipe(&selected_week, settings.general.week_swipe);
 
-    let visual = storage::settings_or_default().visual_settings;
+    let visual = settings.visual_settings;
     let selection = Selection { view: *view, selected_name: &selected_name, favorites: &favorites, compared: &compared, visual: &visual };
     let (previous_week, next_week) = (selected_week.previous(), selected_week.next());
     let current = resolve(&loaded, &selected_week, &selection);

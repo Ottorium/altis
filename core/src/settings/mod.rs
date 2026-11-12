@@ -3,11 +3,13 @@
 
 mod export;
 mod favorites;
+mod general;
 mod notifications;
 mod visual;
 
 pub use export::SettingsExport;
 pub use favorites::Favorites;
+pub use general::{GeneralSettings, Tab, TimetableView};
 pub use notifications::*;
 pub use visual::*;
 
@@ -22,6 +24,8 @@ pub struct Settings {
     pub notification_settings: NotificationSettings,
     #[serde(default)]
     pub favorites: Favorites,
+    #[serde(default)]
+    pub general: GeneralSettings,
 }
 
 /// A login: for Untis the school, the user and the secret Untis hands out for other apps, for

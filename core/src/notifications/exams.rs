@@ -1,7 +1,7 @@
 use super::wording::{format_day, format_time, subject_name};
 use super::{NotificationState, Notification};
 use crate::models::timetable::MyTimeTable;
-use crate::settings::{describe_lead_time_minutes, ExamReminderSettings};
+use crate::settings::{describe_minutes, ExamReminderSettings};
 use chrono::{NaiveDate, NaiveDateTime, TimeDelta};
 
 const IDENTITY_DATE_FORMAT: &str = "%Y-%m-%d";
@@ -26,7 +26,7 @@ pub(super) fn due_reminders(
                 let within_lead_time = now >= start - TimeDelta::minutes(lead) && now < start;
                 if within_lead_time && state.sent_exam_reminders.insert((identity.clone(), lead)) {
                     due.push(Notification {
-                        title: format!("Exam in {}", describe_lead_time_minutes(lead)),
+                        title: format!("Exam in {}", describe_minutes(lead)),
                         body: format!("{subject} exam at {} on {}", format_time(start), format_day(day.date)),
                     });
                 }

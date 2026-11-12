@@ -1,7 +1,6 @@
 use super::compare::Compared;
-use super::view::TimetableView;
 use crate::components::forms::{input_value, select_value};
-use altis_core::settings::Favorites;
+use altis_core::settings::{Favorites, TimetableView};
 use altis_core::untis::week::Week;
 use chrono::NaiveDate;
 use web_sys::HtmlSelectElement;

@@ -81,9 +81,9 @@ pub struct WeekSwipe {
     pub onpointercancel: Callback<PointerEvent>,
 }
 
-/// Lets the week be changed by swiping the track
+/// Lets the week be changed by swiping the track, unless that is switched off
 #[hook]
-pub fn use_week_swipe(selected_week: &UseStateHandle<Week>) -> WeekSwipe {
+pub fn use_week_swipe(selected_week: &UseStateHandle<Week>, enabled: bool) -> WeekSwipe {
     let track = use_node_ref();
     let swipe = use_mut_ref(Swipe::default);
 
@@ -101,7 +101,7 @@ pub fn use_week_swipe(selected_week: &UseStateHandle<Week>) -> WeekSwipe {
         let swipe = swipe.clone();
         Callback::from(move |e: PointerEvent| {
             let mut swipe = swipe.borrow_mut();
-            if swipe.animating || !e.is_primary() || (e.pointer_type() == "mouse" && e.button() != 0) {
+            if !enabled || swipe.animating || !e.is_primary() || (e.pointer_type() == "mouse" && e.button() != 0) {
                 return;
             }
             // the lesson modal lives inside the track, it shouldn't swipe

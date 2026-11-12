@@ -1,7 +1,7 @@
 //! Watches for timetable changes, upcoming exams, new messages and new absences, and shows a
 //! native notification for each.
 //!
-//! One poll fetches the current and the next week's personal timetable once and uses it for both
+//! One poll fetches the personal timetable of the watched weeks once and uses it for both
 //! the change diff and the exam reminders. Everything it needs from the platform (the store, HTTP
 //! and the notification itself) comes through [`Env`], so the same poll runs in the frontend's
 //! WASM on desktop and natively in the Android background service, where there is no webview to
@@ -32,12 +32,14 @@ struct Notification {
     body: String,
 }
 
-/// The weeks a poll looks at. Next week matters as much as this one: a lesson dropped on Friday
-/// for the Monday after is exactly the change worth knowing about early.
-fn tracked_weeks() -> [Week; 2] {
-    let current = Week::current();
-    let next = current.next();
-    [current, next]
+/// The weeks a poll looks at: the running one and as many after it as are set
+fn tracked_weeks(weeks_ahead: u32) -> Vec<Week> {
+    let mut weeks = vec![Week::current()];
+    for _ in 0..weeks_ahead {
+        let next = weeks[weeks.len() - 1].next();
+        weeks.push(next);
+    }
+    weeks
 }
 
 /// Writes the bookkeeping out, then shows the notifications - in that order.
@@ -77,7 +79,12 @@ pub async fn run_once<E: Env>() {
     }
 
     if notifications.absence_notifications.enabled {
-        check_absences(&client, &mut state, &settings.untis_auth.user_identifier).await;
+        // the student's own absences are told apart by who entered them
+        let own_user = match notifications.absence_notifications.include_own {
+            true => None,
+            false => Some(settings.untis_auth.user_identifier.as_str()),
+        };
+        check_absences(&client, &mut state, own_user).await;
     }
 
     let _ = Store::<E>::save_notification_state(&state);
@@ -87,7 +94,7 @@ pub async fn run_once<E: Env>() {
 /// hour-long cache, this is what should be near-real-time), diffs each against what was seen last
 /// poll, and scans the same data for exams that are now within a reminder's lead time.
 async fn check_timetable<E: Env>(client: &UntisClient<E>, state: &mut NotificationState, settings: &NotificationSettings) {
-    let weeks = tracked_weeks();
+    let weeks = tracked_weeks(settings.weeks_ahead());
     let mut fetched: Vec<MyTimeTable> = Vec::with_capacity(weeks.len());
 
     for week in &weeks {
@@ -140,15 +147,16 @@ fn message_notification(message: &MessagePreview) -> Notification {
 
 /// Notifies about absences that weren't in a previous poll.
 ///
-/// An absence the student entered themselves is recorded but never notified about - they were the
-/// one who typed it in a minute ago. What's worth hearing about is a teacher marking them absent.
-async fn check_absences<E: Env>(client: &UntisClient<E>, state: &mut NotificationState, own_user: &str) {
+/// An absence entered by `own_user`, the student themselves, is recorded but not notified about -
+/// they were the one who typed it in a minute ago. What's worth hearing about is a teacher
+/// marking them absent.
+async fn check_absences<E: Env>(client: &UntisClient<E>, state: &mut NotificationState, own_user: Option<&str>) {
     let (start, end) = school_year(0);
     let Ok(data) = client.get_absences(start, end).await else { return };
 
     let ids: Vec<i32> = data.absences.iter().map(|absence| absence.id).collect();
     let unseen = state::record_seen(&mut state.known_absence_ids, &ids);
-    let is_own = |absence: &Absence| !own_user.is_empty() && absence.created_user.eq_ignore_ascii_case(own_user);
+    let is_own = |absence: &Absence| own_user.is_some_and(|user| !user.is_empty() && absence.created_user.eq_ignore_ascii_case(user));
     let due: Vec<Notification> = data
         .absences
         .iter()
@@ -346,6 +354,33 @@ mod tests {
         ]);
         // the student's own absence is known now all the same
         assert!(Store::<TestEnv>::notification_state_or_default().known_absence_ids.contains(&2));
+    }
+
+    #[test]
+    fn reports_the_students_own_absences_when_asked_to() {
+        let school = school(initial());
+        change_settings(|settings| settings.notification_settings.absence_notifications.include_own = true);
+        poll();
+
+        school.borrow_mut().absences.push((2, "Max"));
+        assert_eq!(poll(), vec![("New absence".to_string(), "Wed 07 Oct at 07:50-08:40".to_string())]);
+    }
+
+    #[test]
+    fn watches_as_many_weeks_as_are_set() {
+        let school = school(initial());
+        change_settings(|settings| settings.notification_settings.weeks_ahead = 3);
+        poll();
+        assert_eq!(Store::<TestEnv>::notification_state_or_default().last_my_timetable.len(), 4);
+
+        school.borrow_mut().room = "R2".to_string();
+        assert_eq!(poll().len(), 4);
+
+        // a week that is no longer watched is forgotten, and one that is watched again starts over
+        change_settings(|settings| settings.notification_settings.weeks_ahead = 0);
+        school.borrow_mut().room = "R3".to_string();
+        assert_eq!(poll().len(), 1);
+        assert_eq!(Store::<TestEnv>::notification_state_or_default().last_my_timetable.len(), 1);
     }
 
     #[test]

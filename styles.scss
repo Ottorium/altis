@@ -277,7 +277,9 @@ html.qr-scanning body {
   border-radius: 0.3rem;
   text-align: center;
   line-height: 1.1;
-  font-size: clamp(0.5rem, 26cqw, 0.9rem);
+  font-size: calc(clamp(0.5rem, 26cqw, 0.9rem) * var(--lesson-font-scale, 1));
+  font-family: var(--lesson-font-family, inherit);
+  font-weight: var(--lesson-font-weight, inherit);
   white-space: nowrap;
 }
 
@@ -340,8 +342,11 @@ html.qr-scanning body {
     container-type: size;
   }
 
+  // the custom properties are set from the lesson text settings, and unset by default
   .dynamic-text {
-    font-size: clamp(0.7rem, 19cqw, 1.1rem);
+    font-size: calc(clamp(0.7rem, 19cqw, 1.1rem) * var(--lesson-font-scale, 1));
+    font-family: var(--lesson-font-family, inherit);
+    font-weight: var(--lesson-font-weight, inherit);
     line-height: 1.1;
     width: 100%;
     word-wrap: break-word;

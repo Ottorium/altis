@@ -1,9 +1,9 @@
 //! The timetables of the week on screen and its neighbours, and the loading of them.
 
-use super::view::TimetableView;
 use crate::untis::cached_client::{AllTimeTables, CachedUntisClient, Expiring};
 use altis_core::errors::ApiError;
 use altis_core::models::timetable::MyTimeTable;
+use altis_core::settings::TimetableView;
 use altis_core::untis::week::Week;
 use chrono::{Local, NaiveDateTime};
 use std::cell::Cell;

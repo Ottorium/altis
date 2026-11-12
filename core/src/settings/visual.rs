@@ -1,3 +1,4 @@
+use super::default_true;
 use crate::models::timetable::{ChangeStatus, Entity, LessonBlock};
 use chrono::{NaiveTime, Weekday};
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,10 @@ pub struct VisualSettings {
     /// the colour to draw a subject in, as `#rrggbb` by the subject's name
     #[serde(default)]
     pub subject_color_overrides: BTreeMap<String, String>,
+    #[serde(default)]
+    pub lesson_text: LessonTextSettings,
+    #[serde(default)]
+    pub lesson_display: LessonDisplaySettings,
 }
 
 impl VisualSettings {
@@ -155,6 +160,149 @@ impl Default for TimePadding {
     }
 }
 
+/// A line of what is written on a lesson in the week grid
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum LessonLine {
+    Subject,
+    Teacher,
+    Room,
+    Class,
+    /// when the lesson starts and ends
+    Time,
+}
+
+impl LessonLine {
+    /// The lines in the order they are written in
+    pub const ALL: [LessonLine; 5] = [LessonLine::Subject, LessonLine::Teacher, LessonLine::Room, LessonLine::Class, LessonLine::Time];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            LessonLine::Subject => "Subject",
+            LessonLine::Teacher => "Teacher",
+            LessonLine::Room => "Room",
+            LessonLine::Class => "Class",
+            LessonLine::Time => "Time",
+        }
+    }
+}
+
+/// The typeface the lessons are written in
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum LessonFont {
+    /// the one the rest of the app uses
+    #[default]
+    Default,
+    Serif,
+    Monospace,
+}
+
+impl LessonFont {
+    pub const ALL: [LessonFont; 3] = [LessonFont::Default, LessonFont::Serif, LessonFont::Monospace];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            LessonFont::Default => "Default",
+            LessonFont::Serif => "Serif",
+            LessonFont::Monospace => "Monospace",
+        }
+    }
+
+    /// What CSS calls the typeface, `None` for the app's own
+    pub fn css_family(self) -> Option<&'static str> {
+        match self {
+            LessonFont::Default => None,
+            LessonFont::Serif => Some("serif"),
+            LessonFont::Monospace => Some("monospace"),
+        }
+    }
+}
+
+/// The text is never scaled beyond these, in percent, whatever was stored: smaller is
+/// unreadable, larger doesn't fit a lesson
+const FONT_SCALE_RANGE: (u32, u32) = (50, 200);
+const DEFAULT_FONT_SCALE_PERCENT: u32 = 100;
+
+fn default_lesson_lines() -> Vec<LessonLine> {
+    vec![LessonLine::Subject, LessonLine::Teacher, LessonLine::Room]
+}
+
+fn default_font_scale_percent() -> u32 {
+    DEFAULT_FONT_SCALE_PERCENT
+}
+
+/// What is written on a lesson in the week grid, and how
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct LessonTextSettings {
+    /// the lines written on a lesson, top to bottom
+    #[serde(default = "default_lesson_lines")]
+    pub lines: Vec<LessonLine>,
+    /// subjects and teachers by the long name Untis has for them rather than the abbreviation
+    #[serde(default)]
+    pub long_names: bool,
+    #[serde(default)]
+    pub font: LessonFont,
+    /// the size of the text, in percent of what it is by default
+    #[serde(default = "default_font_scale_percent")]
+    pub font_scale_percent: u32,
+    #[serde(default)]
+    pub bold: bool,
+}
+
+impl Default for LessonTextSettings {
+    fn default() -> Self {
+        Self { lines: default_lesson_lines(), long_names: false, font: LessonFont::default(), font_scale_percent: DEFAULT_FONT_SCALE_PERCENT, bold: false }
+    }
+}
+
+impl LessonTextSettings {
+    pub fn has_line(&self, line: LessonLine) -> bool {
+        self.lines.contains(&line)
+    }
+
+    /// Writes the line on the lessons or takes it off them. The lines keep their order.
+    pub fn toggle_line(&mut self, line: LessonLine) {
+        self.lines = LessonLine::ALL.into_iter().filter(|other| self.has_line(*other) != (*other == line)).collect();
+    }
+
+    /// How much larger or smaller than usual the text is written, 1 being as usual
+    pub fn font_scale(&self) -> f64 {
+        let (smallest, largest) = FONT_SCALE_RANGE;
+        f64::from(self.font_scale_percent.clamp(smallest, largest)) / 100.0
+    }
+
+    /// Whether the text is written the way it always was, in which case it needs no styling
+    pub fn is_default_style(&self) -> bool {
+        self.font == LessonFont::Default && self.font_scale() == 1.0 && !self.bold
+    }
+}
+
+/// How the lessons of a timetable are drawn
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct LessonDisplaySettings {
+    /// greys out the lessons that are over, and the part of the running one that is
+    #[serde(default = "default_true")]
+    pub dim_past_lessons: bool,
+    /// draws a line at the current time
+    #[serde(default = "default_true")]
+    pub show_now_line: bool,
+    /// leaves the cancelled lessons out rather than striking them through
+    #[serde(default)]
+    pub hide_cancelled: bool,
+}
+
+impl Default for LessonDisplaySettings {
+    fn default() -> Self {
+        Self { dim_past_lessons: true, show_now_line: true, hide_cancelled: false }
+    }
+}
+
+impl LessonDisplaySettings {
+    /// Whether a lesson is drawn at all
+    pub fn shows(&self, lesson: &LessonBlock) -> bool {
+        !(self.hide_cancelled && lesson.is_cancelled())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,5 +413,54 @@ mod tests {
         assert!(!only_lessons.should_show(Weekday::Mon, false));
         assert!(WeekdayOverride::default().should_show(Weekday::Mon, false));
         assert!(!WeekdayOverride::default().should_show(Weekday::Sat, false));
+    }
+
+    #[test]
+    fn settings_from_before_the_lesson_settings_draw_lessons_as_they_always_were() {
+        let settings: VisualSettings = serde_json::from_str(r#"{"force_ascii_timetable": true}"#).unwrap();
+
+        assert_eq!(settings.lesson_text.lines, vec![LessonLine::Subject, LessonLine::Teacher, LessonLine::Room]);
+        assert!(settings.lesson_text.is_default_style() && !settings.lesson_text.long_names);
+        assert_eq!(settings.lesson_display, LessonDisplaySettings { dim_past_lessons: true, show_now_line: true, hide_cancelled: false });
+    }
+
+    #[test]
+    fn the_lines_of_a_lesson_keep_their_order_however_they_are_switched() {
+        let mut text = LessonTextSettings::default();
+
+        text.toggle_line(LessonLine::Time);
+        text.toggle_line(LessonLine::Teacher);
+        text.toggle_line(LessonLine::Class);
+        assert_eq!(text.lines, vec![LessonLine::Subject, LessonLine::Room, LessonLine::Class, LessonLine::Time]);
+
+        text.toggle_line(LessonLine::Teacher);
+        assert_eq!(text.lines, vec![LessonLine::Subject, LessonLine::Teacher, LessonLine::Room, LessonLine::Class, LessonLine::Time]);
+    }
+
+    #[test]
+    fn the_text_size_stays_within_reason() {
+        let scale = |percent| LessonTextSettings { font_scale_percent: percent, ..Default::default() }.font_scale();
+
+        assert_eq!(scale(125), 1.25);
+        assert_eq!(scale(0), 0.5);
+        assert_eq!(scale(10_000), 2.0);
+    }
+
+    #[test]
+    fn any_change_to_the_font_is_a_style_to_apply() {
+        assert!(LessonTextSettings::default().is_default_style());
+        assert!(!LessonTextSettings { bold: true, ..Default::default() }.is_default_style());
+        assert!(!LessonTextSettings { font: LessonFont::Serif, ..Default::default() }.is_default_style());
+        assert!(!LessonTextSettings { font_scale_percent: 110, ..Default::default() }.is_default_style());
+    }
+
+    #[test]
+    fn cancelled_lessons_are_only_left_out_when_asked() {
+        let cancelled = LessonBlock { status: crate::models::timetable::LessonStatus::Cancelled, ..Default::default() };
+
+        assert!(LessonDisplaySettings::default().shows(&cancelled));
+        let hiding = LessonDisplaySettings { hide_cancelled: true, ..Default::default() };
+        assert!(!hiding.shows(&cancelled));
+        assert!(hiding.shows(&LessonBlock::default()));
     }
 }

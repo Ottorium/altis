@@ -1,4 +1,4 @@
-use super::day_heading;
+use super::{day_heading, lesson_text_style};
 use super::lesson_block::render_lesson_group;
 use super::lesson_modal::LessonModal;
 use super::week_layout::{fill_breaks, group_by_time, time_slots, TimeSlot};
@@ -18,13 +18,14 @@ pub struct WeekGridProps {
     pub on_entity_select: Callback<Entity>,
 }
 
-/// The days of the week that are shown, in order, with the lessons in the colours set for them
+/// The days of the week that are shown, in order, with the lessons that are shown of them in
+/// the colours set for them
 fn shown_days(timetable: &WeekTimeTable, visual: &VisualSettings) -> Vec<DayTimeTable> {
     let mut days: Vec<DayTimeTable> = timetable
         .days
         .iter()
+        .map(|day| DayTimeTable { date: day.date, lessons: day.lessons.iter().filter(|lesson| visual.lesson_display.shows(lesson)).cloned().collect() })
         .filter(|day| visual.weekday_override.should_show(day.date.weekday(), !day.lessons.is_empty()))
-        .cloned()
         .collect();
     days.sort_by_key(|day| day.date);
 
@@ -105,11 +106,12 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
     };
 
     let render_day = |day: &DayTimeTable| {
-        let now_top = (day.date == now.date() && (start..=end).contains(&now.time())).then(|| percent_of_day((now.time() - start).num_seconds()));
+        let shows_now = props.visual.lesson_display.show_now_line && day.date == now.date() && (start..=end).contains(&now.time());
+        let now_top = shows_now.then(|| percent_of_day((now.time() - start).num_seconds()));
         html! {
             <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
                 { for group_by_time(fill_breaks(day.lessons.clone(), start)).iter().map(|group| {
-                    render_lesson_group(group, end - start, now, on_group_click.clone())
+                    render_lesson_group(group, end - start, now, &props.visual, on_group_click.clone())
                 })}
                 if let Some(top) = now_top {
                     <NowLine {top} />
@@ -124,9 +126,7 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
                 <LessonModal {lessons} {on_close} {on_entity_click} />
             }
 
-            <div
-                class="d-flex flex-grow-1 flex-column h-100 w-100 overflow-hidden"
-            >
+            <div class="d-flex flex-grow-1 flex-column h-100 w-100 overflow-hidden" style={lesson_text_style(&props.visual.lesson_text)}>
                 <div class="d-flex w-100 bg-dark border-bottom">
                     <div style="width: 60px;" class="flex-shrink-0"></div>
                     <div class="d-flex flex-grow-1">
@@ -148,5 +148,43 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
                 </div>
             </div>
         </>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use altis_core::models::timetable::LessonStatus;
+    use chrono::NaiveDate;
+
+    fn week(cancelled_on_monday: bool) -> WeekTimeTable {
+        let day = |day: u32, lessons: Vec<LessonBlock>| DayTimeTable { date: NaiveDate::from_ymd_opt(2026, 9, day).unwrap(), lessons };
+        let monday_status = if cancelled_on_monday { LessonStatus::Cancelled } else { LessonStatus::default() };
+        WeekTimeTable {
+            // out of order, the way nothing promises they aren't
+            days: vec![day(19, vec![]), day(15, vec![LessonBlock::default()]), day(14, vec![LessonBlock { status: monday_status, ..Default::default() }])],
+        }
+    }
+
+    #[test]
+    fn shows_the_days_that_are_set_or_have_lessons_in_order() {
+        let days = shown_days(&week(false), &VisualSettings::default());
+
+        // the Saturday has no lessons and isn't always shown
+        assert_eq!(days.iter().map(|day| day.date.day()).collect::<Vec<_>>(), vec![14, 15]);
+    }
+
+    #[test]
+    fn a_day_with_nothing_but_hidden_lessons_counts_as_empty() {
+        let mut visual = VisualSettings::default();
+        visual.lesson_display.hide_cancelled = true;
+        visual.weekday_override.only_lessons = true;
+
+        let days = shown_days(&week(true), &visual);
+        assert_eq!(days.iter().map(|day| day.date.day()).collect::<Vec<_>>(), vec![15]);
+
+        // unless hidden, the cancelled lesson keeps its day
+        visual.lesson_display.hide_cancelled = false;
+        assert_eq!(shown_days(&week(true), &visual).len(), 2);
     }
 }
