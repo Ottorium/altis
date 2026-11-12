@@ -63,7 +63,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
         let is_favorite = is_favorite(&name);
         let onclick = props.on_toggle_favorite.reform(move |_| name.clone());
         html! {
-            <button type="button" class="btn btn-link p-1 me-2 flex-shrink-0" {onclick}
+            <button type="button" class="btn btn-link p-1 flex-shrink-0" {onclick}
                     title={if is_favorite { "Remove from favourites" } else { "Add to favourites" }}>
                 <i class={classes!("bi", "fs-5", if is_favorite { "bi-star-fill text-primary" } else { "bi-star text-secondary" })}></i>
             </button>
@@ -87,15 +87,15 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
     let week_start = props.selected_week.start.format(DATE_INPUT_FORMAT).to_string();
 
     html! {
-        <div class="sticky-top p-3 mb-1 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
-            <div class="d-flex align-items-center">
+        <div class="sticky-top px-2 px-sm-3 py-3 mb-1 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
+            <div class="d-flex align-items-center gap-2">
                 if props.loading {
-                    <div class="d-flex align-items-center text-secondary px-2 me-2" role="status">
+                    <div class="d-flex align-items-center text-secondary px-2" role="status">
                         <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                         <span>{"Loading..."}</span>
                     </div>
                 } else {
-                    <div class="select-fit me-2">
+                    <div class="select-fit">
                         <span class="select-fit-label">{ view.label() }</span>
                         <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_view_change}>
                             { for TimetableView::ALL.into_iter().map(|option| html! {
@@ -105,7 +105,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                     </div>
 
                     if !props.names.is_empty() {
-                        <div class="select-fit me-2">
+                        <div class="select-fit">
                             // with nothing selected the browser shows the first option
                             <span class="select-fit-label">
                                 { selected_name.clone().or_else(|| props.names.first().cloned()).unwrap_or_default() }
@@ -124,7 +124,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
 
                     if view == TimetableView::Compare {
                         <button type="button" onclick={props.on_open_picker.reform(|_| ())}
-                                class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon text-start text-truncate me-2"
+                                class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon text-start text-truncate"
                                 style="width: auto; min-width: 0; max-width: 16rem;">
                             <i class="bi bi-ui-checks me-1"></i>{ compare_label }
                         </button>
@@ -158,7 +158,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                 </div>
 
                 // and on a phone, where a swipe does the arrows' job: the date picker alone
-                <div class="d-block d-md-none">
+                <div class="d-block d-md-none flex-shrink-0">
                     <div class="btn btn-outline-primary position-relative w-100 d-flex align-items-center justify-content-center">
                         <i class="bi bi-calendar3"></i>
                         <input
@@ -170,7 +170,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                     </div>
                 </div>
 
-                <button class="btn btn-outline-primary ms-auto" onclick={props.on_reload.reform(|_| ())}>
+                <button class="btn btn-outline-primary ms-auto flex-shrink-0" onclick={props.on_reload.reform(|_| ())}>
                     <i class="bi bi-arrow-clockwise me-sm-1"></i>
                     <span class="d-none d-sm-inline">{"Reload"}</span>
                 </button>

@@ -59,7 +59,7 @@ pub fn update_banner(props: &UpdateBannerProps) -> Html {
             </a>
             <button
                 type="button"
-                class="btn-close btn-close-white"
+                class="btn-close"
                 title="Hide for 10 days"
                 aria-label="Hide for 10 days"
                 onclick={on_dismiss}

@@ -87,7 +87,7 @@ pub fn exam_reminders(props: &ExamRemindersProps) -> Html {
                         type="number"
                         min="1"
                         class="form-control form-control-sm bg-dark text-light border-secondary"
-                        style="max-width: 160px;"
+                        style="max-width: 13rem;"
                         placeholder="Custom minutes before"
                         value={(*custom_lead).clone()}
                         oninput={on_text_input(&custom_lead)}
