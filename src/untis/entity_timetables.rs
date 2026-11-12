@@ -11,8 +11,14 @@ pub fn entity_timetables(class_timetables: HashMap<Class, WeekTimeTable>) -> Has
     let mut timetables: HashMap<Entity, WeekTimeTable> =
         class_timetables.into_iter().map(|(class, timetable)| (Entity::Class(class), timetable)).collect();
 
+    // class by class in the order of their names, so the lessons a teacher or a room has at the
+    // same time come in the same order every time, rather than in whatever order the map hands
+    // the classes out - which decided which of them was drawn on the left, or on top
+    let mut classes: Vec<(&Entity, &WeekTimeTable)> = timetables.iter().collect();
+    classes.sort_by_key(|(class, _)| class.name());
+
     let mut lessons_of: HashMap<Entity, HashMap<NaiveDate, Vec<LessonBlock>>> = HashMap::new();
-    for day in timetables.values().flat_map(|timetable| &timetable.days) {
+    for day in classes.into_iter().flat_map(|(_, timetable)| &timetable.days) {
         for lesson in &day.lessons {
             let teachers_and_rooms = lesson.entities.iter().filter(|entity| {
                 entity.status != ChangeStatus::Removed && (entity.inner.is_teacher() || entity.inner.is_room())
@@ -91,5 +97,27 @@ mod tests {
 
         assert!(timetables.contains_key(&teacher("JON")));
         assert!(!timetables.contains_key(&teacher("SMI")));
+    }
+
+    /// a teacher with two classes at once: the two lessons overlap, and their order is what
+    /// decides how they are drawn
+    #[test]
+    fn simultaneous_lessons_come_in_the_order_of_their_classes() {
+        let with_class = |name: &str| {
+            let class = Class { name: name.to_string(), ..Default::default() };
+            lesson(14, vec![(teacher("SMI"), ChangeStatus::Regular), (Entity::Class(class), ChangeStatus::Regular)])
+        };
+
+        // a map hands its entries out in an order of its own, which differs from map to map
+        for _ in 0..20 {
+            let timetables = entity_timetables(HashMap::from([
+                class("4C", vec![with_class("4C")]),
+                class("4A", vec![with_class("4A")]),
+                class("4B", vec![with_class("4B")]),
+            ]));
+
+            let classes: Vec<String> = timetables[&teacher("SMI")].days[0].lessons.iter().flat_map(|lesson| lesson.current_names(Entity::is_class)).collect();
+            assert_eq!(classes, vec!["4A", "4B", "4C"]);
+        }
     }
 }
