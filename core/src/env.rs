@@ -1,10 +1,19 @@
 use std::collections::HashMap;
 
+/// The headers of a request or a response, by name. A header can be sent more than once
+/// (`Set-Cookie` is), so each has a list of values.
+pub type Headers = HashMap<String, Vec<String>>;
+
+/// A single-valued header, the way most are set on a request
+pub fn header(name: &str, value: impl Into<String>) -> (String, Vec<String>) {
+    (name.to_string(), vec![value.into()])
+}
+
 /// The parts of a request's response the Untis client cares about. Mirrors the shape the Tauri
 /// `proxy` command returns, since that's what the frontend gets its responses from.
 #[derive(Debug, Clone, Default)]
 pub struct HttpResponse {
-    pub headers: HashMap<String, Vec<String>>,
+    pub headers: Headers,
     pub body: String,
 }
 
@@ -37,13 +46,7 @@ pub trait Env: Default {
     /// frontend already has `js_sys::Date` and there's no reason to pull a second clock into WASM.
     fn now_ms(&self) -> u64;
 
-    async fn request(
-        &self,
-        method: &str,
-        url: &str,
-        headers: HashMap<String, Vec<String>>,
-        body: String,
-    ) -> Result<HttpResponse, String>;
+    async fn request(&self, method: &str, url: &str, headers: Headers, body: String) -> Result<HttpResponse, String>;
 
     /// Shows a native notification. Best effort: a platform that can't show one just does nothing.
     async fn notify(&self, title: &str, body: &str);

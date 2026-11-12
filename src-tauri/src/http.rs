@@ -2,10 +2,9 @@
 //! the webview talk to Untis directly, and by the Android background poller, which has no webview
 //! to proxy for in the first place.
 
-use altis_core::env::HttpResponse;
+use altis_core::env::{Headers, HttpResponse};
 use reqwest::{header::{HeaderMap, HeaderName, HeaderValue}, Method};
 use rustls::ClientConfig;
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::OnceLock;
 
@@ -40,7 +39,7 @@ pub fn client() -> Result<reqwest::Client, String> {
         .clone()
 }
 
-pub fn header_map(headers: HashMap<String, Vec<String>>) -> HeaderMap {
+pub fn header_map(headers: Headers) -> HeaderMap {
     let mut header_map = HeaderMap::new();
     for (key, values) in headers {
         if let Ok(name) = HeaderName::from_bytes(key.as_bytes()) {
@@ -54,12 +53,7 @@ pub fn header_map(headers: HashMap<String, Vec<String>>) -> HeaderMap {
     header_map
 }
 
-pub async fn request(
-    method: &str,
-    url: &str,
-    headers: HashMap<String, Vec<String>>,
-    body: String,
-) -> Result<HttpResponse, String> {
+pub async fn request(method: &str, url: &str, headers: Headers, body: String) -> Result<HttpResponse, String> {
     let http_method = Method::from_bytes(method.to_uppercase().as_bytes())
         .map_err(|_| format!("Invalid HTTP method: {}", method))?;
 
@@ -71,7 +65,7 @@ pub async fn request(
         .await
         .map_err(|e| report(&e))?;
 
-    let mut resp_headers: HashMap<String, Vec<String>> = HashMap::new();
+    let mut resp_headers = Headers::new();
     for (name, value) in res.headers().iter() {
         if let Ok(val_str) = value.to_str() {
             resp_headers

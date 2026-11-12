@@ -1,7 +1,11 @@
-use crate::persistence_manager::PersistenceManager;
-use altis_core::data_models::clean_models::untis::{Entity, Room, WeekTimeTable};
-use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime};
-use gloo_timers::callback::Interval;
+//! Which rooms no lesson takes up, period by period - the timetables of every room turned inside out.
+
+use super::day_heading;
+use crate::components::now_line::NowLine;
+use crate::hooks::use_now;
+use altis_core::models::timetable::{Entity, Room, WeekTimeTable};
+use altis_core::settings::WeekdayOverride;
+use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime};
 use std::collections::HashMap;
 use yew::prelude::*;
 
@@ -38,7 +42,7 @@ fn rooms(all: &HashMap<Entity, WeekTimeTable>) -> Vec<RoomBookings> {
                     .flat_map(|day| {
                         day.lessons
                             .iter()
-                            .filter(|lesson| lesson.status != "CANCELLED")
+                            .filter(|lesson| !lesson.is_cancelled())
                             .map(move |lesson| {
                                 (day.date, lesson.time_range.start.time(), lesson.time_range.end.time())
                             })
@@ -113,10 +117,7 @@ pub struct FreeRooms {
 
 impl FreeRooms {
     /// Works out the free rooms of a week from the timetables of everything in it
-    pub fn of(all: &HashMap<Entity, WeekTimeTable>) -> Self {
-        let weekday_override = PersistenceManager::get_settings().ok().flatten()
-            .map(|settings| settings.visual_settings.weekday_override).unwrap_or_default();
-
+    pub fn of(all: &HashMap<Entity, WeekTimeTable>, weekday_override: &WeekdayOverride) -> Self {
         let rooms = rooms(all);
         let days: Vec<NaiveDate> = week_days(all).into_iter()
             .filter(|date| {
@@ -137,18 +138,10 @@ pub struct FreeRoomsProps {
     pub on_entity_select: Callback<Entity>,
 }
 
-#[function_component(FreeRoomsRender)]
-pub fn free_rooms_render(props: &FreeRoomsProps) -> Html {
+#[function_component(FreeRoomsView)]
+pub fn free_rooms_view(props: &FreeRoomsProps) -> Html {
     let FreeRooms { days, periods } = &props.free_rooms;
-    let now = use_state(current_time);
-
-    {
-        let now = now.clone();
-        use_effect_with((), move |_| {
-            let interval = Interval::new(30_000, move || now.set(current_time()));
-            move || drop(interval)
-        });
-    }
+    let now = use_now();
 
     if periods.is_empty() {
         return html! { <div class="p-3">{ "No lessons!" }</div> };
@@ -163,10 +156,7 @@ pub fn free_rooms_render(props: &FreeRoomsProps) -> Html {
             <div class="free-rooms-grid" style={columns}>
                 <div class="free-rooms-head free-rooms-time"></div>
                 { for days.iter().map(|date| html! {
-                    <div class="free-rooms-head text-center">
-                        <div class="fw-bold">{ date.weekday().to_string() }</div>
-                        <div class="small">{ date.format("%d.%m").to_string() }</div>
-                    </div>
+                    <div class="free-rooms-head text-center">{ day_heading(*date) }</div>
                 })}
 
                 { for periods.iter().map(|period| html! {
@@ -184,7 +174,7 @@ pub fn free_rooms_render(props: &FreeRoomsProps) -> Html {
                                         .map(|name| render_room(name, &props.on_entity_select))
                                         .collect::<Html>()
                                 }}
-                                { render_now_line(period, *date, *now) }
+                                { render_now_line(period, *date, now) }
                             </div>
                         })}
                     </>
@@ -192,10 +182,6 @@ pub fn free_rooms_render(props: &FreeRoomsProps) -> Html {
             </div>
         </div>
     }
-}
-
-fn current_time() -> NaiveDateTime {
-    Local::now().naive_local()
 }
 
 /// The line marking the current time, the same one the timetable draws. A row is as tall as its
@@ -209,12 +195,7 @@ fn render_now_line(period: &Period, date: NaiveDate, now: NaiveDateTime) -> Html
     let duration = (period.end - period.start).num_seconds() as f64;
     let top = elapsed / duration * 100.0;
 
-    html! {
-        <div style={format!("position: absolute; top: {top}%; left: 0; right: 0; height: 2px; transform: translateY(-1px); background: #ff3b30; z-index: 20; pointer-events: none;")}>
-            <div style="position: absolute; left: 0; top: -4px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid #ff3b30;"></div>
-            <div style="position: absolute; right: 0; top: -4px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-right: 7px solid #ff3b30;"></div>
-        </div>
-    }
+    html! { <NowLine {top} /> }
 }
 
 /// A free room, which opens its own timetable when clicked
@@ -233,7 +214,7 @@ fn render_room(name: &str, on_entity_select: &Callback<Entity>) -> Html {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use altis_core::data_models::clean_models::untis::{DayTimeTable, LessonBlock, TimeRange};
+    use altis_core::models::timetable::{DayTimeTable, LessonBlock, LessonStatus, TimeRange};
 
     fn date(day: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 9, day).unwrap()
@@ -254,7 +235,7 @@ mod tests {
     }
 
     fn cancelled(mut lesson: LessonBlock) -> LessonBlock {
-        lesson.status = "CANCELLED".to_string();
+        lesson.status = LessonStatus::Cancelled;
         lesson
     }
 

@@ -5,10 +5,9 @@
 //! `components::update_banner`); the comparing and the bookkeeping live here, where they can be
 //! tested without a browser.
 
-use crate::env::Env;
+use crate::env::{header, Env, Headers};
 use crate::store::Store;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Drafts and prereleases are not included here, so this only ever sees what was really published
 const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/Ottorium/altis/releases/latest";
@@ -71,10 +70,8 @@ struct Release {
 }
 
 async fn fetch_latest<E: Env>() -> Option<String> {
-    let mut headers = HashMap::new();
     // GitHub answers a request without a User-Agent with 403 rather than the release
-    headers.insert("User-Agent".to_string(), vec!["altis".to_string()]);
-    headers.insert("Accept".to_string(), vec!["application/vnd.github+json".to_string()]);
+    let headers = Headers::from([header("User-Agent", "altis"), header("Accept", "application/vnd.github+json")]);
 
     let response = E::default()
         .request("GET", LATEST_RELEASE_URL, headers, String::new())
@@ -101,15 +98,14 @@ fn available(state: &UpdateState, current: &str, now: u64) -> Option<String> {
 /// A failed request deliberately doesn't count as a check, so a moment without a connection costs
 /// the next start's check rather than the whole day's.
 pub async fn check<E: Env>(current: &str) -> Option<String> {
-    let mut state = Store::<E>::get_update_state().ok().flatten().unwrap_or_default();
+    let mut state = Store::<E>::update_state_or_default();
     let now = E::default().now_ms();
 
-    if now >= state.last_checked_ms.saturating_add(DAY_MS) {
-        if let Some(latest) = fetch_latest::<E>().await {
-            state.latest_version = latest;
-            state.last_checked_ms = now;
-            let _ = Store::<E>::save_update_state(&state);
-        }
+    if now >= state.last_checked_ms.saturating_add(DAY_MS)
+        && let Some(latest) = fetch_latest::<E>().await {
+        state.latest_version = latest;
+        state.last_checked_ms = now;
+        let _ = Store::<E>::save_update_state(&state);
     }
 
     available(&state, current, now)
@@ -117,7 +113,7 @@ pub async fn check<E: Env>(current: &str) -> Option<String> {
 
 /// Hides the banner for the next ten days, or until something newer than `version` comes out
 pub fn dismiss<E: Env>(version: &str) {
-    let mut state = Store::<E>::get_update_state().ok().flatten().unwrap_or_default();
+    let mut state = Store::<E>::update_state_or_default();
     state.dismissed_version = version.to_string();
     state.dismissed_until_ms = E::default().now_ms().saturating_add(DISMISS_DAYS * DAY_MS);
     let _ = Store::<E>::save_update_state(&state);
@@ -126,16 +122,8 @@ pub fn dismiss<E: Env>(version: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::env::HttpResponse;
+    use crate::test_env::TestEnv;
     use futures::executor::block_on;
-    use std::cell::{Cell, RefCell};
-
-    /// The thread locals below are per test thread, but a single-threaded run would otherwise
-    /// hand one test's leftovers to the next
-    fn reset() {
-        STORE.with(|store| store.borrow_mut().clear());
-        REQUESTS.with(|count| count.set(0));
-    }
 
     fn seen(latest: &str) -> UpdateState {
         UpdateState { latest_version: latest.to_string(), ..Default::default() }
@@ -193,86 +181,39 @@ mod tests {
         assert_eq!(available(&state, "0.2.1", 0), Some("0.4.0".to_string()));
     }
 
-    /// A stand-in for the browser: the store is a map, the clock is whatever the test says, and
-    /// the request hands back a canned release without going near the network.
-    #[derive(Default)]
-    struct MockEnv;
-
-    thread_local! {
-        static STORE: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
-        static NOW: Cell<u64> = const { Cell::new(0) };
-        static REQUESTS: Cell<u32> = const { Cell::new(0) };
-        static BODY: RefCell<String> = const { RefCell::new(String::new()) };
-    }
-
-    impl Env for MockEnv {
-        fn get(&self, key: &str) -> Option<String> {
-            STORE.with(|store| store.borrow().get(key).cloned())
-        }
-
-        fn set(&self, key: &str, value: &str) -> Result<(), String> {
-            STORE.with(|store| store.borrow_mut().insert(key.to_string(), value.to_string()));
-            Ok(())
-        }
-
-        fn remove(&self, key: &str) {
-            STORE.with(|store| store.borrow_mut().remove(key));
-        }
-
-        fn now_ms(&self) -> u64 {
-            NOW.with(Cell::get)
-        }
-
-        async fn request(
-            &self,
-            _method: &str,
-            _url: &str,
-            _headers: HashMap<String, Vec<String>>,
-            _body: String,
-        ) -> Result<HttpResponse, String> {
-            REQUESTS.with(|count| count.set(count.get() + 1));
-            Ok(HttpResponse { headers: HashMap::new(), body: BODY.with(|body| body.borrow().clone()) })
-        }
-
-        async fn notify(&self, _title: &str, _body: &str) {}
-    }
-
     /// The whole path a start actually takes: ask GitHub, parse the real shape of its answer,
     /// store it, and answer from the store until the day is up.
     #[test]
     fn asks_github_once_a_day_and_remembers_the_answer() {
-        reset();
+        TestEnv::reset();
         // trimmed to the fields the check reads, but the shape the API really returns
-        BODY.with(|body| {
-            *body.borrow_mut() =
-                r#"{"tag_name":"0.3.0","name":"0.3.0","draft":false,"prerelease":false}"#.to_string()
-        });
-        NOW.with(|now| now.set(DAY_MS));
+        TestEnv::respond_with_body(r#"{"tag_name":"0.3.0","name":"0.3.0","draft":false,"prerelease":false}"#);
+        TestEnv::set_now_ms(DAY_MS);
 
-        assert_eq!(block_on(check::<MockEnv>("0.2.1")), Some("0.3.0".to_string()));
-        assert_eq!(REQUESTS.with(Cell::get), 1);
+        assert_eq!(block_on(check::<TestEnv>("0.2.1")), Some("0.3.0".to_string()));
+        assert_eq!(TestEnv::requests().len(), 1);
 
         // an hour later the answer comes from the store, not from GitHub
-        NOW.with(|now| now.set(DAY_MS + 60 * 60 * 1000));
-        assert_eq!(block_on(check::<MockEnv>("0.2.1")), Some("0.3.0".to_string()));
-        assert_eq!(REQUESTS.with(Cell::get), 1);
+        TestEnv::set_now_ms(DAY_MS + 60 * 60 * 1000);
+        assert_eq!(block_on(check::<TestEnv>("0.2.1")), Some("0.3.0".to_string()));
+        assert_eq!(TestEnv::requests().len(), 1);
 
         // hiding it survives a restart
-        dismiss::<MockEnv>("0.3.0");
-        assert_eq!(block_on(check::<MockEnv>("0.2.1")), None);
+        dismiss::<TestEnv>("0.3.0");
+        assert_eq!(block_on(check::<TestEnv>("0.2.1")), None);
 
         // ten days later it is back
-        NOW.with(|now| now.set(DAY_MS + 60 * 60 * 1000 + 10 * DAY_MS));
-        assert_eq!(block_on(check::<MockEnv>("0.2.1")), Some("0.3.0".to_string()));
+        TestEnv::set_now_ms(DAY_MS + 60 * 60 * 1000 + 10 * DAY_MS);
+        assert_eq!(block_on(check::<TestEnv>("0.2.1")), Some("0.3.0".to_string()));
     }
 
     /// Running the newest release means no banner, however often the app is started
     #[test]
     fn stays_quiet_when_the_latest_release_is_what_is_running() {
-        reset();
-        BODY.with(|body| *body.borrow_mut() = r#"{"tag_name":"0.2.1"}"#.to_string());
-        NOW.with(|now| now.set(DAY_MS));
+        TestEnv::reset();
+        TestEnv::respond_with_body(r#"{"tag_name":"0.2.1"}"#);
+        TestEnv::set_now_ms(DAY_MS);
 
-        assert_eq!(block_on(check::<MockEnv>("0.2.1")), None);
+        assert_eq!(block_on(check::<TestEnv>("0.2.1")), None);
     }
 }

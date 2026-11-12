@@ -1,6 +1,5 @@
 use super::{bridge, store};
-use altis_core::env::{Env, HttpResponse};
-use std::collections::HashMap;
+use altis_core::env::{Env, Headers, HttpResponse};
 
 /// The Android background poller's platform: its own JSON file for storage, the app's reqwest
 /// client for HTTP and a JNI call into the foreground service for notifications. Deliberately
@@ -26,13 +25,7 @@ impl Env for NativeEnv {
         chrono::Utc::now().timestamp_millis().max(0) as u64
     }
 
-    async fn request(
-        &self,
-        method: &str,
-        url: &str,
-        headers: HashMap<String, Vec<String>>,
-        body: String,
-    ) -> Result<HttpResponse, String> {
+    async fn request(&self, method: &str, url: &str, headers: Headers, body: String) -> Result<HttpResponse, String> {
         crate::http::request(method, url, headers, body).await
     }
 

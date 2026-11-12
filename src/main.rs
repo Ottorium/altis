@@ -1,10 +1,11 @@
+mod book2eat_client;
 mod components;
-mod request_proxy;
-mod persistence_manager;
-mod untis;
-mod book2eat;
+mod hooks;
 mod native;
-mod notifications;
+mod notification_poller;
+mod storage;
+mod untis;
+mod web_env;
 
 use components::app::App;
 

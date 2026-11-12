@@ -70,10 +70,7 @@ fn poll_loop() {
         while bridge::should_run() {
             altis_core::notifications::run_once::<NativeEnv>().await;
 
-            let minutes = Store::<NativeEnv>::settings_or_default()
-                .notification_settings
-                .poll_interval_minutes
-                .max(1);
+            let minutes = Store::<NativeEnv>::settings_or_default().notification_settings.poll_minutes();
 
             let until = std::time::Instant::now() + std::time::Duration::from_secs(u64::from(minutes) * 60);
             while bridge::should_run() && std::time::Instant::now() < until {

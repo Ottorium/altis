@@ -332,3 +332,108 @@ html.qr-scanning body {
   color: $primary;
   margin-right: 0.3rem;
 }
+
+// a group of lessons in the week grid: the lessons that take place at the same time, side by side
+.group-block {
+  // the text of a lesson scales with the width of its block
+  .lesson-container {
+    container-type: size;
+  }
+
+  .dynamic-text {
+    font-size: clamp(0.7rem, 19cqw, 1.1rem);
+    line-height: 1.1;
+    width: 100%;
+    word-wrap: break-word;
+  }
+
+  // what became of a lesson is told by the colour of its border: changed, additional, exam, cancelled
+  .border-info {
+    border-color: #00d4ff !important;
+    box-shadow: inset 0 0 15px #00d4ff;
+  }
+
+  .border-success {
+    border-color: #00ab5b !important;
+    box-shadow: inset 0 0 15px #00ab5b;
+  }
+
+  .border-warning {
+    border-color: #ffcc00 !important;
+    box-shadow: inset 0 0 15px #ffcc00;
+  }
+
+  .border-danger {
+    border-color: #ff4d4d !important;
+  }
+
+  .mobile-p-half {
+    padding: 0.125rem !important;
+  }
+}
+
+// the canteen: the QR code as large as the screen allows, the day's menu below it
+.b2e-qr-wrapper {
+  flex-shrink: 0;
+  width: min(92vw, 520px);
+  height: min(92vw, 520px);
+}
+
+.b2e-swipe-area {
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+}
+
+.b2e-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+
+  &.active {
+    background-color: #fff;
+    transform: scale(1.3);
+  }
+}
+
+.b2e-meal-list {
+  animation: b2e-fade-in 0.2s ease;
+}
+
+.b2e-meal-name {
+  font-size: clamp(0.8rem, 2cqw, 2.5rem);
+}
+
+.b2e-meal-type {
+  font-size: clamp(0.5rem, 1.6cqw, 1.5rem);
+}
+
+@keyframes b2e-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .b2e-qr-wrapper {
+    width: min(520px, 40vh);
+    height: min(520px, 40vh);
+  }
+
+  .b2e-meal-name {
+    font-size: clamp(0.9rem, min(1.4vw, 2.8vh), 1.6rem);
+  }
+
+  .b2e-meal-type {
+    font-size: clamp(0.7rem, min(1vw, 2vh), 1.1rem);
+  }
+}

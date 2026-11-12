@@ -1,4 +1,4 @@
-use crate::persistence_manager::WebEnv;
+use crate::web_env::WebEnv;
 use altis_core::update_check::{self, RELEASES_PAGE};
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
