@@ -173,8 +173,19 @@ if wants apk; then
     if [ ! -d "$ANDROID_HOME" ] || [ -z "${NDK_HOME:-}" ]; then
         warn "skipping APK: android SDK/NDK not found (set ANDROID_HOME / NDK_HOME)"
     else
-        say "building APK"
+        # Gradle needs a full JDK (with javac); some distro JDK dirs are
+        # JRE-only and Gradle's toolchain auto-detection would pick them.
+        # Prefer JDK 17, which the Android Gradle plugin is happiest with.
+        if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
+            for jdk in /usr/lib/jvm/java-17-openjdk-* /usr/lib/jvm/*/ "$HOME"/.jdks/*/; do
+                if [ -x "${jdk%/}/bin/javac" ]; then JAVA_HOME=${jdk%/}; break; fi
+            done
+        fi
+        [ -x "${JAVA_HOME:-}/bin/javac" ] || die "no JDK with javac found (set JAVA_HOME)"
+        export JAVA_HOME
+        say "building APK (JDK: $JAVA_HOME)"
         ANDROID_HOME=$ANDROID_HOME NDK_HOME=$NDK_HOME \
+        GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.java.installations.auto-detect=false" \
             cargo tauri android build --apk --target aarch64 --target armv7 \
             --config "$NO_FRONTEND}"
 
