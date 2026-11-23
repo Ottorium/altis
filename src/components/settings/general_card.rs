@@ -1,5 +1,5 @@
 use super::card::{autosaved_badge, divider, SettingsCard};
-use crate::components::forms::{select_value, update, Checkbox};
+use crate::components::forms::{dimmed_unless, select_value, update, Checkbox};
 use altis_core::settings::{describe_minutes, GeneralSettings, Tab, TimetableView};
 use yew::prelude::*;
 
@@ -115,6 +115,24 @@ pub fn general_settings_card(props: &GeneralCardProps) -> Html {
                           on_toggle={update(&settings, |settings: &mut GeneralSettings, _| settings.check_for_updates = !settings.check_for_updates)}>
                     <div class="form-text small text-secondary">{"Asks GitHub once a day and says so in a banner when there is one."}</div>
                 </Checkbox>
+
+                { divider() }
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-light mb-1">{"Canteen"}</label>
+                    <Checkbox id="cacheCanteenMenu" label="Keep the last loaded menu" class="form-check mb-2"
+                              checked={settings.cache_canteen_menu}
+                              on_toggle={update(&settings, |settings: &mut GeneralSettings, _| settings.cache_canteen_menu = !settings.cache_canteen_menu)}>
+                        <div class="form-text small text-secondary">{"Book2Eat shows it right away, and while it can't be reached."}</div>
+                    </Checkbox>
+                    <div class="ps-4" style={dimmed_unless(settings.cache_canteen_menu)}>
+                        <Checkbox id="refreshCanteenMenu" label="Load it anew whenever Untis is checked in the background" class="form-check"
+                                  checked={settings.refresh_canteen_menu}
+                                  on_toggle={update(&settings, |settings: &mut GeneralSettings, _| settings.refresh_canteen_menu = !settings.refresh_canteen_menu)}>
+                            <div class="form-text small text-secondary">{"This week's and next week's menu. Only while the app runs, not by Android's background check."}</div>
+                        </Checkbox>
+                    </div>
+                </div>
 
                 <div class="text-end">
                     { autosaved_badge() }

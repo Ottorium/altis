@@ -5,6 +5,7 @@ use crate::components::timetable::Compared;
 use crate::native;
 use crate::web_env::WebEnv;
 use altis_core::env::Env;
+use altis_core::models::book2eat::MenuResponse;
 use altis_core::models::timetable::{Class, Entity, MyTimeTable, WeekTimeTable};
 use altis_core::settings::Settings;
 use altis_core::store::{Store, JSESSIONID_KEY, SCHOOLNAME_KEY, SHARED_KEYS, TENANT_ID_KEY};
@@ -14,7 +15,7 @@ use base64::engine::general_purpose::STANDARD;
 use chrono::NaiveDateTime;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
@@ -23,6 +24,7 @@ use web_sys::HtmlDocument;
 const COMPARED_KEY: &str = "compared_timetables";
 const CLASS_TIMETABLES_KEY: &str = "cached_timetables";
 const MY_TIMETABLES_KEY: &str = "cached_my_timetables";
+const CANTEEN_MENUS_KEY: &str = "cached_canteen_menus";
 
 const ZSTD_LEVEL: i32 = 3;
 
@@ -52,9 +54,14 @@ pub fn settings_or_default() -> Settings {
 
 pub fn save_settings(settings: &Settings) -> Result<(), String> {
     // a session belongs to the login it was made with
-    if let Ok(Some(existing)) = self::settings()
-        && existing.untis_auth != settings.untis_auth {
-        clear_cookies();
+    if let Ok(Some(existing)) = self::settings() {
+        if existing.untis_auth != settings.untis_auth {
+            clear_cookies();
+        }
+        // the menus are another account's, or aren't to be kept any longer
+        if existing.b2e_auth != settings.b2e_auth || !settings.general.cache_canteen_menu {
+            clear_canteen_menus();
+        }
     }
 
     Store::<WebEnv>::save_settings(settings)?;
@@ -131,6 +138,40 @@ fn load_compressed<T: DeserializeOwned>(key: &str) -> Result<Option<T>, String> 
         .map_err(|e| format!("Decompression failed: {e}"))?;
 
     postcard::from_bytes(&bytes).map(Some).map_err(|e| format!("Postcard failed: {e}"))
+}
+
+/// A week's menu of the canteen as it was loaded, and when
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct CachedMenu {
+    pub loaded_at: NaiveDateTime,
+    pub menu: MenuResponse,
+}
+
+/// The canteen's menus kept, by the first day of their week
+fn canteen_menus() -> BTreeMap<String, CachedMenu> {
+    WebEnv.get(CANTEEN_MENUS_KEY).and_then(|raw| serde_json::from_str(&raw).ok()).unwrap_or_default()
+}
+
+/// The menu kept of the week, if there is one
+pub fn canteen_menu(week: &Week) -> Option<CachedMenu> {
+    canteen_menus().remove(&week.start.to_string())
+}
+
+/// Keeps a week's menu. Only the weeks from the running one on are kept, the menus of the past
+/// are of no use.
+pub fn save_canteen_menu(week: &Week, menu: CachedMenu) -> Result<(), String> {
+    let mut menus = canteen_menus();
+    menus.insert(week.start.to_string(), menu);
+    let first_kept = Week::current().start.to_string();
+    menus.retain(|start, _| *start >= first_kept);
+
+    let serialized = serde_json::to_string(&menus).map_err(|e| format!("Serialization failed: {e}"))?;
+    WebEnv.set(CANTEEN_MENUS_KEY, &serialized)
+}
+
+/// Forgets the kept menus, when keeping them was switched off or the login changed
+pub fn clear_canteen_menus() {
+    WebEnv.remove(CANTEEN_MENUS_KEY);
 }
 
 /// The timetables picked for comparing last time, so they don't have to be picked again

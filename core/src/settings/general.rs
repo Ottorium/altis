@@ -135,6 +135,12 @@ pub struct GeneralSettings {
     /// whether to look for a newer release once a day and say so in a banner
     #[serde(default = "default_true")]
     pub check_for_updates: bool,
+    /// keeps the canteen's last menu, so the Book2Eat tab shows it right away and while offline
+    #[serde(default = "default_true")]
+    pub cache_canteen_menu: bool,
+    /// loads the canteen's menu anew every time the app checks Untis in the background
+    #[serde(default = "default_true")]
+    pub refresh_canteen_menu: bool,
 }
 
 impl Default for GeneralSettings {
@@ -146,6 +152,8 @@ impl Default for GeneralSettings {
             week_swipe: true,
             timetable_cache_minutes: DEFAULT_CACHE_MINUTES,
             check_for_updates: true,
+            cache_canteen_menu: true,
+            refresh_canteen_menu: true,
         }
     }
 }
@@ -177,6 +185,11 @@ impl GeneralSettings {
         }
     }
 
+    /// Whether the canteen's menu is loaded in the background: there has to be a cache to load it into
+    pub fn refreshes_canteen_menu(&self) -> bool {
+        self.cache_canteen_menu && self.refresh_canteen_menu
+    }
+
     /// How long a loaded timetable stays valid. Never less than a minute, whatever was stored.
     pub fn cache_duration(&self) -> TimeDelta {
         TimeDelta::minutes(i64::from(self.timetable_cache_minutes.max(1)))
@@ -196,6 +209,7 @@ mod tests {
         assert_eq!(settings.start_view, TimetableView::Me);
         assert_eq!(settings.shown_tabs(), Tab::ALL.to_vec());
         assert!(settings.week_swipe && settings.check_for_updates);
+        assert!(settings.cache_canteen_menu && settings.refreshes_canteen_menu());
         assert_eq!(settings.cache_duration(), TimeDelta::hours(1));
     }
 

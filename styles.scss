@@ -278,10 +278,17 @@ html.qr-scanning body {
   border-radius: 0.3rem;
   text-align: center;
   line-height: 1.1;
-  font-size: calc(clamp(0.5rem, 26cqw, 0.9rem) * var(--lesson-font-scale, 1));
+  // as large as the subject fits across the block, see `.dynamic-text` of the week grid
+  font-size: max(0.5rem, min(calc((100cqw - 8px) / (var(--lesson-chars, 4) * 0.7)), calc((100cqh - 4px) / 1.15), calc(0.9rem * var(--lesson-font-scale, 1))));
   font-family: var(--lesson-font-family, inherit);
   font-weight: var(--lesson-font-weight, inherit);
   white-space: nowrap;
+
+  > span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .compare-lesson-detail {
@@ -349,14 +356,26 @@ html.qr-scanning body {
     justify-content: safe center !important;
   }
 
-  // the custom properties are set from the lesson text settings, and unset by default
+  // every line is as large as fits it across the lesson, and fits all of the lesson's lines down
+  // it: `--lesson-chars` is set per line, `--lesson-lines` per lesson. The pixels leave room for
+  // the border a changed lesson gets, 0.7 is about how wide a capital is in em. Below the smallest
+  // size that is still legible a line is cut off with an ellipsis instead.
+  // The font custom properties are set from the lesson text settings, and unset by default.
   .dynamic-text {
-    font-size: calc(clamp(0.7rem, 19cqw, 1.1rem) * var(--lesson-font-scale, 1));
     font-family: var(--lesson-font-family, inherit);
     font-weight: var(--lesson-font-weight, inherit);
     line-height: 1.1;
     width: 100%;
-    word-wrap: break-word;
+  }
+
+  .lesson-line {
+    --lesson-fit-width: calc((100cqw - 14px) / (var(--lesson-chars, 6) * 0.7));
+    --lesson-fit-height: calc((100cqh - 10px) / (var(--lesson-lines, 3) * 1.15));
+    font-size: max(0.5rem, min(var(--lesson-fit-width), var(--lesson-fit-height), calc(1.1rem * var(--lesson-font-scale, 1))));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 2px;
   }
 
   // what became of a lesson is told by the colour of its border: changed, additional, exam, cancelled

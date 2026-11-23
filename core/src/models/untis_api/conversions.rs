@@ -81,9 +81,13 @@ impl From<UntisResource> for Entity {
 
 /// The resource a position holds, and the one it replaced if the lesson was changed
 fn tracked_entities(position: UntisPosition) -> impl Iterator<Item = Tracked<Entity>> {
-    let current_status = match position.removed {
-        Some(_) => ChangeStatus::Changed,
-        None => ChangeStatus::Regular,
+    // a resource that is still listed can be marked as gone itself: a teacher who is absent
+    // without anyone standing in, for instance
+    let current_status = match position.current.as_ref().map(|resource| resource.status.as_str()) {
+        Some("REMOVED") => ChangeStatus::Removed,
+        _ if position.removed.is_some() => ChangeStatus::Changed,
+        Some("ADDED") => ChangeStatus::New,
+        _ => ChangeStatus::Regular,
     };
 
     let current = position.current.map(|resource| Tracked { inner: Entity::from(resource), status: current_status });
@@ -177,6 +181,24 @@ mod tests {
             ("R1".to_string(), &ChangeStatus::Regular),
         ]);
         assert_eq!(lesson.current_names(Entity::is_teacher).collect::<Vec<_>>(), vec!["JON".to_string()]);
+    }
+
+    /// a teacher can be marked absent with nobody in their place, or added next to the others
+    #[test]
+    fn reads_what_a_change_did_to_a_resource_still_listed() {
+        let lesson = grid_entry(r##"{
+            "duration": {"start": "2026-09-14T07:50", "end": "2026-09-14T08:40"},
+            "type": "NORMAL_TEACHING_PERIOD", "status": "CHANGED", "color": "#f49f25",
+            "position1": [
+                {"current": {"type": "TEACHER", "status": "REMOVED", "shortName": "SMI"}, "removed": null},
+                {"current": {"type": "TEACHER", "status": "ADDED", "shortName": "JON"}, "removed": null},
+                {"current": {"type": "TEACHER", "status": "REGULAR", "shortName": "DOE"}, "removed": null}
+            ]
+        }"##);
+
+        let statuses: Vec<&ChangeStatus> = lesson.entities.iter().map(|e| &e.status).collect();
+        assert_eq!(statuses, vec![&ChangeStatus::Removed, &ChangeStatus::New, &ChangeStatus::Regular]);
+        assert_eq!(lesson.current_names(Entity::is_teacher).collect::<Vec<_>>(), vec!["JON".to_string(), "DOE".to_string()]);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! The sections of the visual settings that are about the lessons themselves.
 
 use crate::components::forms::{select_value, Checkbox};
-use altis_core::settings::{LessonDisplaySettings, LessonFont, LessonLine, LessonTextSettings};
+use altis_core::settings::{LessonDetail, LessonDetailsSettings, LessonDisplaySettings, LessonFont, LessonLine, LessonTextSettings};
 use yew::prelude::*;
 
 /// The text sizes on offer, in percent of the usual one
@@ -120,6 +120,41 @@ pub fn lesson_display_section(props: &LessonDisplayProps) -> Html {
                 <Checkbox id="hideCancelled" label="Hide cancelled lessons"
                           checked={settings.hide_cancelled} on_toggle={toggle(|settings| &mut settings.hide_cancelled)} />
             </div>
+        </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct LessonDetailsProps {
+    pub settings: LessonDetailsSettings,
+    pub on_change: Callback<LessonDetailsSettings>,
+}
+
+/// What the details of a lesson list, opened by tapping it
+#[function_component(LessonDetailsSection)]
+pub fn lesson_details_section(props: &LessonDetailsProps) -> Html {
+    let settings = &props.settings;
+    let on_toggle = change(settings, &props.on_change, |settings: &mut LessonDetailsSettings, detail: LessonDetail| settings.toggle(detail));
+
+    html! {
+        <div class="mb-3">
+            <label class={HEADING_CLASS}>{"Lesson Details"}</label>
+            <div class="form-text text-secondary small mb-2">
+                {"What the details of a lesson list when you tap it."}
+            </div>
+            <div class="btn-group w-100 mb-2" role="group" aria-label="Parts listed in the details of a lesson">
+                { for LessonDetail::ALL.into_iter().map(|detail| {
+                    let button_class = if settings.shows(detail) { "btn-primary" } else { "btn-outline-secondary" };
+                    html! {
+                        <button type="button" class={classes!("btn", "btn-sm", button_class)} onclick={on_toggle.reform(move |_| detail)}>
+                            { detail.label() }
+                        </button>
+                    }
+                })}
+            </div>
+            <Checkbox id="showReplaced" label="Also list who and what a change took off the lesson, like an absent teacher"
+                      checked={settings.show_replaced}
+                      on_toggle={change(settings, &props.on_change, |settings: &mut LessonDetailsSettings, _| settings.show_replaced = !settings.show_replaced)} />
         </div>
     }
 }
