@@ -8,7 +8,7 @@
 //! stands down so the two don't notify about the same change twice.
 
 use crate::web_env::WebEnv;
-use crate::{native, storage};
+use crate::{book2eat_client, native, storage};
 use altis_core::notifications::run_once;
 use altis_core::settings::NotificationSettings;
 use gloo_timers::future::TimeoutFuture;
@@ -52,6 +52,8 @@ pub fn start() {
             } else {
                 run_once::<WebEnv>().await;
             }
+            // the canteen has nothing to do with Untis, it just goes along with every check
+            book2eat_client::refresh_cached_menus().await;
 
             TimeoutFuture::new(settings.poll_minutes() * MS_PER_MINUTE).await;
         }

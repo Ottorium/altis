@@ -71,4 +71,7 @@ pub struct UntisResource {
     #[serde(default, deserialize_with = "deserialize_null_as_default")]
     pub display_name: String,
     pub text: Option<String>,
+    /// what a change did to the resource: `REGULAR`, `ADDED` or `REMOVED`
+    #[serde(default, deserialize_with = "deserialize_null_as_default")]
+    pub status: String,
 }

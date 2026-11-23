@@ -92,8 +92,10 @@ another question the official client cannot answer at all.
 
 Move between weeks with the arrows, the date picker or a swipe. Cancelled, moved and
 substituted lessons are marked as such, exams stand out, and a red line marks the current
-time. Tapping a block opens its details; tapping a teacher, class or room in there jumps
-straight to that timetable.
+time. The text on a lesson is sized to fit it, however narrow the column. Tapping a block opens
+its details, which say who is actually there: a teacher who is absent is struck through, the
+one standing in is marked as the substitute, and everyone on a cancelled lesson as cancelled.
+Tapping a teacher, class or room in there jumps straight to that timetable.
 
 Loaded weeks are cached for an hour (or however long you set), so paging back and forth is
 instant and does not hammer Untis.
@@ -122,6 +124,9 @@ Most of what the official app decides for you, Altis leaves to you.
 - Whether swiping the timetable changes the week.
 - How long loaded timetables are kept before Untis is asked again.
 - Whether to check for new versions.
+- Whether the canteen's menu is kept, so the Book2Eat tab shows it right away and while the
+  canteen can't be reached, and whether it is loaded anew (this week's and next week's) with
+  every check of Untis the app itself runs.
 
 **Notifications**
 
@@ -140,6 +145,9 @@ Most of what the official app decides for you, Altis leaves to you.
 - **Weekday Override** decides whether empty weekdays are shown at all, and which ones.
 - **Lesson Text** decides what is written on a lesson - subject, teacher, room, class, time, in
   short or in full - and in which font, size and weight.
+- **Lesson Details** decides what tapping a lesson lists - subject, teacher, class, room,
+  notes - and whether who and what a change took off it is listed too, like a teacher who is
+  absent.
 - **Lesson Display** greys out the lessons that are over, marks the current time with a line
   and hides cancelled lessons, each if you want it to.
 - **Subject Colour Overrides** give a subject a colour of your own.
@@ -166,7 +174,9 @@ The Untis inbox with unread marked, and attachments that download to wherever yo
 
 ## Canteen
 
-The week's menu with the QR code the canteen scans, a swipe from day to day.
+The week's menu with the QR code the canteen scans, a swipe from day to day. The last menu
+loaded is kept and shown right away while the current one loads, or instead of it when the
+canteen can't be reached.
 
 ## How the code is laid out
 

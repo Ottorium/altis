@@ -151,18 +151,15 @@ fn render_lesson(lesson: &LessonBlock, span: &GroupSpan, lane: &Lane, on_phone: 
         LessonStatus::Other(_) => {}
     }
 
+    // every line is sized to fit across the lesson, and all of them down it, see `.lesson-line`
+    let lines: Vec<(usize, Html)> = visual.lesson_text.lines.iter().map(|line| render_line(lesson, *line, &visual.lesson_text)).filter(|(length, _)| *length > 0).collect();
+    let fit_style = format!("--lesson-lines: {};", lines.len().max(1));
+
     let layer = |extra_style: String| html! {
         <div style={format!("position: absolute; top: {top}%; left: {left}%; height: {height}%; width: {width}%; padding: {}; {extra_style}", if on_phone { "0" } else { "0.2rem" })} class="lesson-container">
             <div class={class.clone()} style={style.clone()}>
-                <div class="dynamic-text">
-                    { for visual.lesson_text.lines.iter().enumerate().map(|(index, line)| html! {
-                        <>
-                            if index > 0 {
-                                <br/>
-                            }
-                            { render_line(lesson, *line, &visual.lesson_text) }
-                        </>
-                    })}
+                <div class="dynamic-text" style={fit_style.clone()}>
+                    { for lines.iter().map(|(length, line)| html! { <div class="lesson-line" style={format!("--lesson-chars: {length};")}>{ line.clone() }</div> }) }
                 </div>
             </div>
         </div>
@@ -184,46 +181,54 @@ fn render_lesson(lesson: &LessonBlock, span: &GroupSpan, lane: &Lane, on_phone: 
     }
 }
 
-/// One of the lines written on a lesson
-fn render_line(lesson: &LessonBlock, line: LessonLine, text: &LessonTextSettings) -> Html {
+/// One of the lines written on a lesson, along with how many characters it is long
+fn render_line(lesson: &LessonBlock, line: LessonLine, text: &LessonTextSettings) -> (usize, Html) {
     let wanted: fn(&Entity) -> bool = match line {
         LessonLine::Subject => Entity::is_subject,
         LessonLine::Teacher => Entity::is_teacher,
         LessonLine::Room => Entity::is_room,
         LessonLine::Class => Entity::is_class,
         // a break is drawn like a lesson without anything on it, and stays that way
-        LessonLine::Time if lesson.is_break() => return html! {},
+        LessonLine::Time if lesson.is_break() => return (0, html! {}),
         LessonLine::Time => {
-            return html! { format!("{}-{}", lesson.time_range.start.format("%H:%M"), lesson.time_range.end.format("%H:%M")) };
+            let time = format!("{}-{}", lesson.time_range.start.format("%H:%M"), lesson.time_range.end.format("%H:%M"));
+            return (time.chars().count(), html! { time });
         }
     };
     render_entities(lesson, wanted, text.long_names)
 }
 
 /// The lesson's entities of one sort, marked by what a change did to them: the one that was
-/// replaced struck through, ahead of the one that replaced it
-fn render_entities(lesson: &LessonBlock, wanted: fn(&Entity) -> bool, long_names: bool) -> Html {
+/// replaced struck through, ahead of the one that replaced it. Along with how many characters
+/// they take up.
+fn render_entities(lesson: &LessonBlock, wanted: fn(&Entity) -> bool, long_names: bool) -> (usize, Html) {
     let mut entities: Vec<_> = lesson.entities.iter().filter(|entity| wanted(&entity.inner)).collect();
     entities.sort_by_key(|entity| entity.status != ChangeStatus::Removed);
 
-    entities
+    let names: Vec<_> = entities.into_iter().map(|entity| (entity, if long_names { entity.inner.long_name() } else { entity.inner.name() })).filter(|(_, name)| !name.is_empty()).collect();
+    // the names and a space between each two
+    let length = names.iter().map(|(_, name)| name.chars().count() + 1).sum::<usize>().saturating_sub(1);
+
+    let html = names
         .into_iter()
-        .map(|entity| {
+        .enumerate()
+        .map(|(index, (entity, name))| {
             let style = match entity.status {
                 ChangeStatus::Removed => "background: #ffcccc; color: #b30000; padding: 0 2px;",
                 ChangeStatus::New => "background: #ccffcc; color: #006600; padding: 0 2px;",
                 ChangeStatus::Changed => "background: #ffffcc; color: #8a6d3b; padding: 0 2px;",
                 ChangeStatus::Regular => "",
             };
-            let name = if long_names { entity.inner.long_name() } else { entity.inner.name() };
+            let space = if index > 0 { " " } else { "" };
 
             if entity.status == ChangeStatus::Removed {
-                html! { <><del style={style}>{ name }</del>{ " " }</> }
+                html! { <>{ space }<del style={style}>{ name }</del></> }
             } else {
-                html! { <><span style={style}>{ name }</span>{ " " }</> }
+                html! { <>{ space }<span style={style}>{ name }</span></> }
             }
         })
-        .collect::<Html>()
+        .collect::<Html>();
+    (length, html)
 }
 
 #[cfg(test)]

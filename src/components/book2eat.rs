@@ -1,11 +1,12 @@
 use crate::book2eat_client::get_menu;
 use crate::components::qr_code::QrCode;
-use altis_core::models::book2eat::Meal;
+use crate::storage;
+use altis_core::models::book2eat::{Meal, MenuResponse};
 use altis_core::untis::week::Week;
-use chrono::{Duration, Local};
+use chrono::{Duration, Local, NaiveDateTime};
+use wasm_bindgen_futures::spawn_local;
 use web_sys::{MouseEvent, TouchEvent};
 use yew::prelude::*;
-use yew::suspense::use_future_with;
 
 /// Minimum horizontal drag distance (in px) before a gesture counts as a swipe.
 const SWIPE_THRESHOLD_PX: i32 = 50;
@@ -15,15 +16,50 @@ const MEAL_DATE_FORMAT: &str = "%Y-%m-%d";
 /// A point on the screen, as (x, y)
 type Point = (i32, i32);
 
+/// The menu shown, and when it was loaded if it is the one kept from before
+#[derive(PartialEq)]
+struct Loaded {
+    menu: MenuResponse,
+    kept_from: Option<NaiveDateTime>,
+}
+
 /// The canteen's menu of a day along with the QR code it scans, a swipe from day to day
 #[function_component(Book2EatPage)]
 pub fn book2eat() -> HtmlResult {
     let current_date = use_state(|| Local::now().date_naive());
     let current_week = Week::from_date(*current_date);
 
-    // Refetches only when the visible week actually changes (i.e. when a
-    // swipe crosses a week boundary), not on every single day change.
-    let menu = use_future_with(current_week.clone(), |week| async move { get_menu(&week).await.map_err(|e| e.to_string()) })?;
+    // the kept menu of the week while the fresh one loads, and when it can't be loaded
+    let loaded = use_state(|| None::<Loaded>);
+    // why the menu couldn't be loaded anew
+    let failure = use_state(|| None::<String>);
+
+    // the week loading was last started for, so an answer that comes in after the next swipe is dropped
+    let wanted_week = use_mut_ref(|| None::<Week>);
+
+    // loads again only when the week changes, a swipe across a weekend, not with every day
+    {
+        let (loaded, failure) = (loaded.clone(), failure.clone());
+        use_effect_with(current_week.clone(), move |week| {
+            *wanted_week.borrow_mut() = Some(week.clone());
+            let kept = storage::settings_or_default().general.cache_canteen_menu.then(|| storage::canteen_menu(week)).flatten();
+            loaded.set(kept.map(|kept| Loaded { menu: kept.menu, kept_from: Some(kept.loaded_at) }));
+            failure.set(None);
+
+            let week = week.clone();
+            spawn_local(async move {
+                let answer = get_menu(&week).await;
+                if wanted_week.borrow().as_ref() != Some(&week) {
+                    return;
+                }
+                match answer {
+                    Ok(menu) => loaded.set(Some(Loaded { menu, kept_from: None })),
+                    Err(err) => failure.set(Some(err.to_string())),
+                }
+            });
+            || ()
+        });
+    }
 
     // Where the current gesture started. Kept outside component state on purpose: it should
     // never itself trigger a re-render.
@@ -66,18 +102,27 @@ pub fn book2eat() -> HtmlResult {
     let on_mouse_up = Callback::from(move |e: MouseEvent| end_drag((e.client_x(), e.client_y())));
     let on_mouse_leave = Callback::from(move |_: MouseEvent| start_drag(None));
 
-    let menu = match &*menu {
-        Ok(menu) => &menu.data,
-        Err(message) => {
-            return Ok(html! {
+    let Some(Loaded { menu, kept_from }) = &*loaded else {
+        return Ok(match &*failure {
+            Some(message) => html! {
                 <div class="container mt-5">
                     <div class="alert alert-danger shadow-sm">
                         <strong>{"Error:"}</strong> { format!(" {message}") }
                     </div>
                 </div>
-            });
-        }
+            },
+            None => html! {
+                <div class="d-flex justify-content-center align-items-center flex-grow-1">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+            },
+        });
     };
+    let menu = &menu.data;
+    // a kept menu is only worth a word once loading it anew failed
+    let stale_note = failure.as_ref().zip(*kept_from).map(|(message, loaded_at)| {
+        format!("Showing the menu from {}, it could not be loaded anew: {message}", loaded_at.format("%d.%m. %H:%M"))
+    });
 
     let selected_date = current_date.format(MEAL_DATE_FORMAT).to_string();
     let meals = by_course(menu.menue.values().filter(|meal| meal.date == selected_date).cloned().collect());
@@ -93,6 +138,9 @@ pub fn book2eat() -> HtmlResult {
             onmouseup={on_mouse_up}
             onmouseleave={on_mouse_leave}
         >
+            if let Some(note) = stale_note {
+                <div class="alert alert-warning py-1 px-2 small mb-2">{ note }</div>
+            }
             <div class="d-flex justify-content-center align-items-center bg-light rounded p-4 mb-3 b2e-qr-wrapper">
                 <QrCode data={menu.qr_code.clone()} />
             </div>

@@ -117,7 +117,7 @@ fn render_lesson(lesson: &LessonBlock, position: String, dimmed: bool) -> Html {
 
     html! {
         <div class={classes!("compare-lesson", dimmed.then_some("compare-lesson-past"))} style={position} {title}>
-            <div class={classes!("compare-lesson-inner", text_class, status_class)} style={format!("background-color: #{color};")}>
+            <div class={classes!("compare-lesson-inner", text_class, status_class)} style={format!("background-color: #{color}; --lesson-chars: {};", subject.chars().count().max(1))}>
                 <span class="fw-semibold">{ subject }</span>
                 if let Some(room) = room {
                     <span class="compare-lesson-detail">{ room }</span>
