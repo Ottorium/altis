@@ -78,7 +78,7 @@ per platform is who runs it:
 
 Students have no permission to open a teacher's timetable in Untis. Altis shows it anyway: it
 loads the timetables of all classes, which students may see, and puts together each teacher's
-week from every lesson they appear in. Pick a teacher from the dropdown and you see where they
+week from every lesson they appear in. Pick a teacher from the dropdown - listed by name, with the abbreviation in brackets - and you see where they
 are, when they are free, and what they are substituting.
 
 Since it is assembled from class timetables, it shows exactly what those contain - anything a

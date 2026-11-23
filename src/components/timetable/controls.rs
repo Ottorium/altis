@@ -13,8 +13,8 @@ pub struct ControlsProps {
     pub view: TimetableView,
     pub selected_name: Option<String>,
     pub selected_week: Week,
-    /// the classes, teachers or rooms there are to pick from
-    pub names: Vec<String>,
+    /// the classes, teachers or rooms there are to pick from, each with how it is offered
+    pub names: Vec<(String, String)>,
     pub favorites: Favorites,
     /// the timetables picked for the "Compare" view
     pub compared: Vec<Compared>,
@@ -54,9 +54,14 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
     }
 
     // favourites come first, so they're found without scrolling through every teacher
-    let (favorite_names, other_names): (Vec<&String>, Vec<&String>) = props.names.iter().partition(|name| is_favorite(name));
-    let option = |name: &String| html! {
-        <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>{ name }</option>
+    let (favorite_names, other_names): (Vec<&(String, String)>, Vec<&(String, String)>) = props.names.iter().partition(|(name, _)| is_favorite(name));
+    let option = |(name, label): &(String, String)| html! {
+        <option value={name.clone()} selected={selected_name.as_ref() == Some(name)}>{ label }</option>
+    };
+    // with nothing selected the browser shows the first option
+    let shown_label = match &selected_name {
+        Some(selected) => props.names.iter().find(|(name, _)| name == selected).map_or_else(|| selected.clone(), |(_, label)| label.clone()),
+        None => props.names.first().map(|(_, label)| label.clone()).unwrap_or_default(),
     };
 
     let favorite_button = selected_name.clone().filter(|_| view.entity_kind().is_some()).map(|name| {
@@ -106,10 +111,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
 
                     if !props.names.is_empty() {
                         <div class="select-fit">
-                            // with nothing selected the browser shows the first option
-                            <span class="select-fit-label">
-                                { selected_name.clone().or_else(|| props.names.first().cloned()).unwrap_or_default() }
-                            </span>
+                            <span class="select-fit-label">{ shown_label }</span>
                             <select ref={entity_select} class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_entity_change}>
                                 if favorite_names.is_empty() {
                                     { for other_names.into_iter().map(option) }
