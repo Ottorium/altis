@@ -173,9 +173,7 @@ impl<E: Env> AuthHelper<E> {
     pub async fn session_request(method: &str, url: &str, headers: Headers, body: String) -> Result<HttpResponse, ApiError> {
         let response = Self::send_with_session(&Self::cookies().await?, method, url, headers.clone(), body.clone()).await?;
 
-        // a session that's gone gets the login page rather than an error, so anything that isn't
-        // JSON means we have to log in again instead of that the request itself failed
-        if response.body.trim_start().starts_with('{') {
+        if !is_logged_out(&response.body) {
             return Ok(response);
         }
 
@@ -214,6 +212,17 @@ impl<E: Env> AuthHelper<E> {
 /// The tenant travels in a header of its own next to the cookie, the way the web client sends it
 fn session_headers(cookies: &Cookies) -> Headers {
     Headers::from([header("Cookie", cookies.to_header_value()), header("Tenant-Id", cookies.tenant_id.clone())])
+}
+
+/// Whether Untis answered as it does a request on a session that is gone: it redirects to its
+/// login page, which is HTML - unless the request asked for JSON, which the redirect passes on, and
+/// then it is `{"loginError":"","state":"LOGIN_ERROR"}`. Either way we have to log in again rather
+/// than that the request itself failed.
+fn is_logged_out(body: &str) -> bool {
+    if !body.trim_start().starts_with('{') {
+        return true;
+    }
+    serde_json::from_str::<serde_json::Value>(body).is_ok_and(|answer| answer["state"] == "LOGIN_ERROR")
 }
 
 /// The code Untis expects along with the user name: a TOTP of the secret it hands out for apps
@@ -440,5 +449,29 @@ mod tests {
         assert_eq!(answer.body, "{}");
         assert_eq!(urls().len(), 3);
         assert_eq!(Store::<TestEnv>::get_cookies().unwrap().jsessionid, "ABC");
+    }
+
+    /// the login page's redirect keeps the request's `Accept: application/json`, and then the login
+    /// page answers in JSON
+    #[test]
+    fn a_session_that_is_gone_is_also_replaced_when_untis_says_so_in_json() {
+        logged_out();
+        Store::<TestEnv>::save_cookies(&Cookies { jsessionid: "OLD".to_string(), tenant_id: "42".to_string(), school_name_base32: "_x".to_string() }).unwrap();
+        TestEnv::respond_with(|request| {
+            let stale = request.headers.get("Cookie").is_some_and(|cookie| cookie[0].contains("JSESSIONID=OLD"));
+            if stale { response(r#"{"loginError":"","state":"LOGIN_ERROR"}"#) } else { untis(request) }
+        });
+
+        let answer = block_on(Auth::session_request("GET", "https://school.webuntis.com/read", Headers::new(), String::new())).unwrap();
+        assert_eq!(answer.body, "{}");
+        assert_eq!(Store::<TestEnv>::get_cookies().unwrap().jsessionid, "ABC");
+    }
+
+    #[test]
+    fn only_the_login_page_counts_as_logged_out() {
+        assert!(is_logged_out("<html>Login</html>"));
+        assert!(is_logged_out(r#"{"loginError":"","state":"LOGIN_ERROR"}"#));
+        assert!(!is_logged_out(r#"{"data":{"absences":[]}}"#));
+        assert!(!is_logged_out(r#"{"errors":[{"title":"refused"}]}"#));
     }
 }

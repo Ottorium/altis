@@ -195,14 +195,14 @@ fn render_line(lesson: &LessonBlock, line: LessonLine, text: &LessonTextSettings
             return (time.chars().count(), html! { time });
         }
     };
-    render_entities(lesson, wanted, text.long_names)
+    render_entities(lesson, wanted, |name| text.hides(line, name), text.long_names)
 }
 
 /// The lesson's entities of one sort, marked by what a change did to them: the one that was
-/// replaced struck through, ahead of the one that replaced it. Along with how many characters
-/// they take up.
-fn render_entities(lesson: &LessonBlock, wanted: fn(&Entity) -> bool, long_names: bool) -> (usize, Html) {
-    let mut entities: Vec<_> = lesson.entities.iter().filter(|entity| wanted(&entity.inner)).collect();
+/// replaced struck through, ahead of the one that replaced it. Leaves out the ones `hidden` says
+/// to, by their short name. Along with how many characters they take up.
+fn render_entities(lesson: &LessonBlock, wanted: fn(&Entity) -> bool, hidden: impl Fn(&str) -> bool, long_names: bool) -> (usize, Html) {
+    let mut entities: Vec<_> = lesson.entities.iter().filter(|entity| wanted(&entity.inner) && !hidden(&entity.inner.name()) && !hidden(&entity.inner.long_name())).collect();
     entities.sort_by_key(|entity| entity.status != ChangeStatus::Removed);
 
     let names: Vec<_> = entities.into_iter().map(|entity| (entity, if long_names { entity.inner.long_name() } else { entity.inner.name() })).filter(|(_, name)| !name.is_empty()).collect();

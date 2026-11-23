@@ -144,10 +144,9 @@ Most of what the official app decides for you, Altis leaves to you.
   keeps its scale from week to week. Lessons outside the range still show and widen it.
 - **Weekday Override** decides whether empty weekdays are shown at all, and which ones.
 - **Lesson Text** decides what is written on a lesson - subject, teacher, room, class, time, in
-  short or in full - and in which font, size and weight.
-- **Lesson Details** decides what tapping a lesson lists - subject, teacher, class, room,
-  notes - and whether who and what a change took off it is listed too, like a teacher who is
-  absent.
+  short or in full - and in which font, size and weight. Each line can also leave out names you
+  don't need to see: put `5BHITS` on the room line and a room is only written when the lesson
+  is somewhere else. The lesson details always list everything.
 - **Lesson Display** greys out the lessons that are over, marks the current time with a line
   and hides cancelled lessons, each if you want it to.
 - **Subject Colour Overrides** give a subject a colour of your own.

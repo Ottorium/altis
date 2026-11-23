@@ -2,7 +2,7 @@ use super::{Comparison, Day};
 use crate::components::timetable::{day_heading, lesson_text_style};
 use crate::hooks::use_now;
 use altis_core::models::timetable::{Entity, LessonBlock, LessonStatus};
-use altis_core::settings::{is_dark_color, VisualSettings};
+use altis_core::settings::{is_dark_color, LessonLine, LessonTextSettings, VisualSettings};
 use chrono::{NaiveTime, Timelike};
 use yew::prelude::*;
 
@@ -55,7 +55,7 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
                 <div class="d-flex h-100">
                     { for day.lanes.iter().map(|lessons| html! {
                         <div class="compare-lane">
-                            { for lessons.iter().map(|lesson| render_lesson(lesson, position(lesson), display.dim_past_lessons && lesson.time_range.end <= now)) }
+                            { for lessons.iter().map(|lesson| render_lesson(lesson, position(lesson), display.dim_past_lessons && lesson.time_range.end <= now, &props.visual.lesson_text)) }
                         </div>
                     })}
                 </div>
@@ -99,11 +99,12 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
     }
 }
 
-/// A lesson in its lane: the subject and, where there is room for it, the room
-fn render_lesson(lesson: &LessonBlock, position: String, dimmed: bool) -> Html {
+/// A lesson in its lane: the subject and, where there is room for it, the room unless it is one
+/// the lesson text leaves out
+fn render_lesson(lesson: &LessonBlock, position: String, dimmed: bool, text: &LessonTextSettings) -> Html {
     let first_name = |wanted: fn(&Entity) -> bool| lesson.current_names(wanted).find(|name| !name.is_empty());
     let subject = first_name(Entity::is_subject).unwrap_or_else(|| lesson.kind.as_str().to_string());
-    let room = first_name(Entity::is_room);
+    let room = lesson.current_names(Entity::is_room).find(|name| !name.is_empty() && !text.hides(LessonLine::Room, name));
 
     let color = lesson.color_hex.trim_start_matches('#');
     let text_class = if is_dark_color(color) { "text-white" } else { "text-black" };
