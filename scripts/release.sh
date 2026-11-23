@@ -78,10 +78,28 @@ mkdir -p "$OUT"
 
 # --------------------------------------------------------------- frontend
 # Built once here so the per-target builds can skip beforeBuildCommand and not
-# race each other over dist/.
+# race each other over it. Built into a directory of its own, not dist/: a
+# `trunk serve` (cargo tauri dev) still running rebuilds dist/ whenever a file
+# changes, and 1.2.1 shipped an index.html from one build with the stylesheet
+# of another, which left the app without its styles.
+FRONTEND_DIST=$ROOT/target/release-frontend
+rm -rf "$FRONTEND_DIST"
 say "building frontend"
-if [ "$ALTIS_FRONTEND_RELEASE" = 1 ]; then trunk build --release; else trunk build; fi
-NO_FRONTEND='{"build":{"beforeBuildCommand":""}'
+if [ "$ALTIS_FRONTEND_RELEASE" = 1 ]; then
+    trunk build --release --dist "$FRONTEND_DIST"
+else
+    trunk build --dist "$FRONTEND_DIST"
+fi
+
+# Every file the page loads has to be in the bundle, or the app starts without it.
+for asset in $(grep -oE "(href|src)=\"/[^\"]+\"|module_or_path: '/[^']+'" "$FRONTEND_DIST/index.html" \
+               | sed -E "s/^[^\"']*[\"']\///; s/[\"']$//"); do
+    [ -f "$FRONTEND_DIST/$asset" ] || die "index.html loads /$asset, which the frontend build did not produce"
+done
+grep -q "cdn\.jsdelivr\.net" "$FRONTEND_DIST/index.html" \
+    && die "index.html still loads from a CDN - is an old index.html checked out?"
+
+NO_FRONTEND="{\"build\":{\"beforeBuildCommand\":\"\",\"frontendDist\":\"$FRONTEND_DIST\"}"
 
 # ------------------------------------------------------------------ linux
 LINUX_BUNDLES=
