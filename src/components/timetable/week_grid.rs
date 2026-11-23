@@ -123,7 +123,7 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
     html! {
         <>
             if let Some(lessons) = (*selected_group).clone() {
-                <LessonModal {lessons} details={props.visual.lesson_details.clone()} {on_close} {on_entity_click} />
+                <LessonModal {lessons} {on_close} {on_entity_click} />
             }
 
             <div class="d-flex flex-grow-1 flex-column h-100 w-100 overflow-hidden" style={lesson_text_style(&props.visual.lesson_text)}>

@@ -1,7 +1,7 @@
 //! The sections of the visual settings that are about the lessons themselves.
 
-use crate::components::forms::{select_value, Checkbox};
-use altis_core::settings::{LessonDetail, LessonDetailsSettings, LessonDisplaySettings, LessonFont, LessonLine, LessonTextSettings};
+use crate::components::forms::{input_value, select_value, Checkbox};
+use altis_core::settings::{LessonDisplaySettings, LessonFont, LessonLine, LessonTextSettings};
 use yew::prelude::*;
 
 /// The text sizes on offer, in percent of the usual one
@@ -33,6 +33,10 @@ pub fn lesson_text_section(props: &LessonTextProps) -> Html {
     let on_change = &props.on_change;
 
     let on_toggle_line = change(settings, on_change, |settings: &mut LessonTextSettings, line: LessonLine| settings.toggle_line(line));
+    // `onchange`, so the list is taken once it is typed rather than tidied up with every key
+    let on_hidden_change = |line: LessonLine| {
+        change(settings, on_change, move |settings: &mut LessonTextSettings, e: Event| settings.set_hidden_names(line, &input_value(&e)))
+    };
     let on_font_change = change(settings, on_change, |settings: &mut LessonTextSettings, e: Event| {
         let picked = select_value(&e);
         if let Some(font) = LessonFont::ALL.into_iter().find(|font| font.label() == picked) {
@@ -65,6 +69,23 @@ pub fn lesson_text_section(props: &LessonTextProps) -> Html {
                         <button type="button" class={classes!("btn", "btn-sm", button_class)} onclick={on_toggle_line.reform(move |_| line)}>
                             { line.label() }
                         </button>
+                    }
+                })}
+            </div>
+            <div class="d-flex flex-column gap-1 mb-2">
+                <div class="form-text text-secondary small">
+                    {"Leave a name off when it is one of these, separated by commas - the room the class is always in, for instance. A line with nothing left on it is left out."}
+                </div>
+                { for settings.lines.iter().copied().filter(|line| line.has_names()).map(|line| {
+                    let id = format!("hiddenNames{}", line.label());
+                    html! {
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="small text-secondary" style="min-width: 4.5rem;" for={id.clone()}>{ line.label() }</label>
+                            <input type="text" {id} class="form-control form-control-sm bg-dark text-light border-secondary"
+                                   placeholder="Always show"
+                                   value={settings.hidden_names_text(line)}
+                                   onchange={on_hidden_change(line)} />
+                        </div>
                     }
                 })}
             </div>
@@ -120,41 +141,6 @@ pub fn lesson_display_section(props: &LessonDisplayProps) -> Html {
                 <Checkbox id="hideCancelled" label="Hide cancelled lessons"
                           checked={settings.hide_cancelled} on_toggle={toggle(|settings| &mut settings.hide_cancelled)} />
             </div>
-        </div>
-    }
-}
-
-#[derive(Properties, PartialEq)]
-pub struct LessonDetailsProps {
-    pub settings: LessonDetailsSettings,
-    pub on_change: Callback<LessonDetailsSettings>,
-}
-
-/// What the details of a lesson list, opened by tapping it
-#[function_component(LessonDetailsSection)]
-pub fn lesson_details_section(props: &LessonDetailsProps) -> Html {
-    let settings = &props.settings;
-    let on_toggle = change(settings, &props.on_change, |settings: &mut LessonDetailsSettings, detail: LessonDetail| settings.toggle(detail));
-
-    html! {
-        <div class="mb-3">
-            <label class={HEADING_CLASS}>{"Lesson Details"}</label>
-            <div class="form-text text-secondary small mb-2">
-                {"What the details of a lesson list when you tap it."}
-            </div>
-            <div class="btn-group w-100 mb-2" role="group" aria-label="Parts listed in the details of a lesson">
-                { for LessonDetail::ALL.into_iter().map(|detail| {
-                    let button_class = if settings.shows(detail) { "btn-primary" } else { "btn-outline-secondary" };
-                    html! {
-                        <button type="button" class={classes!("btn", "btn-sm", button_class)} onclick={on_toggle.reform(move |_| detail)}>
-                            { detail.label() }
-                        </button>
-                    }
-                })}
-            </div>
-            <Checkbox id="showReplaced" label="Also list who and what a change took off the lesson, like an absent teacher"
-                      checked={settings.show_replaced}
-                      on_toggle={change(settings, &props.on_change, |settings: &mut LessonDetailsSettings, _| settings.show_replaced = !settings.show_replaced)} />
         </div>
     }
 }

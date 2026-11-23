@@ -1,5 +1,5 @@
 use super::default_true;
-use crate::models::timetable::{ChangeStatus, Entity, LessonBlock, Tracked};
+use crate::models::timetable::{ChangeStatus, Entity, LessonBlock};
 use chrono::{NaiveTime, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -25,8 +25,6 @@ pub struct VisualSettings {
     pub lesson_text: LessonTextSettings,
     #[serde(default)]
     pub lesson_display: LessonDisplaySettings,
-    #[serde(default)]
-    pub lesson_details: LessonDetailsSettings,
 }
 
 impl VisualSettings {
@@ -163,7 +161,7 @@ impl Default for TimePadding {
 }
 
 /// A line of what is written on a lesson in the week grid
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub enum LessonLine {
     Subject,
     Teacher,
@@ -176,6 +174,11 @@ pub enum LessonLine {
 impl LessonLine {
     /// The lines in the order they are written in
     pub const ALL: [LessonLine; 5] = [LessonLine::Subject, LessonLine::Teacher, LessonLine::Room, LessonLine::Class, LessonLine::Time];
+
+    /// Whether names on the line can be left out by what they are: the time can't
+    pub fn has_names(self) -> bool {
+        self != LessonLine::Time
+    }
 
     pub fn label(self) -> &'static str {
         match self {
@@ -248,11 +251,22 @@ pub struct LessonTextSettings {
     pub font_scale_percent: u32,
     #[serde(default)]
     pub bold: bool,
+    /// the names a line leaves out, the room the class is always in for instance. A line with
+    /// nothing else on it is left out as a whole.
+    #[serde(default)]
+    pub hidden_names: BTreeMap<LessonLine, Vec<String>>,
 }
 
 impl Default for LessonTextSettings {
     fn default() -> Self {
-        Self { lines: default_lesson_lines(), long_names: false, font: LessonFont::default(), font_scale_percent: DEFAULT_FONT_SCALE_PERCENT, bold: false }
+        Self {
+            lines: default_lesson_lines(),
+            long_names: false,
+            font: LessonFont::default(),
+            font_scale_percent: DEFAULT_FONT_SCALE_PERCENT,
+            bold: false,
+            hidden_names: BTreeMap::new(),
+        }
     }
 }
 
@@ -264,6 +278,25 @@ impl LessonTextSettings {
     /// Writes the line on the lessons or takes it off them. The lines keep their order.
     pub fn toggle_line(&mut self, line: LessonLine) {
         self.lines = LessonLine::ALL.into_iter().filter(|other| self.has_line(*other) != (*other == line)).collect();
+    }
+
+    /// Whether the line leaves the name out, whichever case it was entered in
+    pub fn hides(&self, line: LessonLine, name: &str) -> bool {
+        self.hidden_names.get(&line).is_some_and(|hidden| hidden.iter().any(|hidden| hidden.trim().eq_ignore_ascii_case(name.trim())))
+    }
+
+    /// The names the line leaves out, the way they are entered: separated by commas
+    pub fn hidden_names_text(&self, line: LessonLine) -> String {
+        self.hidden_names.get(&line).map(|names| names.join(", ")).unwrap_or_default()
+    }
+
+    /// Sets the names the line leaves out from a list separated by commas
+    pub fn set_hidden_names(&mut self, line: LessonLine, text: &str) {
+        let names: Vec<String> = text.split(',').map(str::trim).filter(|name| !name.is_empty()).map(String::from).collect();
+        match names.is_empty() {
+            true => self.hidden_names.remove(&line),
+            false => self.hidden_names.insert(line, names),
+        };
     }
 
     /// How much larger or smaller than usual the text is written, 1 being as usual
@@ -305,82 +338,10 @@ impl LessonDisplaySettings {
     }
 }
 
-/// A part of what the details of a lesson list
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub enum LessonDetail {
-    Subject,
-    Teacher,
-    Class,
-    Room,
-    /// the notes on the lesson: what Untis writes about it and attaches to it
-    Notes,
-}
-
-impl LessonDetail {
-    pub const ALL: [LessonDetail; 5] = [LessonDetail::Subject, LessonDetail::Teacher, LessonDetail::Class, LessonDetail::Room, LessonDetail::Notes];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            LessonDetail::Subject => "Subject",
-            LessonDetail::Teacher => "Teacher",
-            LessonDetail::Class => "Class",
-            LessonDetail::Room => "Room",
-            LessonDetail::Notes => "Notes",
-        }
-    }
-
-    /// The part of the details an entity is listed in
-    pub fn of(entity: &Entity) -> Self {
-        match entity {
-            Entity::Subject(_) => LessonDetail::Subject,
-            Entity::Teacher(_) => LessonDetail::Teacher,
-            Entity::Class(_) => LessonDetail::Class,
-            Entity::Room(_) => LessonDetail::Room,
-            Entity::Info(_) => LessonDetail::Notes,
-        }
-    }
-}
-
-fn default_lesson_details() -> Vec<LessonDetail> {
-    LessonDetail::ALL.to_vec()
-}
-
-/// What the details of a lesson, opened by tapping it, list
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct LessonDetailsSettings {
-    #[serde(default = "default_lesson_details")]
-    pub shown: Vec<LessonDetail>,
-    /// also lists who and what a change took off the lesson, the teacher who is absent for instance
-    #[serde(default = "default_true")]
-    pub show_replaced: bool,
-}
-
-impl Default for LessonDetailsSettings {
-    fn default() -> Self {
-        Self { shown: default_lesson_details(), show_replaced: true }
-    }
-}
-
-impl LessonDetailsSettings {
-    pub fn shows(&self, detail: LessonDetail) -> bool {
-        self.shown.contains(&detail)
-    }
-
-    /// Lists the part or stops listing it. The parts keep their order.
-    pub fn toggle(&mut self, detail: LessonDetail) {
-        self.shown = LessonDetail::ALL.into_iter().filter(|other| self.shows(*other) != (*other == detail)).collect();
-    }
-
-    /// Whether an entity of the lesson is listed
-    pub fn shows_entity(&self, entity: &Tracked<Entity>) -> bool {
-        self.shows(LessonDetail::of(&entity.inner)) && (self.show_replaced || entity.status != ChangeStatus::Removed)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::timetable::{Room, Subject, Teacher};
+    use crate::models::timetable::{Subject, Tracked};
 
     fn at(hour: u32, minute: u32) -> NaiveTime {
         NaiveTime::from_hms_opt(hour, minute, 0).unwrap()
@@ -539,24 +500,26 @@ mod tests {
     }
 
     #[test]
-    fn the_details_list_everything_until_told_otherwise() {
-        let settings: VisualSettings = serde_json::from_str("{}").unwrap();
-        let absent = Tracked { inner: Entity::Teacher(Teacher::default()), status: ChangeStatus::Removed };
+    fn a_line_leaves_out_the_names_it_was_told_to_in_any_case() {
+        let mut text = LessonTextSettings::default();
+        text.set_hidden_names(LessonLine::Room, " 5bhits, ,EDV8 ");
 
-        assert!(LessonDetail::ALL.into_iter().all(|detail| settings.lesson_details.shows(detail)));
-        assert!(settings.lesson_details.shows_entity(&absent));
-        let without_replaced = LessonDetailsSettings { show_replaced: false, ..Default::default() };
-        assert!(!without_replaced.shows_entity(&absent));
+        assert_eq!(text.hidden_names_text(LessonLine::Room), "5bhits, EDV8");
+        assert!(text.hides(LessonLine::Room, "5BHITS"));
+        assert!(!text.hides(LessonLine::Room, "EDV9"));
+        // only on the line it was set for
+        assert!(!text.hides(LessonLine::Class, "5BHITS"));
+
+        text.set_hidden_names(LessonLine::Room, " , ");
+        assert!(text.hidden_names.is_empty());
     }
 
     #[test]
-    fn a_part_of_the_details_left_out_hides_its_entities() {
-        let mut details = LessonDetailsSettings::default();
-        details.toggle(LessonDetail::Room);
-        let room = Tracked { inner: Entity::Room(Room::default()), status: ChangeStatus::Regular };
+    fn hidden_names_survive_a_round_trip_through_the_stored_settings() {
+        let mut text = LessonTextSettings::default();
+        text.set_hidden_names(LessonLine::Room, "5BHITS");
 
-        assert!(!details.shows_entity(&room));
-        details.toggle(LessonDetail::Room);
-        assert_eq!(details.shown, LessonDetail::ALL.to_vec());
+        let stored = serde_json::to_string(&text).unwrap();
+        assert_eq!(serde_json::from_str::<LessonTextSettings>(&stored).unwrap(), text);
     }
 }

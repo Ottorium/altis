@@ -1,6 +1,5 @@
 use crate::components::modal::Modal;
 use altis_core::models::timetable::{ChangeStatus, Entity, LessonBlock, LessonStatus, Tracked};
-use altis_core::settings::{LessonDetail, LessonDetailsSettings};
 use web_sys::MouseEvent;
 use yew::prelude::*;
 
@@ -8,8 +7,6 @@ use yew::prelude::*;
 pub struct LessonModalProps {
     /// the lessons of the block that was clicked
     pub lessons: Vec<LessonBlock>,
-    /// what is listed of a lesson
-    pub details: LessonDetailsSettings,
     pub on_close: Callback<()>,
     /// a teacher, class or room was clicked, to show its timetable
     pub on_entity_click: Callback<Entity>,
@@ -20,7 +17,7 @@ pub struct LessonModalProps {
 pub fn lesson_modal(props: &LessonModalProps) -> Html {
     html! {
         <Modal title="Time Block Details" on_close={props.on_close.clone()} large=true body_class="p-4 custom-scrollbar" limit_body_height=true>
-            { for props.lessons.iter().filter(|lesson| !lesson.is_break()).map(|lesson| render_lesson(lesson, &props.details, &props.on_entity_click)) }
+            { for props.lessons.iter().filter(|lesson| !lesson.is_break()).map(|lesson| render_lesson(lesson, &props.on_entity_click)) }
         </Modal>
     }
 }
@@ -38,12 +35,11 @@ fn status_badge(lesson: &LessonBlock) -> Option<(String, &'static str)> {
     Some((label.to_string(), class))
 }
 
-fn render_lesson(lesson: &LessonBlock, details: &LessonDetailsSettings, on_entity_click: &Callback<Entity>) -> Html {
+fn render_lesson(lesson: &LessonBlock, on_entity_click: &Callback<Entity>) -> Html {
     let hex = lesson.color_hex.trim_start_matches('#');
     let border_style = format!("border-left: 5px solid #{hex} !important; background-color: #2b3035;");
     // an entity without a name is one Untis may not show, and then none of them are listed
     let all_named = !lesson.entities.iter().any(|entity| entity.inner.name().is_empty());
-    let shows_notes = details.shows(LessonDetail::Notes);
     let cancelled = lesson.is_cancelled();
 
     html! {
@@ -66,7 +62,7 @@ fn render_lesson(lesson: &LessonBlock, details: &LessonDetailsSettings, on_entit
 
                 if all_named {
                     <div class="d-flex flex-wrap gap-2">
-                        { for lesson.entities.iter().filter(|entity| details.shows_entity(entity)).map(|entity| render_entity(entity, cancelled, on_entity_click)) }
+                        { for lesson.entities.iter().map(|entity| render_entity(entity, cancelled, on_entity_click)) }
                     </div>
                 }
 
@@ -78,20 +74,18 @@ fn render_lesson(lesson: &LessonBlock, details: &LessonDetailsSettings, on_entit
                     </div>
                 }
 
-                if shows_notes {
-                    { for lesson.texts.iter().filter(|texts| texts.values().any(|text| !text.is_empty())).map(|texts| html! {
-                        <div class="mt-2 pt-2 border-top border-secondary">
-                            { for texts.iter().filter(|(_, text)| !text.is_empty()).map(|(name, text)| html! {
-                                <div class="small text-secondary">
-                                    <strong class="text-light">{ format!("{name}: ") }</strong>
-                                    { text }
-                                </div>
-                            })}
-                        </div>
-                    })}
-                }
+                { for lesson.texts.iter().filter(|texts| texts.values().any(|text| !text.is_empty())).map(|texts| html! {
+                    <div class="mt-2 pt-2 border-top border-secondary">
+                        { for texts.iter().filter(|(_, text)| !text.is_empty()).map(|(name, text)| html! {
+                            <div class="small text-secondary">
+                                <strong class="text-light">{ format!("{name}: ") }</strong>
+                                { text }
+                            </div>
+                        })}
+                    </div>
+                })}
 
-                if shows_notes && !lesson.link.is_empty() {
+                if !lesson.link.is_empty() {
                     <div class="mt-3">
                         <a href={lesson.link.clone()} target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-info p-1 px-2 text-decoration-none">
                             <i class="bi bi-link-45deg me-1"></i>{"View Attachment"}
