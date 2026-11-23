@@ -146,7 +146,8 @@ Most of what the official app decides for you, Altis leaves to you.
 - **Lesson Text** decides what is written on a lesson - subject, teacher, room, class, time, in
   short or in full - and in which font, size and weight. Each line can also leave out names you
   don't need to see: put `5BHITS` on the room line and a room is only written when the lesson
-  is somewhere else. The lesson details always list everything.
+  is somewhere else. Rooms get a pin in front, so a room named like a class can't be taken for
+  one. The lesson details always list everything.
 - **Lesson Display** greys out the lessons that are over, marks the current time with a line
   and hides cancelled lessons, each if you want it to.
 - **Subject Colour Overrides** give a subject a colour of your own.

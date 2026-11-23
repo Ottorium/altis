@@ -89,6 +89,9 @@ pub fn lesson_text_section(props: &LessonTextProps) -> Html {
                     }
                 })}
             </div>
+            <Checkbox id="markRooms" label="Mark rooms with a pin, to tell them from classes" class="form-check mb-2"
+                      checked={settings.mark_rooms}
+                      on_toggle={change(settings, on_change, |settings: &mut LessonTextSettings, _| settings.mark_rooms = !settings.mark_rooms)} />
             <Checkbox id="lessonLongNames" label="Write subjects and teachers out in full" class="form-check mb-2"
                       checked={settings.long_names}
                       on_toggle={change(settings, on_change, |settings: &mut LessonTextSettings, _| settings.long_names = !settings.long_names)} />
