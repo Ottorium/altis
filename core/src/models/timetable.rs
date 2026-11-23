@@ -200,6 +200,17 @@ impl Entity {
         }
     }
 
+    /// How the entity is offered to pick: a teacher by their full name with the abbreviation in
+    /// brackets, everything else by its name
+    pub fn label(&self) -> String {
+        match self {
+            Entity::Teacher(teacher) if !teacher.long_name.trim().is_empty() && teacher.long_name.trim() != teacher.short_name => {
+                format!("{} ({})", teacher.long_name.trim(), teacher.short_name)
+            }
+            _ => self.name(),
+        }
+    }
+
     /// Which sort of timetable the entity has, `None` for one that has none of its own
     pub fn kind(&self) -> Option<EntityKind> {
         match self {
@@ -282,6 +293,17 @@ mod tests {
         assert_eq!(subject("Mathematik").long_name(), "Mathematik");
         assert_eq!(subject("").long_name(), "M");
         assert_eq!(Entity::Room(Room { name: "R1".to_string() }).long_name(), "R1");
+    }
+
+    #[test]
+    fn a_teacher_is_offered_by_full_name_and_abbreviation() {
+        let teacher = |long_name: &str| Entity::Teacher(Teacher { short_name: "FIMI".to_string(), long_name: long_name.to_string(), ..Default::default() });
+
+        assert_eq!(teacher("Fischer M.").label(), "Fischer M. (FIMI)");
+        // without a full name, or one that says nothing more, the abbreviation is all there is
+        assert_eq!(teacher("").label(), "FIMI");
+        assert_eq!(teacher("FIMI").label(), "FIMI");
+        assert_eq!(Entity::Room(Room { name: "EDV8".to_string() }).label(), "EDV8");
     }
 
     #[test]

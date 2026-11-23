@@ -27,7 +27,8 @@ pub enum Panel {
 /// What the screen shows for a week: the panel, and for a view of one entity the entities there
 /// are to pick from and the one that is picked
 pub struct Resolved {
-    pub names: Vec<String>,
+    /// the names to pick from, each with how it is offered
+    pub names: Vec<(String, String)>,
     pub active_name: Option<String>,
     pub panel: Panel,
 }
@@ -88,7 +89,8 @@ fn compare_panel(loaded: &LoadedWeeks, week: &Week, selection: &Selection) -> Pa
 /// The timetable of one class, teacher or room, and the others of its kind to pick from
 fn entity_panel(timetables: &HashMap<Entity, WeekTimeTable>, own_class_id: Option<i32>, kind: EntityKind, selection: &Selection) -> Resolved {
     let mut of_kind: Vec<(&Entity, &WeekTimeTable)> = timetables.iter().filter(|(entity, _)| entity.kind() == Some(kind)).collect();
-    of_kind.sort_by_key(|(entity, _)| entity.name());
+    // in the order they are offered in, teachers by their full name
+    of_kind.sort_by_key(|(entity, _)| entity.label().to_lowercase());
 
     // what is shown unless something was picked by hand: the student's own class, or the first favourite
     let own_class = (kind == EntityKind::Class)
@@ -101,7 +103,7 @@ fn entity_panel(timetables: &HashMap<Entity, WeekTimeTable>, own_class_id: Optio
     let active = of_kind.iter().find(|(entity, _)| Some(entity.name()) == wanted_name).or(of_kind.first());
 
     Resolved {
-        names: of_kind.iter().map(|(entity, _)| entity.name()).collect(),
+        names: of_kind.iter().map(|(entity, _)| (entity.name(), entity.label())).collect(),
         active_name: active.map(|(entity, _)| entity.name()),
         panel: active.map_or(Panel::NoSelection, |(_, table)| Panel::Table((*table).clone())),
     }
@@ -116,7 +118,7 @@ pub fn resolve(loaded: &LoadedWeeks, week: &Week, selection: &Selection) -> Reso
                 None => Resolved::panel_only(Panel::Loading),
                 Some(Err(err)) => Resolved::panel_only(Panel::Error(err.to_string())),
                 Some(Ok(mine)) => Resolved {
-                    names: vec![mine.name.clone()],
+                    names: vec![(mine.name.clone(), mine.name.clone())],
                     active_name: Some(mine.name.clone()),
                     panel: Panel::Table(mine.timetable.clone()),
                 },
