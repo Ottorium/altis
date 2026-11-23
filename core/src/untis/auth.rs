@@ -13,15 +13,15 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::json;
 use std::marker::PhantomData;
-use totp_rs::{Algorithm, Secret, TOTP};
+use totp_rs::{Algorithm, Builder, Secret};
 
 /// How long before its expiry a cached token is replaced, so it can't run out mid-request
 const TOKEN_EXPIRY_MARGIN_MS: u64 = 60_000;
 
-const TOTP_DIGITS: usize = 6;
+const TOTP_DIGITS: u8 = 6;
 const TOTP_STEP_SECONDS: u64 = 30;
 /// how many steps to either side of the current one Untis would accept
-const TOTP_SKEW: u8 = 1;
+const TOTP_SKEW: u16 = 1;
 
 /// The cookies an Untis session consists of
 #[derive(Default, Clone, PartialEq, Debug)]
@@ -227,9 +227,17 @@ fn is_logged_out(body: &str) -> bool {
 
 /// The code Untis expects along with the user name: a TOTP of the secret it hands out for apps
 fn one_time_code(secret: &str, now_ms: u64) -> Result<String, ApiError> {
-    let secret = Secret::Encoded(secret.to_string()).to_bytes().map_err(|e| ApiError::Authentication(e.to_string()))?;
-    let totp = TOTP::new_unchecked(Algorithm::SHA1, TOTP_DIGITS, TOTP_SKEW, TOTP_STEP_SECONDS, secret);
-    Ok(totp.generate(now_ms / 1000))
+    let secret = Secret::try_from_base32(secret).map_err(|e| ApiError::Authentication(e.to_string()))?;
+    // the secrets Untis hands out are shorter than the 128 bits RFC 6238 asks for, which the
+    // compliant build refuses
+    let totp = Builder::new()
+        .with_algorithm(Algorithm::SHA1)
+        .with_digits(TOTP_DIGITS)
+        .with_skew(TOTP_SKEW)
+        .with_step_duration(TOTP_STEP_SECONDS)
+        .with_secret(secret)
+        .build_noncompliant();
+    Ok(totp.generate(now_ms / 1000).to_string())
 }
 
 /// Untis answers a refused login with a JSON-RPC error rather than a status code
@@ -433,6 +441,14 @@ mod tests {
         block_on(Auth::session_request("POST", "https://school.webuntis.com/write", Headers::new(), "{}".to_string())).unwrap();
         let write = TestEnv::requests().pop().unwrap();
         assert_eq!(write.headers["X-CSRF-TOKEN"], vec!["CSRF".to_string()]);
+    }
+
+    /// the codes an independent RFC 6238 implementation gives for the secret at those times
+    #[test]
+    fn makes_the_one_time_code_untis_expects() {
+        assert_eq!(one_time_code("JBSWY3DPEHPK3PXP", 59_000).unwrap(), "996554");
+        assert_eq!(one_time_code("JBSWY3DPEHPK3PXP", 1_795_428_000_000).unwrap(), "880861");
+        assert!(one_time_code("not base32!", 0).is_err());
     }
 
     /// Untis answers a request on a dead session with its login page, not with an error

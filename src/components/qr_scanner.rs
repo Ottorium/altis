@@ -188,12 +188,12 @@ fn decode_qr(w: usize, h: usize, rgba: &[u8]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::decode_qr;
-    use qrcode_generator::QrCodeEcc;
+    use qrcode_generator::qr::{Encoder, ErrorCorrection};
 
     #[test]
     fn decodes_generated_qr_code() {
         let text = r##"{"visual_settings":{"force_ascii_timetable":false,"subject_color_overrides":{"M":"#4a90e2"}}}"##;
-        let matrix = qrcode_generator::to_matrix(text, QrCodeEcc::Low).unwrap();
+        let matrix = Encoder::new(ErrorCorrection::Low).encode_bytes(text.as_bytes()).unwrap().to_matrix();
         let (scale, border) = (4, 16);
         let size = matrix.len() * scale + border * 2;
         let mut rgba = vec![255u8; size * size * 4];

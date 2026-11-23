@@ -6,7 +6,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 altis-core = { path = "core" }
-yew = { version = "0.22.0", features = ["csr"] }
+yew = { version = "0.23.0", features = ["csr"] }
 console_error_panic_hook = "0.1.7"
 log = "0.4.29"
 web-sys = { version = "0.3.85", features = ["HtmlDocument", "HtmlSelectElement", "HtmlElement", "Event", "TouchList", "Touch", "CssStyleDeclaration", "Navigator", "DomTokenList", "MediaDevices", "MediaStream", "MediaStreamConstraints", "MediaStreamTrack", "HtmlMediaElement", "HtmlVideoElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "ContextAttributes2d", "ImageData", "HtmlDialogElement", "Element", "DomRect", "EventTarget"] }
@@ -19,12 +19,12 @@ serde = { version = "1.0.228", features = ["derive"] }
 wasm-bindgen = "0.2.108"
 serde-wasm-bindgen = "0.6.5"
 chrono-tz = "0.10.4"
-gloo-timers = { version = "0.3.0", features = ["futures"] }
+gloo-timers = { version = "0.4.1", features = ["futures"] }
 serde_urlencoded = "0.7.1"
-qrcode-generator = "5.0.0"
-base64 = "0.22.1"
+qrcode-generator = { version = "6.1.2", default-features = false, features = ["qr"] }
+base64 = "0.23.1"
 postcard = { version = "1.1.3", features = ["alloc"] }
-zstd = "0.13.3"
+zstd = "0.14.4"
 rqrr = { version = "0.11.0", default-features = false }
 [workspace]
 members = ["src-tauri", "core"]
