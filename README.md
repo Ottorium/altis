@@ -255,7 +255,7 @@ Either run the AppImage, or turn the .deb into a pacman package. For the package
 
 ```sh
 pkgname=altis
-pkgver=1.2.1
+pkgver=1.2.2
 pkgrel=1
 pkgdesc="An alternate Untis client"
 arch=('x86_64')

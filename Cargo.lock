@@ -34,7 +34,7 @@ dependencies = [
 
 [[package]]
 name = "altis"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "altis-core",
  "chrono",
@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "altis-ui"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "altis-core",
  "base64 0.23.1",
