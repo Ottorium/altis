@@ -1,7 +1,7 @@
 use super::card::{autosaved_badge, divider, SettingsCard};
 use super::lesson_sections::{LessonDisplaySection, LessonTextSection};
 use super::subject_colors::SubjectColors;
-use crate::components::forms::{dimmed_unless, input_value, update, Checkbox};
+use crate::components::forms::{input_value, update, Checkbox};
 use altis_core::settings::{LessonDisplaySettings, LessonTextSettings, TimePadding, VisualSettings, ALL_WEEKDAYS};
 use chrono::{NaiveTime, Weekday};
 use web_sys::HtmlInputElement;
@@ -68,7 +68,7 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
                     <div class="form-text text-secondary small mb-2">
                         {"Draws the timetable over at least this range, even where no lessons are. Lessons outside it are still shown."}
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 ps-4" style={dimmed_unless(time_padding.enabled)}>
+                    <div class="d-flex flex-wrap align-items-center gap-2 ps-4" inert={!time_padding.enabled}>
                         <label class="small text-secondary" for="padFrom">{"From"}</label>
                         <input type="time" class="form-control form-control-sm bg-dark text-white border-secondary w-auto"
                                id="padFrom" value={time_input_value(time_padding.from)}
@@ -84,9 +84,9 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
                     <label class="form-label fw-bold small text-light mb-2">{"Weekday Override"}</label>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="radio" name="weekdayOverrideMode" id="modeAlwaysShow" checked={!weekdays.only_lessons} onclick={set_only_lessons(false)} />
-                        <label class="form-check-label small text-secondary" for="modeAlwaysShow" style="cursor: pointer;">{"Always show selected weekdays (even if empty)"}</label>
+                        <label class="form-check-label small text-secondary" for="modeAlwaysShow">{"Always show selected weekdays (even if empty)"}</label>
                     </div>
-                    <div class="ps-4 mb-3" style={dimmed_unless(!weekdays.only_lessons)}>
+                    <div class="ps-4 mb-3" inert={weekdays.only_lessons}>
                         <div class="btn-group w-100 mb-2" role="group" aria-label="Weekday selector">
                             { for ALL_WEEKDAYS.into_iter().map(|day| {
                                 let button_class = if weekdays.is_always_shown(day) { "btn-primary" } else { "btn-outline-secondary" };
@@ -100,7 +100,7 @@ pub fn visual_settings_card(props: &VisualCardProps) -> Html {
                     </div>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="radio" name="weekdayOverrideMode" id="modeOnlyLessons" checked={weekdays.only_lessons} onclick={set_only_lessons(true)} />
-                        <label class="form-check-label small text-secondary" for="modeOnlyLessons" style="cursor: pointer;">{"Only show days with scheduled lessons"}</label>
+                        <label class="form-check-label small text-secondary" for="modeOnlyLessons">{"Only show days with scheduled lessons"}</label>
                     </div>
                 </div>
                 { divider() }

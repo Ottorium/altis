@@ -92,8 +92,8 @@ pub fn auth_settings_card(props: &AuthCardProps) -> Html {
                                value={(*secret).clone()}
                                oninput={on_text_input(&secret)}
                                class="form-control"/>
-                        <button class="btn btn-dark btn-custom-toggle bg-transparent" style="border-color: #495057;" type="button" onclick={move |_| secret_visible.set(!*secret_visible)}>
-                            <i class={secret_icon_class}></i>
+                        <button class="btn btn-dark bg-transparent secret-toggle" type="button" aria-label="Show or hide the secret" onclick={move |_| secret_visible.set(!*secret_visible)}>
+                            <i class={secret_icon_class} aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>

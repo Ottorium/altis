@@ -81,11 +81,11 @@ pub fn qr_scanner(props: &QrScannerProps) -> Html {
                 <video ref={video_ref} class="qr-scanner-video" autoplay=true />
             }
             <div class="position-relative d-flex flex-column justify-content-between align-items-center h-100 p-4">
-                <div class="position-relative badge bg-dark fs-6 fw-normal mt-4 text-wrap" style="z-index: 1;">
+                <div class="position-relative z-1 badge bg-dark fs-6 fw-normal mt-4 text-wrap">
                     {"Point the camera at the settings QR code"}
                 </div>
                 <div class="qr-scanner-frame"></div>
-                <button type="button" class="position-relative btn btn-light btn-lg mb-4" style="z-index: 1;" onclick={on_cancel}>
+                <button type="button" class="position-relative z-1 btn btn-light btn-lg mb-4" onclick={on_cancel}>
                     {"Cancel"}
                 </button>
             </div>

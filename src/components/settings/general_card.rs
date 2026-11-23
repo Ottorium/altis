@@ -1,5 +1,5 @@
 use super::card::{autosaved_badge, divider, SettingsCard};
-use crate::components::forms::{dimmed_unless, select_value, update, Checkbox};
+use crate::components::forms::{select_value, update, Checkbox};
 use altis_core::settings::{describe_minutes, GeneralSettings, Tab, TimetableView};
 use yew::prelude::*;
 
@@ -58,7 +58,7 @@ pub fn general_settings_card(props: &GeneralCardProps) -> Html {
             <form onsubmit={Callback::from(|e: SubmitEvent| e.prevent_default())}>
                 <div class="mb-3">
                     <label class="form-label small text-secondary mb-1" for="startTab">{"Open the app on"}</label>
-                    <select id="startTab" class={SELECT_CLASS} style="width: auto;" onchange={on_start_tab_change}>
+                    <select id="startTab" class={classes!(SELECT_CLASS, "w-auto")} onchange={on_start_tab_change}>
                         { for settings.shown_tabs().into_iter().map(|tab| html! {
                             <option value={tab.label()} selected={settings.initial_tab() == tab}>{ tab.label() }</option>
                         })}
@@ -66,7 +66,7 @@ pub fn general_settings_card(props: &GeneralCardProps) -> Html {
                 </div>
                 <div class="mb-3">
                     <label class="form-label small text-secondary mb-1" for="startView">{"Open the timetable on"}</label>
-                    <select id="startView" class={SELECT_CLASS} style="width: auto;" onchange={on_start_view_change}>
+                    <select id="startView" class={classes!(SELECT_CLASS, "w-auto")} onchange={on_start_view_change}>
                         { for TimetableView::ALL.into_iter().map(|view| html! {
                             <option value={view.key()} selected={settings.start_view == view}>{ view.label() }</option>
                         })}
@@ -99,7 +99,7 @@ pub fn general_settings_card(props: &GeneralCardProps) -> Html {
 
                 <div class="mb-3">
                     <label class="form-label small text-secondary mb-1" for="cacheDuration">{"Keep loaded timetables for"}</label>
-                    <select id="cacheDuration" class={SELECT_CLASS} style="width: auto;" onchange={on_cache_change}>
+                    <select id="cacheDuration" class={classes!(SELECT_CLASS, "w-auto")} onchange={on_cache_change}>
                         { for cache_durations.into_iter().map(|minutes| html! {
                             <option value={minutes.to_string()} selected={settings.timetable_cache_minutes == minutes}>
                                 { describe_minutes(i64::from(minutes)) }
@@ -125,7 +125,7 @@ pub fn general_settings_card(props: &GeneralCardProps) -> Html {
                               on_toggle={update(&settings, |settings: &mut GeneralSettings, _| settings.cache_canteen_menu = !settings.cache_canteen_menu)}>
                         <div class="form-text small text-secondary">{"Book2Eat shows it right away, and while it can't be reached."}</div>
                     </Checkbox>
-                    <div class="ps-4" style={dimmed_unless(settings.cache_canteen_menu)}>
+                    <div class="ps-4" inert={!settings.cache_canteen_menu}>
                         <Checkbox id="refreshCanteenMenu" label="Load it anew whenever Untis is checked in the background" class="form-check"
                                   checked={settings.refresh_canteen_menu}
                                   on_toggle={update(&settings, |settings: &mut GeneralSettings, _| settings.refresh_canteen_menu = !settings.refresh_canteen_menu)}>

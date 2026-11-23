@@ -153,8 +153,7 @@ pub fn timetable_page() -> Html {
             <div class="flex-grow-1 w-100 position-relative overflow-hidden">
                 <div
                     ref={swipe.track}
-                    class="week-track position-absolute top-0 start-0 h-100 w-100"
-                    style="user-select: none;"
+                    class="week-track position-absolute top-0 start-0 h-100 w-100 user-select-none"
                     onpointerdown={swipe.onpointerdown}
                     onpointermove={swipe.onpointermove}
                     onpointerup={swipe.onpointerup}

@@ -80,7 +80,7 @@ pub fn lesson_text_section(props: &LessonTextProps) -> Html {
                     let id = format!("hiddenNames{}", line.label());
                     html! {
                         <div class="d-flex align-items-center gap-2">
-                            <label class="small text-secondary" style="min-width: 4.5rem;" for={id.clone()}>{ line.label() }</label>
+                            <label class="small text-secondary hidden-names-label" for={id.clone()}>{ line.label() }</label>
                             <input type="text" {id} class="form-control form-control-sm bg-dark text-light border-secondary"
                                    placeholder="Always show"
                                    value={settings.hidden_names_text(line)}

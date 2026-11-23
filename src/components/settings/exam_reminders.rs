@@ -1,4 +1,4 @@
-use crate::components::forms::{dimmed_unless, on_enter, on_text_input, Checkbox};
+use crate::components::forms::{on_enter, on_text_input, Checkbox};
 use altis_core::settings::{describe_minutes, ExamReminderSettings};
 use yew::prelude::*;
 
@@ -56,7 +56,7 @@ pub fn exam_reminders(props: &ExamRemindersProps) -> Html {
         <>
             <Checkbox id="examEnabled" label="Exam reminders" class="mb-2 form-check" label_class="form-check-label small text-light fw-bold"
                       checked={settings.enabled} on_toggle={on_toggle_enabled} />
-            <div class="ps-4" style={dimmed_unless(settings.enabled)}>
+            <div class="ps-4" inert={!settings.enabled}>
                 <div class="form-text text-secondary small mb-2">{"Remind me before an exam:"}</div>
                 <div class="d-flex flex-wrap gap-2 mb-3">
                     { for LEAD_TIME_PRESETS.into_iter().map(|minutes| {
@@ -86,8 +86,7 @@ pub fn exam_reminders(props: &ExamRemindersProps) -> Html {
                     <input
                         type="number"
                         min="1"
-                        class="form-control form-control-sm bg-dark text-light border-secondary"
-                        style="max-width: 13rem;"
+                        class="form-control form-control-sm bg-dark text-light border-secondary exam-reminder-input"
                         placeholder="Custom minutes before"
                         value={(*custom_lead).clone()}
                         oninput={on_text_input(&custom_lead)}

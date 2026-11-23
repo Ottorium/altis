@@ -9,7 +9,7 @@ altis-core = { path = "core" }
 yew = { version = "0.22.0", features = ["csr"] }
 console_error_panic_hook = "0.1.7"
 log = "0.4.29"
-web-sys = { version = "0.3.85", features = ["HtmlDocument", "HtmlSelectElement", "HtmlElement", "Event", "TouchList", "Touch", "CssStyleDeclaration", "Navigator", "DomTokenList", "MediaDevices", "MediaStream", "MediaStreamConstraints", "MediaStreamTrack", "HtmlMediaElement", "HtmlVideoElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "ContextAttributes2d", "ImageData"] }
+web-sys = { version = "0.3.85", features = ["HtmlDocument", "HtmlSelectElement", "HtmlElement", "Event", "TouchList", "Touch", "CssStyleDeclaration", "Navigator", "DomTokenList", "MediaDevices", "MediaStream", "MediaStreamConstraints", "MediaStreamTrack", "HtmlMediaElement", "HtmlVideoElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "ContextAttributes2d", "ImageData", "HtmlDialogElement", "Element", "DomRect", "EventTarget"] }
 serde_json = "1.0.149"
 wasm-bindgen-futures = "0.4.58"
 chrono = { version = "0.4.43", features = ["wasmbind", "serde"] }

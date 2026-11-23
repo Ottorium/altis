@@ -1,8 +1,66 @@
+// Altis' styles: Bootstrap with the app's colours, then the app's own.
+//
+// The app's rules are deliberately not in a cascade layer: Bootstrap isn't layered, and unlayered
+// styles beat every layered one, so a layer would put the app's rules below Bootstrap's.
+
+// ---------------------------------------------------------------------------------------------
+// Bootstrap and its icons, both compiled in so the app looks right without a connection
+// ---------------------------------------------------------------------------------------------
+
 $primary: #fac444;
 $secondary: #AEB6BF;
 $warning: #fa8a44;
 
 @import "./node_modules/bootstrap/scss/bootstrap.scss";
+
+// index.html copies the font files next to the compiled stylesheet
+$bootstrap-icons-font-dir: "fonts";
+@import "./node_modules/bootstrap-icons/font/bootstrap-icons.scss";
+
+// ---------------------------------------------------------------------------------------------
+// Design tokens
+// ---------------------------------------------------------------------------------------------
+
+:root {
+  // the app only comes in dark, which also darkens scrollbars, pickers and the like
+  color-scheme: dark;
+  accent-color: $primary;
+
+  // surfaces, from the page up
+  --altis-surface: #1a1a1a;
+  --altis-surface-raised: #1e1e1e;
+  --altis-surface-sunken: #1a1d20;
+  --altis-surface-card: #2b3035;
+  --altis-divider: rgb(255 255 255 / 0.08);
+  --altis-divider-strong: rgb(255 255 255 / 0.45);
+  --altis-backdrop: rgb(0 0 0 / 0.8);
+
+  --altis-primary: #{$primary};
+  --altis-primary-wash: rgb(250 196 68 / 0.15);
+  --altis-primary-fade: linear-gradient(to right, rgb(255 221 103 / 0.25), rgb(255 221 103 / 0));
+
+  // what became of a lesson
+  --altis-changed: #00d4ff;
+  --altis-added: #00ab5b;
+  --altis-exam: #ffcc00;
+  --altis-cancelled: #ff4d4d;
+  --altis-now: #ff3b30;
+
+  // what became of a teacher, room or class on a lesson
+  --altis-entity-removed-bg: #ffcccc;
+  --altis-entity-removed: #b30000;
+  --altis-entity-new-bg: #ccffcc;
+  --altis-entity-new: #006600;
+  --altis-entity-changed-bg: #ffffcc;
+  --altis-entity-changed: #8a6d3b;
+
+  --altis-nav-width: 240px;
+  --altis-time-column: 60px;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Base
+// ---------------------------------------------------------------------------------------------
 
 // WebView2 rubber-bands the page past its edges on touchpad scrolls, which in an app looks like
 // the whole window is coming loose
@@ -11,44 +69,209 @@ body {
   overscroll-behavior: none;
 }
 
+:where(h1, h2, h3, h4, h5, h6, .modal-title) {
+  text-wrap: balance;
+}
+
+:where(label[for]) {
+  cursor: pointer;
+}
+
+// a section of the settings that is switched off along with what it belongs to: `inert` takes it
+// out of reach of the pointer and the keyboard, this shows that it is
+[inert] {
+  opacity: 0.4;
+}
+
+// lets a flex item shrink below its content, so text in it can wrap or be cut off instead of
+// pushing its row wider than the screen
+.min-inline-0 {
+  min-inline-size: 0;
+}
+
+.spinner-large {
+  inline-size: 3rem;
+  block-size: 3rem;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The app's frame: the whole screen, clear of the phone's system bars
+// ---------------------------------------------------------------------------------------------
+
+// dvh rather than vh: on a phone 100vh is the height without the browser's bars, and taller than
+// what is actually there
+.app-shell {
+  block-size: 100dvh;
+  padding-block-start: env(safe-area-inset-top, 0px);
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+}
+
+.side-nav {
+  inline-size: var(--altis-nav-width);
+  min-inline-size: var(--altis-nav-width);
+  block-size: 100%;
+  background-color: var(--altis-surface);
+  border-inline-end: 1px solid var(--altis-surface-raised);
+}
+
+.side-nav-item {
+  inline-size: 100%;
+  border: none;
+  background: transparent;
+  transition: color 0.25s, background-color 0.25s, box-shadow 0.25s;
+}
+
 .selected-gradient {
-  --bg-gradient: linear-gradient(to right, rgba(255, 221, 103, 0.25) 0%, rgba(255, 221, 103, 0) 100%);
-  background: var(--bg-gradient) !important;
-  border-left: none !important;
-  box-shadow: inset 4px 0 0 0 #fac444 !important;
+  background: var(--altis-primary-fade) !important;
+  box-shadow: inset 4px 0 0 0 var(--altis-primary) !important;
   border-radius: 5px !important;
 }
 
+// the navigation along the bottom of a phone: above the page, below the dialogs
+.bottom-nav {
+  background-color: var(--altis-surface);
+  border-block-start: 1px solid rgb(255 255 255 / 0.1);
+  padding-block-end: env(safe-area-inset-bottom, 0px);
+  z-index: $zindex-fixed;
+}
+
+.bottom-nav-item {
+  background: transparent;
+  transition: color 0.2s ease;
+
+  .bi {
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+}
+
+.bottom-nav-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.03rem;
+  margin-block-start: 4px;
+}
+
+// a bar along the top of a screen that stays put while the screen scrolls
+.toolbar-bar {
+  background-color: var(--altis-surface-raised);
+}
+
+.timetable-controls {
+  border-block-end: 1px solid #1f2227;
+}
+
+// the screen shown in place of one that needs a login nobody has entered
+.auth-card {
+  max-inline-size: 400px;
+}
+
+.auth-icon {
+  font-size: 3rem;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dialogs: native <dialog>s opened as modals, dressed in Bootstrap's modal parts
+// ---------------------------------------------------------------------------------------------
+
+dialog.app-dialog {
+  // the variables Bootstrap's modal parts are drawn with, which it only sets on its own `.modal`
+  --#{$prefix}modal-width: #{$modal-md};
+  --#{$prefix}modal-padding: #{$modal-inner-padding};
+  --#{$prefix}modal-margin: #{$modal-dialog-margin};
+  --#{$prefix}modal-color: #{$modal-content-color};
+  --#{$prefix}modal-bg: #{$modal-content-bg};
+  --#{$prefix}modal-border-color: #{$modal-content-border-color};
+  --#{$prefix}modal-border-width: #{$modal-content-border-width};
+  --#{$prefix}modal-border-radius: #{$modal-content-border-radius};
+  --#{$prefix}modal-box-shadow: #{$modal-content-box-shadow-xs};
+  --#{$prefix}modal-inner-border-radius: #{$modal-content-inner-border-radius};
+  --#{$prefix}modal-header-padding-x: #{$modal-header-padding-x};
+  --#{$prefix}modal-header-padding-y: #{$modal-header-padding-y};
+  --#{$prefix}modal-header-padding: #{$modal-header-padding};
+  --#{$prefix}modal-header-border-color: #{$modal-header-border-color};
+  --#{$prefix}modal-header-border-width: #{$modal-header-border-width};
+  --#{$prefix}modal-title-line-height: #{$modal-title-line-height};
+  --#{$prefix}modal-footer-gap: #{$modal-footer-margin-between};
+  --#{$prefix}modal-footer-bg: #{$modal-footer-bg};
+  --#{$prefix}modal-footer-border-color: #{$modal-footer-border-color};
+  --#{$prefix}modal-footer-border-width: #{$modal-footer-border-width};
+
+  // the dialog is only the frame: the content draws the box
+  inline-size: min(var(--#{$prefix}modal-width), 100% - 2 * var(--#{$prefix}modal-margin));
+  max-inline-size: none;
+  max-block-size: calc(100dvh - 2 * var(--#{$prefix}modal-margin));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: auto;
+
+  &.app-dialog-large {
+    --#{$prefix}modal-width: #{$modal-lg};
+  }
+
+  // scrolling inside a dialog mustn't carry on to the page behind it
+  &:modal {
+    overscroll-behavior: contain;
+  }
+
+  &::backdrop {
+    background-color: var(--altis-backdrop);
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+
+  // keeps the dialog on the screen and scrolls its body rather than the whole of it
+  &.app-dialog-scrollable .modal-content {
+    max-block-size: calc(100dvh - 2 * var(--#{$prefix}modal-margin));
+    overflow: hidden;
+
+    .modal-body {
+      overflow-y: auto;
+    }
+  }
+
+  .modal-body-sunken {
+    background-color: var(--altis-surface-sunken);
+  }
+
+  .modal-body-limited {
+    max-block-size: 80dvh;
+    overflow-y: auto;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pickers
+// ---------------------------------------------------------------------------------------------
+
 .select-primary-dropdown-icon {
-  --bg-gradient: linear-gradient(to right, rgba(255, 221, 103, 0.25) 0%, rgba(255, 221, 103, 0) 100%);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23fac444' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e"),
-  var(--bg-gradient) !important;
+  var(--altis-primary-fade) !important;
   background-repeat: no-repeat !important;
   background-position: right 0.75rem center, center !important;
   background-size: 16px 12px, 100% 100% !important;
-  border-left: none !important;
-  box-shadow: inset 4px 0 0 0 #fac444 !important;
+  box-shadow: inset 4px 0 0 0 var(--altis-primary) !important;
   border-radius: 5px !important;
   appearance: none;
-  -webkit-appearance: none;
 }
 
 // a closed <select> is as wide as its widest option, so one long entry ("Available Rooms", a
 // teacher's full name) stretches the control for every other one and pushes the controls bar past
 // the screen. The hidden label sizes the control to the option that is actually selected instead:
 // it is laid out the way the select's own text would be, and the select is stretched over it,
-// out of the flow, so that its own width has no say. `min-width: 0` lets the control shrink
+// out of the flow, so that its own width has no say. `min-inline-size: 0` lets the control shrink
 // further when even that doesn't fit.
 .select-fit {
   position: relative;
   display: inline-block;
-  min-width: 0;
+  min-inline-size: 0;
 
   select {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
+    inline-size: 100%;
+    block-size: 100%;
     text-overflow: ellipsis;
   }
 
@@ -63,6 +286,25 @@ body {
   }
 }
 
+.compare-picker-button {
+  inline-size: auto;
+  min-inline-size: 0;
+  max-inline-size: 16rem;
+}
+
+// a date picker laid invisibly over the button that shows the week, so tapping it opens the picker
+.week-picker {
+  min-inline-size: 45px;
+
+  input {
+    cursor: pointer;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The week grid
+// ---------------------------------------------------------------------------------------------
+
 // horizontal swipes between weeks are handled in code. Scroll containers (like the week panels) re-enable panning for
 // everything inside them, so the browser would take over the swipe, unless it's disabled on every element of the track
 .week-track,
@@ -70,195 +312,284 @@ body {
   touch-action: pan-y;
 }
 
-// the native QR scanner shows the camera behind the webview, so everything but its overlay has to be see-through
-html.qr-scanning,
-html.qr-scanning body {
-  background: transparent !important;
+.week-time-column {
+  position: relative;
+  inline-size: var(--altis-time-column);
+  flex-shrink: 0;
 }
 
-html.qr-scanning body {
-  visibility: hidden;
-}
-
-.qr-scanner-overlay {
-  position: fixed;
-  inset: 0;
-  visibility: visible;
-  z-index: 2000;
-}
-
-.qr-scanner-video {
+// the part of the time column one lesson start or end to the next takes up, placed by its times
+.week-time-slot {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  // webcams face the user, so it's mirrored like one
-  transform: scaleX(-1);
+  inline-size: 100%;
 }
 
-.messages-list-pane {
-  width: 100%;
-
-  @include media-breakpoint-up(md) {
-    width: 360px;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-  }
+.week-day,
+.week-day-head {
+  flex: 1 1 0;
+  min-inline-size: 0;
 }
 
-.message-item {
-  width: 100%;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: inherit;
-  text-align: start;
-  transition: background-color 0.15s;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-}
-
-.message-unread-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: $primary;
-}
-
-.message-preview {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.week-day {
+  position: relative;
   overflow: hidden;
 }
 
-.message-avatar {
-  width: 2.75rem;
-  height: 2.75rem;
-  object-fit: cover;
-}
+// the red line at the current time, with an arrowhead at either end
+.now-line {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 2px;
+  translate: 0 -1px;
+  background: var(--altis-now);
+  z-index: 20;
+  pointer-events: none;
 
-.message-content {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.qr-scanner-frame {
-  width: min(70vw, 300px);
-  aspect-ratio: 1;
-  border: 3px solid $primary;
-  border-radius: 1rem;
-  // darkens everything around the frame
-  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.5);
-}
-
-// the week grid of the available rooms: the gap between the cells is what draws the grid lines,
-// so every cell paints its own background over it
-.free-rooms-grid {
-  display: grid;
-  gap: 1px;
-  background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.375rem;
-
-  > div {
-    background-color: #1a1a1a;
-    padding: 0.35rem 0.4rem;
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block-start: -4px;
+    border-block: 5px solid transparent;
   }
 
-  .free-rooms-head {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background-color: #1e1e1e;
+  // the arrowheads point into the day whichever way the text runs, so they stay physical
+  &::before {
+    left: 0;
+    border-left: 7px solid var(--altis-now);
   }
 
-  .free-rooms-time {
+  &::after {
+    right: 0;
+    border-right: 7px solid var(--altis-now);
+  }
+}
+
+// a group of lessons in the week grid: the lessons that take place at the same time, side by side
+.group-block {
+  position: relative;
+  cursor: pointer;
+
+  // the text of a lesson scales with its block
+  .lesson-container {
+    position: absolute;
+    padding: 0.2rem;
+    container-type: size;
+
+    &.on-phone {
+      padding: 0;
+    }
+  }
+
+  // text that doesn't fit its lesson is cut off at the bottom rather than at both ends, so the
+  // first line - the subject, unless set otherwise - is the last one to go
+  .lesson {
+    block-size: 100%;
+    inline-size: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    text-align: end;
+    align-items: center;
+    justify-content: safe center;
+    overflow: hidden;
+    text-align: center;
+    border-radius: var(--#{$prefix}border-radius);
+    background-color: var(--lesson-color);
   }
 
-  .free-rooms-cell {
-    position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 0.2rem;
+  // every line is as large as fits it across the lesson, and fits all of the lesson's lines down
+  // it: `--lesson-chars` is set per line, `--lesson-lines` per lesson. The pixels leave room for
+  // the border a changed lesson gets, 0.7 is about how wide a capital is in em. Below the smallest
+  // size that is still legible a line is cut off with an ellipsis instead.
+  // The font custom properties are set from the lesson text settings, and unset by default.
+  .dynamic-text {
+    font-family: var(--lesson-font-family, inherit);
+    font-weight: var(--lesson-font-weight, inherit);
+    line-height: 1.1;
+    inline-size: 100%;
+  }
+
+  .lesson-line {
+    --lesson-fit-width: calc((100cqw - 14px) / (var(--lesson-chars, 6) * 0.7));
+    --lesson-fit-height: calc((100cqh - 10px) / (var(--lesson-lines, 3) * 1.15));
+    font-size: max(0.5rem, min(var(--lesson-fit-width), var(--lesson-fit-height), calc(1.1rem * var(--lesson-font-scale, 1))));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-inline: 2px;
+  }
+
+  // the lessons a phone has no room for, counted beside the ones it shows
+  .hidden-count {
+    inline-size: 20%;
+    font-size: 0.8rem;
+    opacity: 0.8;
+    z-index: 10;
+  }
+
+  .mobile-p-half {
+    padding: 0.125rem;
   }
 }
 
-.free-room-badge {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  background-color: rgba(250, 196, 68, 0.15);
-  color: $primary;
-  font-weight: 500;
+// what became of a lesson is told by its border: changed, additional, exam, cancelled
+.lesson-changed,
+.lesson-additional,
+.lesson-exam,
+.lesson-cancelled {
+  border: 4px solid var(--lesson-status);
+  box-shadow: inset 0 0 15px var(--lesson-status);
+}
 
-  // the columns get narrow once five days share a phone screen
-  @include media-breakpoint-down(md) {
-    padding: 0.2rem 0.3rem;
-    font-size: 0.65rem;
+.lesson-changed {
+  --lesson-status: var(--altis-changed);
+}
+
+.lesson-additional {
+  --lesson-status: var(--altis-added);
+}
+
+.lesson-exam {
+  --lesson-status: var(--altis-exam);
+}
+
+.lesson-cancelled {
+  --lesson-status: var(--altis-cancelled);
+  box-shadow: none;
+  opacity: 0.33;
+  background-image: repeating-linear-gradient(45deg, transparent 0 10px, rgb(255 0 0 / 0.1) 10px 20px);
+}
+
+// a lesson that is over, and the part of the running one that is
+.lesson-past {
+  filter: grayscale(0.4);
+  opacity: 0.65;
+}
+
+// what a change did to a teacher, room or class on a lesson
+.entity-removed,
+.entity-new,
+.entity-changed {
+  padding-inline: 2px;
+}
+
+.entity-removed {
+  background: var(--altis-entity-removed-bg);
+  color: var(--altis-entity-removed);
+}
+
+.entity-new {
+  background: var(--altis-entity-new-bg);
+  color: var(--altis-entity-new);
+}
+
+.entity-changed {
+  background: var(--altis-entity-changed-bg);
+  color: var(--altis-entity-changed);
+}
+
+// marks a room, which would otherwise read like a class of the same name
+.lesson-room-pin {
+  font-size: 0.85em;
+  margin-inline-end: 0.15em;
+  opacity: 0.8;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The details of a lesson
+// ---------------------------------------------------------------------------------------------
+
+.lesson-detail-card {
+  border-inline-start: 5px solid var(--lesson-color) !important;
+  background-color: var(--altis-surface-card);
+}
+
+// a teacher, class, room or subject of the lesson
+.entity-chip {
+  inline-size: fit-content;
+  min-inline-size: max-content;
+  font-size: 0.85rem;
+
+  strong {
+    letter-spacing: 0.3px;
+  }
+
+  &.has-timetable {
+    cursor: pointer;
+  }
+
+  // not there: absent, taken off the lesson, or the lesson doesn't take place
+  &.is-gone {
+    opacity: 0.6;
   }
 }
 
-// several timetables compared: a column per day, split into a lane per timetable. The line between
+.entity-chip-label {
+  font-size: 0.7rem;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Several timetables compared: a column per day, split into a lane per timetable. The line between
 // two days is drawn heavier than the one between two lanes, so the days stay apart
+// ---------------------------------------------------------------------------------------------
+
+.compare-view {
+  min-block-size: 100%;
+}
+
+.compare-body {
+  min-block-size: 24rem;
+}
+
 .compare-time-column {
-  width: 2.6rem;
+  inline-size: 2.6rem;
   flex-shrink: 0;
 }
 
 .compare-hour-label {
   position: absolute;
-  right: 0.25rem;
+  inset-inline-end: 0.25rem;
   font-size: 0.65rem;
   line-height: 1;
-  padding-top: 0.1rem;
+  padding-block-start: 0.1rem;
 }
 
 .compare-day,
 .compare-day-head {
   position: relative;
   flex: 1 1 0;
-  min-width: 0;
-  border-left: 2px solid rgba(255, 255, 255, 0.45);
+  min-inline-size: 0;
+  border-inline-start: 2px solid var(--altis-divider-strong);
 }
 
 .compare-hour-line {
   position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  inset-inline: 0;
+  border-block-start: 1px dashed var(--altis-divider);
   pointer-events: none;
 }
 
 .compare-lane {
   position: relative;
   flex: 1 1 0;
-  min-width: 0;
+  min-inline-size: 0;
 
   & + & {
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    border-inline-start: 1px solid rgb(255 255 255 / 0.05);
   }
 }
 
 .compare-lane-numbers > span {
   flex: 1 1 0;
-  min-width: 0;
+  min-inline-size: 0;
   font-size: 0.65rem;
-  color: $primary;
+  color: var(--altis-primary);
 }
 
 // a block is sized by the lesson's duration and the number of lanes, so its text scales with the
 // block and the room is only shown where there is room for it
 .compare-lesson {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   padding: 1px 2px;
   container-type: size;
 }
@@ -269,7 +600,7 @@ html.qr-scanning body {
 }
 
 .compare-lesson-inner {
-  height: 100%;
+  block-size: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -278,14 +609,15 @@ html.qr-scanning body {
   border-radius: 0.3rem;
   text-align: center;
   line-height: 1.1;
-  // as large as the subject fits across the block, see `.dynamic-text` of the week grid
+  background-color: var(--lesson-color);
+  // as large as the subject fits across the block, see `.lesson-line` of the week grid
   font-size: max(0.5rem, min(calc((100cqw - 8px) / (var(--lesson-chars, 4) * 0.7)), calc((100cqh - 4px) / 1.15), calc(0.9rem * var(--lesson-font-scale, 1))));
   font-family: var(--lesson-font-family, inherit);
   font-weight: var(--lesson-font-weight, inherit);
   white-space: nowrap;
 
   > span {
-    max-width: 100%;
+    max-inline-size: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -305,116 +637,218 @@ html.qr-scanning body {
 // the same markers the regular timetable uses
 .compare-lesson-cancelled {
   opacity: 0.35;
-  border: 2px solid #ff4d4d;
+  border: 2px solid var(--altis-cancelled);
   text-decoration: line-through;
-  background-image: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255, 0, 0, 0.15) 6px, rgba(255, 0, 0, 0.15) 12px);
+  background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgb(255 0 0 / 0.15) 6px 12px);
+}
+
+.compare-lesson-changed,
+.compare-lesson-additional,
+.compare-lesson-exam {
+  box-shadow: inset 0 0 0 2px var(--lesson-status), inset 0 0 8px var(--lesson-status);
 }
 
 .compare-lesson-changed {
-  box-shadow: inset 0 0 0 2px #00d4ff, inset 0 0 8px #00d4ff;
+  --lesson-status: var(--altis-changed);
 }
 
 .compare-lesson-additional {
-  box-shadow: inset 0 0 0 2px #00ab5b, inset 0 0 8px #00ab5b;
+  --lesson-status: var(--altis-added);
 }
 
 .compare-lesson-exam {
-  box-shadow: inset 0 0 0 2px #ffcc00, inset 0 0 8px #ffcc00;
+  --lesson-status: var(--altis-exam);
 }
 
 .compare-now-line {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  transform: translateY(-1px);
-  background: #ff3b30;
+  inset-inline: 0;
+  block-size: 2px;
+  translate: 0 -1px;
+  background: var(--altis-now);
   z-index: 20;
   pointer-events: none;
 }
 
 .compare-legend {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--altis-divider);
   font-weight: 500;
 }
 
 .compare-lane-number {
-  color: $primary;
-  margin-right: 0.3rem;
+  color: var(--altis-primary);
+  margin-inline-end: 0.3rem;
 }
 
-// marks a room, which would otherwise read like a class of the same name
-.lesson-room-pin {
-  font-size: 0.85em;
-  margin-right: 0.15em;
-  opacity: 0.8;
-}
+// ---------------------------------------------------------------------------------------------
+// The available rooms: the gap between the cells is what draws the grid lines, so every cell
+// paints its own background over it
+// ---------------------------------------------------------------------------------------------
 
-// a group of lessons in the week grid: the lessons that take place at the same time, side by side
-.group-block {
-  // the text of a lesson scales with the width of its block
-  .lesson-container {
-    container-type: size;
+.free-rooms-grid {
+  display: grid;
+  gap: 1px;
+  background-color: var(--altis-divider);
+  border: 1px solid var(--altis-divider);
+  border-radius: 0.375rem;
+
+  > div {
+    background-color: var(--altis-surface);
+    padding: 0.35rem 0.4rem;
   }
 
-  // text that doesn't fit its lesson is cut off at the bottom rather than at both ends, so the
-  // first line - the subject, unless set otherwise - is the last one to go
-  .lesson-container > div {
-    justify-content: safe center !important;
+  .free-rooms-head {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background-color: var(--altis-surface-raised);
   }
 
-  // every line is as large as fits it across the lesson, and fits all of the lesson's lines down
-  // it: `--lesson-chars` is set per line, `--lesson-lines` per lesson. The pixels leave room for
-  // the border a changed lesson gets, 0.7 is about how wide a capital is in em. Below the smallest
-  // size that is still legible a line is cut off with an ellipsis instead.
-  // The font custom properties are set from the lesson text settings, and unset by default.
-  .dynamic-text {
-    font-family: var(--lesson-font-family, inherit);
-    font-weight: var(--lesson-font-weight, inherit);
-    line-height: 1.1;
-    width: 100%;
+  .free-rooms-time {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: end;
   }
 
-  .lesson-line {
-    --lesson-fit-width: calc((100cqw - 14px) / (var(--lesson-chars, 6) * 0.7));
-    --lesson-fit-height: calc((100cqh - 10px) / (var(--lesson-lines, 3) * 1.15));
-    font-size: max(0.5rem, min(var(--lesson-fit-width), var(--lesson-fit-height), calc(1.1rem * var(--lesson-font-scale, 1))));
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 2px;
-  }
-
-  // what became of a lesson is told by the colour of its border: changed, additional, exam, cancelled
-  .border-info {
-    border-color: #00d4ff !important;
-    box-shadow: inset 0 0 15px #00d4ff;
-  }
-
-  .border-success {
-    border-color: #00ab5b !important;
-    box-shadow: inset 0 0 15px #00ab5b;
-  }
-
-  .border-warning {
-    border-color: #ffcc00 !important;
-    box-shadow: inset 0 0 15px #ffcc00;
-  }
-
-  .border-danger {
-    border-color: #ff4d4d !important;
-  }
-
-  .mobile-p-half {
-    padding: 0.125rem !important;
+  .free-rooms-cell {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 0.2rem;
   }
 }
 
-// the canteen: the QR code as large as the screen allows, the day's menu below it
+.free-room-badge {
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  background-color: var(--altis-primary-wash);
+  color: var(--altis-primary);
+  font-weight: 500;
+
+  // the columns get narrow once five days share a phone screen
+  @include media-breakpoint-down(md) {
+    padding: 0.2rem 0.3rem;
+    font-size: 0.65rem;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------------------------
+
+.messages-list-pane {
+  inline-size: 100%;
+
+  @include media-breakpoint-up(md) {
+    inline-size: 360px;
+    border-inline-end: 1px solid var(--altis-divider);
+  }
+}
+
+.message-item {
+  inline-size: 100%;
+  background: transparent;
+  border: none;
+  border-block-end: 1px solid var(--altis-divider);
+  color: inherit;
+  text-align: start;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: rgb(255 255 255 / 0.05);
+  }
+}
+
+.message-unread-dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background-color: var(--altis-primary);
+}
+
+.message-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.message-avatar {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  object-fit: cover;
+}
+
+.message-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Absences
+// ---------------------------------------------------------------------------------------------
+
+.absence-card {
+  background-color: var(--altis-surface);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------------------------
+
+.autosave-badge {
+  font-size: 0.7rem;
+}
+
+.hidden-names-label {
+  min-inline-size: 4.5rem;
+}
+
+.exam-reminder-input {
+  max-inline-size: 13rem;
+}
+
+.secret-toggle {
+  border-color: var(--#{$prefix}gray-700);
+}
+
+// a colour picker in a row of form controls
+.color-swatch-input {
+  inline-size: 38px;
+  block-size: 32px;
+  flex-shrink: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+// a subject in the colour it is drawn in
+.subject-color-badge {
+  min-inline-size: 50px;
+  text-align: center;
+  background-color: var(--subject-color);
+  border: 1px solid rgb(255 255 255 / 0.15);
+}
+
+.share-qr {
+  inline-size: min(100%, 280px);
+  aspect-ratio: 1;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The canteen: the QR code as large as the screen allows, the day's menu below it
+// ---------------------------------------------------------------------------------------------
+
 .b2e-qr-wrapper {
   flex-shrink: 0;
-  width: min(92vw, 520px);
-  height: min(92vw, 520px);
+  inline-size: min(92vw, 520px);
+  block-size: min(92vw, 520px);
+
+  @include media-breakpoint-up(md) {
+    inline-size: min(520px, 40dvh);
+    block-size: min(520px, 40dvh);
+  }
 }
 
 .b2e-swipe-area {
@@ -423,68 +857,97 @@ html.qr-scanning body {
   user-select: none;
 }
 
+.b2e-date {
+  font-size: clamp(0.9rem, 0.8rem + 0.6vw, 1.4rem);
+}
+
 .b2e-dot {
-  width: 8px;
-  height: 8px;
+  inline-size: 8px;
+  block-size: 8px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgb(255 255 255 / 0.3);
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.2s ease;
 
   &.active {
     background-color: #fff;
-    transform: scale(1.3);
+  }
+
+  // the active dot grows, which is movement: only for those who don't mind it
+  @media (prefers-reduced-motion: no-preference) {
+    transition: background-color 0.2s ease, scale 0.2s ease;
+
+    &.active {
+      scale: 1.3;
+    }
   }
 }
 
 .b2e-meal-list {
-  animation: b2e-fade-in 0.2s ease;
+  @media (prefers-reduced-motion: no-preference) {
+    animation: b2e-fade-in 0.2s ease;
+  }
 }
 
 .b2e-meal-name {
   font-size: clamp(0.95rem, 2cqw, 2.5rem);
+
+  @include media-breakpoint-up(md) {
+    font-size: clamp(0.9rem, min(1.4vw, 2.8dvh), 1.6rem);
+  }
 }
 
 .b2e-meal-type {
   font-size: clamp(0.75rem, 1.6cqw, 1.5rem);
+
+  @include media-breakpoint-up(md) {
+    font-size: clamp(0.7rem, min(1vw, 2dvh), 1.1rem);
+  }
 }
 
 @keyframes b2e-fade-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    translate: 0 4px;
   }
 }
 
-@media (min-width: 768px) {
-  .b2e-qr-wrapper {
-    width: min(520px, 40vh);
-    height: min(520px, 40vh);
-  }
+// ---------------------------------------------------------------------------------------------
+// The QR scanner: the native scanner shows the camera behind the webview, so everything but its
+// overlay has to be see-through
+// ---------------------------------------------------------------------------------------------
 
-  .b2e-meal-name {
-    font-size: clamp(0.9rem, min(1.4vw, 2.8vh), 1.6rem);
-  }
-
-  .b2e-meal-type {
-    font-size: clamp(0.7rem, min(1vw, 2vh), 1.1rem);
-  }
+html.qr-scanning,
+html.qr-scanning body {
+  background: transparent !important;
 }
 
-// a dialog isn't inside the dark-themed part of the page, so the placeholder of a dark field in
-// one would be as dark as the field
-.modal .form-control.bg-dark::placeholder {
-  color: rgba(222, 226, 230, 0.75);
+html.qr-scanning body {
+  visibility: hidden;
 }
 
-// the navigation along the bottom of a phone: above the page, below the dialogs
-.bottom-nav {
-  background-color: #1a1a1a;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: $zindex-fixed;
+.qr-scanner-overlay {
+  position: fixed;
+  inset: 0;
+  visibility: visible;
+  z-index: 2000;
+}
+
+.qr-scanner-video {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  // webcams face the user, so it's mirrored like one
+  scale: -1 1;
+}
+
+.qr-scanner-frame {
+  inline-size: min(70vw, 300px);
+  aspect-ratio: 1;
+  border: 3px solid var(--altis-primary);
+  border-radius: 1rem;
+  // darkens everything around the frame
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.5);
 }

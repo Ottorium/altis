@@ -41,10 +41,10 @@ pub fn absence_card(props: &AbsenceCardProps) -> Html {
     };
 
     html! {
-        <div class="card border-0 shadow-sm" style="background-color: #1a1a1a;">
+        <div class="card border-0 shadow-sm absence-card">
             // `.card` resets the text colour to the light theme's, so the card says its own
             <div class="card-body text-light d-flex align-items-start gap-3 py-3">
-                <div class="flex-grow-1" style="min-width: 0;">
+                <div class="flex-grow-1 min-inline-0">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                         <span class="fw-semibold">{ date }</span>
                         <span class={classes!("badge", badge_class)}>{ badge_text }</span>

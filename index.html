@@ -1,10 +1,13 @@
 <!doctype html>
-<html>
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <!-- the app only has a dark look, and saying so before the stylesheet arrives keeps it from flashing white -->
+    <meta name="color-scheme" content="dark"/>
     <title>Altis</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet"/>
+    <!-- Bootstrap and its icons are compiled into styles.scss and shipped with the app, so it looks right offline -->
+    <link data-trunk rel="copy-dir" href="node_modules/bootstrap-icons/font/fonts"/>
     <link data-trunk href="styles.scss" rel="scss"/>
 </head>
 <body></body>

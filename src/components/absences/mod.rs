@@ -118,8 +118,7 @@ pub fn absences_page() -> HtmlResult {
 
     Ok(html! {
         <div class="d-flex flex-column flex-grow-1 overflow-hidden">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-3 border-bottom border-secondary border-opacity-25 sticky-top"
-                 style="background-color: #1e1e1e;">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-3 border-bottom border-secondary border-opacity-25 sticky-top toolbar-bar">
                 <div class="d-flex align-items-center gap-2">
                     <h5 class="mb-0 fw-bold">{"Absences"}</h5>
                     { render_summary(data) }

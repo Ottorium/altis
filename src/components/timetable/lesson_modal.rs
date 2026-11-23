@@ -16,7 +16,7 @@ pub struct LessonModalProps {
 #[function_component(LessonModal)]
 pub fn lesson_modal(props: &LessonModalProps) -> Html {
     html! {
-        <Modal title="Time Block Details" on_close={props.on_close.clone()} large=true body_class="p-4 custom-scrollbar" limit_body_height=true>
+        <Modal title="Time Block Details" on_close={props.on_close.clone()} large=true body_class="p-4" limit_body_height=true>
             { for props.lessons.iter().filter(|lesson| !lesson.is_break()).map(|lesson| render_lesson(lesson, &props.on_entity_click)) }
         </Modal>
     }
@@ -37,13 +37,12 @@ fn status_badge(lesson: &LessonBlock) -> Option<(String, &'static str)> {
 
 fn render_lesson(lesson: &LessonBlock, on_entity_click: &Callback<Entity>) -> Html {
     let hex = lesson.color_hex.trim_start_matches('#');
-    let border_style = format!("border-left: 5px solid #{hex} !important; background-color: #2b3035;");
     // an entity without a name is one Untis may not show, and then none of them are listed
     let all_named = !lesson.entities.iter().any(|entity| entity.inner.name().is_empty());
     let cancelled = lesson.is_cancelled();
 
     html! {
-        <div class="card mb-3 shadow-sm border-0" style={border_style}>
+        <div class="card mb-3 shadow-sm border-0 lesson-detail-card" style={format!("--lesson-color: #{hex};")}>
             <div class="card-body text-light">
                 <h5 class="card-title fw-bold mb-1 text-white">{ lesson.kind.as_str() }</h5>
 
@@ -140,23 +139,26 @@ fn render_entity(entity: &Tracked<Entity>, cancelled: bool, on_entity_click: &Ca
         ChangeStatus::Regular => "",
     };
 
+    // one that opens a timetable is a button, so it can be reached and pressed without a pointer
     html! {
-        <div class={format!("d-inline-flex align-items-center px-2 py-1 rounded-1 text-black shadow-sm {background_class}")}
-             style={format!("width: fit-content; font-size: 0.85rem; min-width: max-content;{}{}", if has_timetable { " cursor: pointer;" } else { "" }, if gone { " opacity: 0.6;" } else { "" })}
+        <@{if has_timetable { "button" } else { "div" }}
+             type={has_timetable.then_some("button")}
+             class={classes!("d-inline-flex", "align-items-center", "px-2", "py-1", "rounded-1", "border-0", "text-black", "shadow-sm", "entity-chip",
+                             background_class, has_timetable.then_some("has-timetable"), gone.then_some("is-gone"))}
              title={has_timetable.then_some("Show timetable")}
              {onclick}>
-            <i class={format!("bi {icon} me-2")}></i>
+            <i class={format!("bi {icon} me-2")} aria-hidden="true"></i>
             if gone {
-                <del><strong style="letter-spacing: 0.3px;">{ entity.inner.name() }</strong></del>
+                <del><strong>{ entity.inner.name() }</strong></del>
             } else {
-                <strong style="letter-spacing: 0.3px;">{ entity.inner.name() }</strong>
+                <strong>{ entity.inner.name() }</strong>
             }
             if let Some(label) = label {
-                <span class={format!("badge ms-2 {label_class}")} style="font-size: 0.7rem;">{ label }</span>
+                <span class={format!("badge ms-2 entity-chip-label {label_class}")}>{ label }</span>
             }
             if has_timetable {
-                <i class="bi bi-chevron-right ms-1"></i>
+                <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
             }
-        </div>
+        </@>
     }
 }

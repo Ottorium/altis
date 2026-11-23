@@ -39,14 +39,6 @@ pub fn on_enter(action: Callback<()>) -> Callback<KeyboardEvent> {
     })
 }
 
-/// Greys a section out and takes it out of reach while what it belongs to is switched off
-pub fn dimmed_unless(enabled: bool) -> &'static str {
-    match enabled {
-        true => "",
-        false => "opacity: 0.4; pointer-events: none;",
-    }
-}
-
 #[derive(Properties, PartialEq)]
 pub struct CheckboxProps {
     pub id: AttrValue,
@@ -58,8 +50,10 @@ pub struct CheckboxProps {
     pub class: AttrValue,
     #[prop_or(AttrValue::Static("form-check-label small text-secondary"))]
     pub label_class: AttrValue,
+    /// switched off along with what it belongs to: out of reach of the pointer and the keyboard,
+    /// and greyed out by the stylesheet
     #[prop_or_default]
-    pub style: Option<AttrValue>,
+    pub inert: bool,
     /// what follows the label: a hint, an info icon
     #[prop_or_default]
     pub children: Children,
@@ -69,9 +63,9 @@ pub struct CheckboxProps {
 #[function_component(Checkbox)]
 pub fn checkbox(props: &CheckboxProps) -> Html {
     html! {
-        <div class={&props.class} style={props.style.clone()}>
+        <div class={&props.class} inert={props.inert}>
             <input type="checkbox" class="form-check-input" id={&props.id} checked={props.checked} onclick={&props.on_toggle} />
-            <label class={&props.label_class} for={&props.id} style="cursor: pointer;">{ &props.label }</label>
+            <label class={&props.label_class} for={&props.id}>{ &props.label }</label>
             { props.children.clone() }
         </div>
     }

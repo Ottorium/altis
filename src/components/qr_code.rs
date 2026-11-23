@@ -39,8 +39,7 @@ pub fn qr_code(props: &QrProps) -> Html {
     html! {
         <div
             ref={node_ref}
-            class="d-flex justify-content-center align-items-center w-100 h-100 p-0"
-            style="overflow: hidden;"
+            class="d-flex justify-content-center align-items-center w-100 h-100 p-0 overflow-hidden"
         />
     }
 }

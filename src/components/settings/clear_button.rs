@@ -7,9 +7,9 @@ use yew::prelude::*;
 pub fn clear_settings_button() -> Html {
     let show_modal = use_state(|| false);
 
-    let toggle_modal = {
+    let set_modal = |open: bool| {
         let show_modal = show_modal.clone();
-        Callback::from(move |_| show_modal.set(!*show_modal))
+        Callback::from(move |_: ()| show_modal.set(open))
     };
 
     let confirm_clear = {
@@ -26,17 +26,17 @@ pub fn clear_settings_button() -> Html {
 
     html! {
         <>
-            <button class="btn btn-outline-danger" onclick={toggle_modal.clone()}>
+            <button class="btn btn-outline-danger" onclick={set_modal(true).reform(|_| ())}>
                 {"Clear Settings"}
             </button>
 
             if *show_modal {
-                <SettingsModal title="Reset Settings?" on_close={toggle_modal.clone()}>
+                <SettingsModal title="Reset Settings?" on_close={set_modal(false)}>
                     <div class="modal-body">
                         <p>{"This will delete all settings, including saved credentials and preferences. This action cannot be undone."}</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-success" onclick={toggle_modal}>{"Cancel"}</button>
+                        <button type="button" class="btn btn-success" autofocus=true onclick={set_modal(false).reform(|_| ())}>{"Cancel"}</button>
                         <button type="button" class="btn btn-danger" onclick={confirm_clear}>{"Yes, Clear Everything"}</button>
                     </div>
                 </SettingsModal>

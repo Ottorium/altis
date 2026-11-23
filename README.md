@@ -213,7 +213,9 @@ Two notes on talking to WebUntis, both of which cost an afternoon to find out:
 
 You need Rust with the `wasm32-unknown-unknown` target, [Trunk](https://trunkrs.dev) and the
 Tauri CLI (`cargo install trunk tauri-cli`). You also need the
-[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform, and to run
+`npm ci` once: the stylesheet compiles Bootstrap and its icon font from `node_modules`, so the
+app needs no connection to look right.
 
 **Debug builds:**
 - `cargo tauri dev` runs the app with live reload.

@@ -67,11 +67,11 @@ pub fn compare_view(props: &CompareViewProps) -> Html {
     };
 
     html! {
-        <div class="d-flex flex-column p-2 gap-2" style={format!("min-height: 100%;{}", lesson_text_style(&props.visual.lesson_text).unwrap_or_default())}>
+        <div class="d-flex flex-column p-2 gap-2 compare-view" style={lesson_text_style(&props.visual.lesson_text)}>
             <div class="d-flex flex-wrap align-items-center gap-1">{ legend }</div>
             { missing_note }
 
-            <div class="d-flex flex-column flex-grow-1" style="min-height: 24rem;">
+            <div class="d-flex flex-column flex-grow-1 compare-body">
                 <div class="d-flex border-bottom">
                     <div class="compare-time-column"></div>
                     { for days.iter().map(|day| html! {
@@ -118,12 +118,12 @@ fn render_lesson(lesson: &LessonBlock, position: String, dimmed: bool, text: &Le
 
     html! {
         <div class={classes!("compare-lesson", dimmed.then_some("compare-lesson-past"))} style={position} {title}>
-            <div class={classes!("compare-lesson-inner", text_class, status_class)} style={format!("background-color: #{color}; --lesson-chars: {};", subject.chars().count().max(1))}>
+            <div class={classes!("compare-lesson-inner", text_class, status_class)} style={format!("--lesson-color: #{color}; --lesson-chars: {};", subject.chars().count().max(1))}>
                 <span class="fw-semibold">{ subject }</span>
                 if let Some(room) = room {
                     <span class="compare-lesson-detail">
                         if text.mark_rooms {
-                            <i class="bi bi-geo-alt-fill lesson-room-pin"></i>
+                            <i class="bi bi-geo-alt-fill lesson-room-pin" role="img" aria-label="Room"></i>
                         }
                         { room }
                     </span>
