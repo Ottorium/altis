@@ -255,6 +255,9 @@ pub struct LessonTextSettings {
     /// nothing else on it is left out as a whole.
     #[serde(default)]
     pub hidden_names: BTreeMap<LessonLine, Vec<String>>,
+    /// puts a pin in front of the rooms, which are named like the classes at many schools
+    #[serde(default = "default_true")]
+    pub mark_rooms: bool,
 }
 
 impl Default for LessonTextSettings {
@@ -266,6 +269,7 @@ impl Default for LessonTextSettings {
             font_scale_percent: DEFAULT_FONT_SCALE_PERCENT,
             bold: false,
             hidden_names: BTreeMap::new(),
+            mark_rooms: true,
         }
     }
 }
@@ -456,6 +460,7 @@ mod tests {
 
         assert_eq!(settings.lesson_text.lines, vec![LessonLine::Subject, LessonLine::Teacher, LessonLine::Room]);
         assert!(settings.lesson_text.is_default_style() && !settings.lesson_text.long_names);
+        assert!(settings.lesson_text.mark_rooms);
         assert_eq!(settings.lesson_display, LessonDisplaySettings { dim_past_lessons: true, show_now_line: true, hide_cancelled: false });
     }
 

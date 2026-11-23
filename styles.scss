@@ -343,6 +343,13 @@ html.qr-scanning body {
   margin-right: 0.3rem;
 }
 
+// marks a room, which would otherwise read like a class of the same name
+.lesson-room-pin {
+  font-size: 0.85em;
+  margin-right: 0.15em;
+  opacity: 0.8;
+}
+
 // a group of lessons in the week grid: the lessons that take place at the same time, side by side
 .group-block {
   // the text of a lesson scales with the width of its block

@@ -121,7 +121,12 @@ fn render_lesson(lesson: &LessonBlock, position: String, dimmed: bool, text: &Le
             <div class={classes!("compare-lesson-inner", text_class, status_class)} style={format!("background-color: #{color}; --lesson-chars: {};", subject.chars().count().max(1))}>
                 <span class="fw-semibold">{ subject }</span>
                 if let Some(room) = room {
-                    <span class="compare-lesson-detail">{ room }</span>
+                    <span class="compare-lesson-detail">
+                        if text.mark_rooms {
+                            <i class="bi bi-geo-alt-fill lesson-room-pin"></i>
+                        }
+                        { room }
+                    </span>
                 }
             </div>
         </div>

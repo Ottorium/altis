@@ -195,7 +195,12 @@ fn render_line(lesson: &LessonBlock, line: LessonLine, text: &LessonTextSettings
             return (time.chars().count(), html! { time });
         }
     };
-    render_entities(lesson, wanted, |name| text.hides(line, name), text.long_names)
+    let (length, names) = render_entities(lesson, wanted, |name| text.hides(line, name), text.long_names);
+    match line == LessonLine::Room && text.mark_rooms && length > 0 {
+        // the pin takes up about as much as a character and a half
+        true => (length + 2, html! { <><i class="bi bi-geo-alt-fill lesson-room-pin"></i>{ names }</> }),
+        false => (length, names),
+    }
 }
 
 /// The lesson's entities of one sort, marked by what a change did to them: the one that was
