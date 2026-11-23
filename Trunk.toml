@@ -5,7 +5,7 @@ target = "./index.html"
 ignore = ["./src-tauri"]
 
 [tools]
-sass = "1.76.0"
+sass = "1.108.2"
 
 [serve]
 port = 2222

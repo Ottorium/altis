@@ -1,4 +1,5 @@
-use qrcode_generator::QrCodeEcc;
+use qrcode_generator::qr::{Encoder, ErrorCorrection};
+use qrcode_generator::Renderer;
 use web_sys::Element;
 use yew::prelude::*;
 
@@ -12,8 +13,12 @@ pub fn qr_code(props: &QrProps) -> Html {
     let node_ref = use_node_ref();
 
     let qr_svg_string = use_memo(props.data.clone(), |data| {
-        qrcode_generator::to_svg_to_string(data, QrCodeEcc::Low, 512, None::<&str>)
-            .unwrap_or_default()
+        // the exact bytes, so nothing a scanner reads differs from what it was given, at the level
+        // and with the one-module margin the code always had
+        let Ok(symbol) = Encoder::new(ErrorCorrection::Low).boost_error_correction(false).encode_bytes(data.as_bytes()) else {
+            return String::new();
+        };
+        Renderer::new(&symbol, 512).quiet_zone(1).svg_xml_declaration(false).to_svg_string(None::<&str>).unwrap_or_default()
     });
 
     use_effect_with(qr_svg_string.clone(), {

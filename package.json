@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "@tauri-apps/cli": "^2.10.0",
-    "bootstrap": "^5.3.8",
-    "bootstrap-icons": "1.13.1",
-    "sass": "1.76.0"
+    "@tauri-apps/cli": "^2.12.6",
+    "bootstrap": "^5.3.9",
+    "bootstrap-icons": "1.13.2",
+    "sass": "1.108.2"
   }
 }
