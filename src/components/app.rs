@@ -51,7 +51,7 @@ pub fn app() -> Html {
 
     html! {
         <>
-            <div class="d-flex flex-column flex-md-row vh-100 overflow-hidden bg-dark text-white">
+            <div class="d-flex flex-column flex-md-row app-shell overflow-hidden bg-dark text-white">
                 <NavBar tabs={general.shown_tabs()} active_tab={*active_tab} on_change={on_nav_change} />
                 <main class="d-flex flex-column flex-grow-1 overflow-y-auto">
                     <UpdateBanner enabled={general.check_for_updates} />

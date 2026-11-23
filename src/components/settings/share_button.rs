@@ -20,12 +20,13 @@ pub fn share_settings_button() -> Html {
 
     let export = SettingsExport::new(&storage::settings_or_default(), *include_credentials);
 
-    let toggle_modal = {
+    // opening and closing alike start over without a pending import or an old message
+    let set_modal = |open: bool| {
         let show_modal = show_modal.clone();
         let pending_import = pending_import.clone();
         let status = status.clone();
-        Callback::from(move |_| {
-            show_modal.set(!*show_modal);
+        Callback::from(move |_: ()| {
+            show_modal.set(open);
             pending_import.set(None);
             status.set(None);
         })
@@ -150,7 +151,7 @@ pub fn share_settings_button() -> Html {
                     checked={*include_credentials}
                     onclick={on_toggle_credentials}
                 />
-                <label class="form-check-label small text-secondary" for="includeCredentials" style="cursor: pointer;">
+                <label class="form-check-label small text-secondary" for="includeCredentials">
                     {"Include credentials (Untis & Book2Eat logins)"}
                 </label>
             </div>
@@ -161,7 +162,7 @@ pub fn share_settings_button() -> Html {
                 </div>
             }
 
-            <div class="bg-white rounded p-3 mx-auto" style="width: min(100%, 280px); aspect-ratio: 1;">
+            <div class="bg-white rounded p-3 mx-auto share-qr">
                 <QrCode data={serde_json::to_string(&export).unwrap_or_default()} />
             </div>
             <p class="small text-secondary text-center mt-2 mb-3">{"Scan it with Altis on another device"}</p>
@@ -208,7 +209,7 @@ pub fn share_settings_button() -> Html {
     };
 
     let modal = html! {
-        <SettingsModal title={if pending_import.is_some() { "Import Settings?" } else { "Share Settings" }} on_close={toggle_modal.clone()} scrollable=true>
+        <SettingsModal title={if pending_import.is_some() { "Import Settings?" } else { "Share Settings" }} on_close={set_modal(false)} scrollable=true>
             { match &*pending_import {
                 Some(import) => confirm_body(import),
                 None => share_body,
@@ -218,7 +219,7 @@ pub fn share_settings_button() -> Html {
 
     html! {
         <>
-            <button class="btn btn-outline-primary" onclick={toggle_modal}>
+            <button class="btn btn-outline-primary" onclick={set_modal(true).reform(|_| ())}>
                 <i class="bi bi-share me-1"></i>{"Share"}
             </button>
 

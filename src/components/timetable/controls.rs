@@ -92,7 +92,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
     let week_start = props.selected_week.start.format(DATE_INPUT_FORMAT).to_string();
 
     html! {
-        <div class="sticky-top px-2 px-sm-3 py-3 mb-1 shadow-lg" style="background-color: #1e1e1e; border-bottom: 1px solid #1f2227;">
+        <div class="sticky-top px-2 px-sm-3 py-3 mb-1 shadow-lg toolbar-bar timetable-controls">
             <div class="d-flex align-items-center gap-2">
                 if props.loading {
                     <div class="d-flex align-items-center text-secondary px-2" role="status">
@@ -102,7 +102,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                 } else {
                     <div class="select-fit">
                         <span class="select-fit-label">{ view.label() }</span>
-                        <select class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_view_change}>
+                        <select class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" aria-label="What to show" onchange={on_view_change}>
                             { for TimetableView::ALL.into_iter().map(|option| html! {
                                 <option value={option.key()} selected={view == option}>{ option.label() }</option>
                             })}
@@ -112,7 +112,7 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
                     if !props.names.is_empty() {
                         <div class="select-fit">
                             <span class="select-fit-label">{ shown_label }</span>
-                            <select ref={entity_select} class="form-select form-select-sm-md bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" onchange={on_entity_change}>
+                            <select ref={entity_select} class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon" aria-label="Whose timetable" onchange={on_entity_change}>
                                 if favorite_names.is_empty() {
                                     { for other_names.into_iter().map(option) }
                                 } else {
@@ -126,54 +126,51 @@ pub fn timetable_controls(props: &ControlsProps) -> Html {
 
                     if view == TimetableView::Compare {
                         <button type="button" onclick={props.on_open_picker.reform(|_| ())}
-                                class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon text-start text-truncate"
-                                style="width: auto; min-width: 0; max-width: 16rem;">
-                            <i class="bi bi-ui-checks me-1"></i>{ compare_label }
+                                class="form-select bg-dark text-white border-0 shadow-sm select-primary-dropdown-icon text-start text-truncate compare-picker-button">
+                            <i class="bi bi-ui-checks me-1" aria-hidden="true"></i>{ compare_label }
                         </button>
                     }
                 }
 
                 // the week on a desktop: an arrow either way around the date picker
                 <div class="btn-group shadow-sm ms-md-2 d-none d-md-inline-flex" role="group">
-                    <button type="button" class="btn btn-outline-primary" onclick={step_week(props.selected_week.previous())}>
-                        <i class="bi bi-chevron-left"></i>
+                    <button type="button" class="btn btn-outline-primary" aria-label="Previous week" onclick={step_week(props.selected_week.previous())}>
+                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
                     </button>
 
-                    <div
-                        class="btn btn-outline-primary position-relative d-flex align-items-center justify-content-center px-3"
-                        style="min-width: 45px;"
-                    >
+                    <div class="btn btn-outline-primary position-relative d-flex align-items-center justify-content-center px-3 week-picker">
                         <span>{ props.selected_week.to_string() }</span>
 
                         <input
                             type="date"
-                            class="position-absolute opacity-0 w-100 h-100 start-0 top-0 text-sm"
-                            style="cursor: pointer;"
+                            class="position-absolute opacity-0 w-100 h-100 start-0 top-0"
+                            aria-label="Pick a week"
                             value={week_start.clone()}
                             onchange={on_date_change.clone()}
                         />
                     </div>
 
-                    <button type="button" class="btn btn-outline-primary" onclick={step_week(props.selected_week.next())}>
-                        <i class="bi bi-chevron-right"></i>
+                    <button type="button" class="btn btn-outline-primary" aria-label="Next week" onclick={step_week(props.selected_week.next())}>
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 // and on a phone, where a swipe does the arrows' job: the date picker alone
                 <div class="d-block d-md-none flex-shrink-0">
-                    <div class="btn btn-outline-primary position-relative w-100 d-flex align-items-center justify-content-center">
-                        <i class="bi bi-calendar3"></i>
+                    <div class="btn btn-outline-primary position-relative w-100 d-flex align-items-center justify-content-center week-picker">
+                        <i class="bi bi-calendar3" aria-hidden="true"></i>
                         <input
                             type="date"
                             class="position-absolute opacity-0 w-100 h-100 start-0 top-0"
+                            aria-label="Pick a week"
                             value={week_start}
                             onchange={on_date_change}
                         />
                     </div>
                 </div>
 
-                <button class="btn btn-outline-primary ms-auto flex-shrink-0" onclick={props.on_reload.reform(|_| ())}>
-                    <i class="bi bi-arrow-clockwise me-sm-1"></i>
+                <button class="btn btn-outline-primary ms-auto flex-shrink-0" aria-label="Reload" onclick={props.on_reload.reform(|_| ())}>
+                    <i class="bi bi-arrow-clockwise me-sm-1" aria-hidden="true"></i>
                     <span class="d-none d-sm-inline">{"Reload"}</span>
                 </button>
             </div>

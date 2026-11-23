@@ -97,8 +97,8 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
         let label = |show: bool, time: NaiveTime| if show { time.format("%H:%M").to_string() } else { String::new() };
 
         html! {
-            <div style={format!("position: absolute; top: {top}%; height: {height}%; width: 100%;")}
-                  class={format!("d-flex flex-column justify-content-between align-items-end border-bottom {} m-0", if slot.after_break { "border-top" } else { "" })}>
+            <div style={format!("top: {top}%; height: {height}%;")}
+                  class={classes!("d-flex", "flex-column", "justify-content-between", "align-items-end", "border-bottom", "m-0", "week-time-slot", slot.after_break.then_some("border-top"))}>
                 <div class="small pe-1">{ label(slot.label_start, slot.start) }</div>
                 <div class="small pe-1">{ label(slot.label_end, slot.end) }</div>
             </div>
@@ -109,7 +109,7 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
         let shows_now = props.visual.lesson_display.show_now_line && day.date == now.date() && (start..=end).contains(&now.time());
         let now_top = shows_now.then(|| percent_of_day((now.time() - start).num_seconds()));
         html! {
-            <div class="flex-grow-1 border-start position-relative flex" style="flex-basis: 0; min-width: 0; overflow: hidden;">
+            <div class="border-start week-day">
                 { for group_by_time(fill_breaks(day.lessons.clone(), start)).iter().map(|group| {
                     render_lesson_group(group, end - start, now, &props.visual, on_group_click.clone())
                 })}
@@ -128,10 +128,10 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
 
             <div class="d-flex flex-grow-1 flex-column h-100 w-100 overflow-hidden" style={lesson_text_style(&props.visual.lesson_text)}>
                 <div class="d-flex w-100 bg-dark border-bottom">
-                    <div style="width: 60px;" class="flex-shrink-0"></div>
+                    <div class="week-time-column"></div>
                     <div class="d-flex flex-grow-1">
                         { for days.iter().map(|day| html! {
-                            <div class="flex-grow-1 text-center border-start pb-1" style="flex-basis: 0;">
+                            <div class="text-center border-start pb-1 week-day-head">
                                 { day_heading(day.date) }
                             </div>
                         })}
@@ -139,7 +139,7 @@ pub fn week_grid(props: &WeekGridProps) -> Html {
                 </div>
 
                 <div class="d-flex flex-grow-1 w-100">
-                    <div style="width: 60px; position: relative;" class="d-flex flex-column flex-shrink-0">
+                    <div class="d-flex flex-column week-time-column">
                         { for time_slots(&lessons).iter().map(render_time_slot) }
                     </div>
                     <div class="d-flex flex-grow-1">

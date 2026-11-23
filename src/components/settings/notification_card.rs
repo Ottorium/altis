@@ -1,6 +1,6 @@
 use super::card::{autosaved_badge, divider, SettingsCard};
 use super::exam_reminders::ExamReminders;
-use crate::components::forms::{dimmed_unless, select_value, update, Checkbox};
+use crate::components::forms::{select_value, update, Checkbox};
 use crate::native;
 use altis_core::settings::{BackgroundMode, ExamReminderSettings, NotificationSettings, MAX_WEEKS_AHEAD, PERIODIC_INTERVAL_MINUTES};
 use wasm_bindgen_futures::spawn_local;
@@ -112,18 +112,18 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
                     ></i>
                 </Checkbox>
 
-                <div class="mb-3" style={dimmed_unless(enabled)}>
+                <div class="mb-3" inert={!enabled}>
                     <label class="form-label small text-secondary mb-1">{"Check for changes every"}</label>
-                    <select class="form-select form-select-sm bg-dark text-light border-secondary" style="width: auto;" onchange={on_interval_change}>
+                    <select class="form-select form-select-sm bg-dark text-light border-secondary w-auto" onchange={on_interval_change}>
                         { for POLL_INTERVALS.iter().map(|minutes| html! {
                             <option value={minutes.to_string()} selected={settings.poll_interval_minutes == *minutes}>{ format!("{minutes} minutes") }</option>
                         })}
                     </select>
                 </div>
 
-                <div class="mb-3" style={dimmed_unless(enabled)}>
+                <div class="mb-3" inert={!enabled}>
                     <label class="form-label small text-secondary mb-1" for="weeksAhead">{"Watch the timetable of"}</label>
-                    <select id="weeksAhead" class="form-select form-select-sm bg-dark text-light border-secondary" style="width: auto;" onchange={on_weeks_ahead_change}>
+                    <select id="weeksAhead" class="form-select form-select-sm bg-dark text-light border-secondary w-auto" onchange={on_weeks_ahead_change}>
                         { for (0..=MAX_WEEKS_AHEAD).map(|weeks| html! {
                             <option value={weeks.to_string()} selected={settings.weeks_ahead() == weeks}>{ weeks_ahead_label(weeks) }</option>
                         })}
@@ -134,9 +134,9 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
                 </div>
 
                 if native::is_android() {
-                    <div class="mb-3" style={dimmed_unless(enabled)}>
+                    <div class="mb-3" inert={!enabled}>
                         <label class="form-label small text-secondary mb-1">{"When the app is closed"}</label>
-                        <select class="form-select form-select-sm bg-dark text-light border-secondary" style="width: auto;" onchange={on_background_mode_change}>
+                        <select class="form-select form-select-sm bg-dark text-light border-secondary w-auto" onchange={on_background_mode_change}>
                             { for BackgroundMode::ALL.into_iter().map(|mode| html! {
                                 <option value={mode.as_str()} selected={settings.background_mode == mode}>{ background_mode_label(mode) }</option>
                             })}
@@ -149,10 +149,10 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
 
                 { divider() }
 
-                <div style={dimmed_unless(enabled)}>
+                <div inert={!enabled}>
                     <Checkbox id="ttEnabled" label="Timetable changes" class="mb-2 form-check" label_class={SECTION_LABEL_CLASS}
                               checked={changes.enabled} on_toggle={toggle(|settings| &mut settings.timetable_changes.enabled)} />
-                    <div class="ps-4 d-flex flex-column gap-1" style={dimmed_unless(changes.enabled)}>
+                    <div class="ps-4 d-flex flex-column gap-1" inert={!changes.enabled}>
                         <Checkbox id="ttCancelled" label="Cancelled lessons"
                                   checked={changes.notify_cancelled} on_toggle={toggle(|settings| &mut settings.timetable_changes.notify_cancelled)} />
                         <Checkbox id="ttRoom" label="Room changes"
@@ -170,19 +170,19 @@ pub fn notification_settings_card(props: &NotificationCardProps) -> Html {
 
                 { divider() }
 
-                <div style={dimmed_unless(enabled)}>
+                <div inert={!enabled}>
                     <ExamReminders settings={settings.exam_reminders.clone()} on_change={on_exam_reminders_change} />
                 </div>
 
                 { divider() }
 
-                <Checkbox id="msgEnabled" label="New message alerts" class="mb-3 form-check" label_class={SECTION_LABEL_CLASS} style={dimmed_unless(enabled)}
+                <Checkbox id="msgEnabled" label="New message alerts" class="mb-3 form-check" label_class={SECTION_LABEL_CLASS} inert={!enabled}
                           checked={settings.message_notifications.enabled} on_toggle={toggle(|settings| &mut settings.message_notifications.enabled)} />
 
-                <Checkbox id="absenceEnabled" label="New absence alerts" class="mb-3 form-check" label_class={SECTION_LABEL_CLASS} style={dimmed_unless(enabled)}
+                <Checkbox id="absenceEnabled" label="New absence alerts" class="mb-3 form-check" label_class={SECTION_LABEL_CLASS} inert={!enabled}
                           checked={settings.absence_notifications.enabled} on_toggle={toggle(|settings| &mut settings.absence_notifications.enabled)}>
                     <div class="form-text small text-secondary">{"When a teacher marks you absent."}</div>
-                    <Checkbox id="absenceOwn" label="Also for absences I report myself" class="form-check mt-1" style={dimmed_unless(settings.absence_notifications.enabled)}
+                    <Checkbox id="absenceOwn" label="Also for absences I report myself" class="form-check mt-1" inert={!settings.absence_notifications.enabled}
                               checked={settings.absence_notifications.include_own} on_toggle={toggle(|settings| &mut settings.absence_notifications.include_own)} />
                 </Checkbox>
 

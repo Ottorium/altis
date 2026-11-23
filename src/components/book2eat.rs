@@ -130,8 +130,7 @@ pub fn book2eat() -> HtmlResult {
 
     Ok(html! {
         <div
-            class="container pt-4 pb-2 d-flex flex-column align-items-center w-100 h-100 b2e-swipe-area"
-            style="overflow: hidden;"
+            class="container pt-4 pb-2 d-flex flex-column align-items-center w-100 h-100 overflow-hidden b2e-swipe-area"
             ontouchstart={on_touch_start}
             ontouchend={on_touch_end}
             onmousedown={on_mouse_down}
@@ -146,7 +145,7 @@ pub fn book2eat() -> HtmlResult {
             </div>
 
             <div class="d-flex flex-column align-items-center mb-2">
-                <div class="text-white fw-semibold" style="font-size: clamp(0.9rem, 2.2cqw, 1.4rem);">
+                <div class="text-white fw-semibold b2e-date">
                     { current_date.format("%A, %d %B").to_string() }
                 </div>
                 <div class="d-flex gap-2 mt-1">

@@ -7,7 +7,7 @@ use web_sys::MouseEvent;
 use yew::prelude::*;
 
 /// How a lesson that is over is drawn, and the part of a running one that is
-const PAST_STYLE: &str = "filter: grayscale(0.4); opacity: 0.65;";
+const PAST_CLASS: &str = "lesson-past";
 
 /// The time a group of lessons covers, which the lessons in it are placed against
 struct GroupSpan {
@@ -87,17 +87,17 @@ pub fn render_lesson_group(lessons: &[LessonBlock], day_duration: TimeDelta, now
     let dims_the_past = visual.lesson_display.dim_past_lessons;
 
     html! {
-        <div class="w-100 group-block" style={format!("height: {height}%; position: relative; cursor: pointer;")} {onclick}>
+        <div class="w-100 group-block" style={format!("height: {height}%;")} {onclick}>
             <div class="d-none d-md-block h-100 w-100">
                 { render_side_by_side(lessons, &span, now, visual) }
             </div>
             <div class="d-flex d-md-none h-100 w-100 mobile-p-half">
-                <div style={format!("width: {}%; height: 100%; position: relative;", if hidden_on_phone > 0 { 80 } else { 100 })}>
+                <div class="h-100 position-relative" style={format!("width: {}%;", if hidden_on_phone > 0 { 80 } else { 100 })}>
                     { for shown_on_phone.iter().map(|lesson| render_lesson(lesson, &span, &whole_width, true, now, visual)) }
                 </div>
                 if hidden_on_phone > 0 {
-                    <div class="d-flex flex-column justify-content-center align-items-center text-white rounded ms-1 bg-primary"
-                         style={format!("width: 20%; height: 100%; font-size: 0.8rem; opacity: 0.8; z-index: 10; {}", if dims_the_past && span.end() <= now { PAST_STYLE } else { "" })}>
+                    <div class={classes!("d-flex", "flex-column", "justify-content-center", "align-items-center", "h-100", "rounded", "ms-1", "bg-primary", "hidden-count",
+                                         (dims_the_past && span.end() <= now).then_some(PAST_CLASS))}>
                         <span class="text-black fw-bold">{ hidden_on_phone }</span>
                     </div>
                 }
@@ -136,28 +136,24 @@ fn render_lesson(lesson: &LessonBlock, span: &GroupSpan, lane: &Lane, on_phone: 
     let Lane { left, width } = lane;
 
     let hex = lesson.color_hex.trim_start_matches('#');
-    let mut style = format!("background-color: #{hex};");
+    let color_style = format!("--lesson-color: #{hex};");
     let text_class = if is_dark_color(hex) { "text-white" } else { "text-black" };
-    let mut class = format!("rounded {text_class} text-center h-100 w-100 d-flex flex-column align-items-center justify-content-center overflow-hidden");
-
-    match lesson.status {
-        LessonStatus::Cancelled => {
-            class += " border border-4 border-danger";
-            style += "opacity: 0.33; background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,0,0,0.1) 10px, rgba(255,0,0,0.1) 20px);";
-        }
-        LessonStatus::Changed => class += " border border-4 border-info",
-        LessonStatus::Additional => class += " border border-4 border-success",
-        LessonStatus::Other(_) if lesson.is_exam() => class += " border border-4 border-warning",
-        LessonStatus::Other(_) => {}
-    }
+    let status_class = match lesson.status {
+        LessonStatus::Cancelled => Some("lesson-cancelled"),
+        LessonStatus::Changed => Some("lesson-changed"),
+        LessonStatus::Additional => Some("lesson-additional"),
+        LessonStatus::Other(_) => lesson.is_exam().then_some("lesson-exam"),
+    };
 
     // every line is sized to fit across the lesson, and all of them down it, see `.lesson-line`
     let lines: Vec<(usize, Html)> = visual.lesson_text.lines.iter().map(|line| render_line(lesson, *line, &visual.lesson_text)).filter(|(length, _)| *length > 0).collect();
     let fit_style = format!("--lesson-lines: {};", lines.len().max(1));
 
-    let layer = |extra_style: String| html! {
-        <div style={format!("position: absolute; top: {top}%; left: {left}%; height: {height}%; width: {width}%; padding: {}; {extra_style}", if on_phone { "0" } else { "0.2rem" })} class="lesson-container">
-            <div class={class.clone()} style={style.clone()}>
+    // `clip` keeps part of the lesson: the part that is over, or the part that isn't yet
+    let layer = |past: bool, clip: Option<String>| html! {
+        <div style={format!("top: {top}%; left: {left}%; height: {height}%; width: {width}%;{}", clip.map(|clip| format!(" clip-path: {clip};")).unwrap_or_default())}
+             class={classes!("lesson-container", on_phone.then_some("on-phone"), past.then_some(PAST_CLASS))}>
+            <div class={classes!("lesson", text_class, status_class)} style={color_style.clone()}>
                 <div class="dynamic-text" style={fit_style.clone()}>
                     { for lines.iter().map(|(length, line)| html! { <div class="lesson-line" style={format!("--lesson-chars: {length};")}>{ line.clone() }</div> }) }
                 </div>
@@ -166,16 +162,16 @@ fn render_lesson(lesson: &LessonBlock, span: &GroupSpan, lane: &Lane, on_phone: 
     };
 
     if now <= start || !visual.lesson_display.dim_past_lessons {
-        layer(String::new())
+        layer(false, None)
     } else if now >= end {
-        layer(PAST_STYLE.to_string())
+        layer(true, None)
     } else {
         // lesson is in progress: stack a grayed copy clipped to the part that's already over
         let past_percent = (now - start).num_seconds() as f64 / (end - start).num_seconds() as f64 * 100.0;
         html! {
             <>
-                { layer(format!("clip-path: inset({past_percent}% 0 0 0);")) }
-                { layer(format!("clip-path: inset(0 0 {}% 0); {PAST_STYLE}", 100.0 - past_percent)) }
+                { layer(false, Some(format!("inset({past_percent}% 0 0 0)"))) }
+                { layer(true, Some(format!("inset(0 0 {}% 0)", 100.0 - past_percent))) }
             </>
         }
     }
@@ -198,7 +194,7 @@ fn render_line(lesson: &LessonBlock, line: LessonLine, text: &LessonTextSettings
     let (length, names) = render_entities(lesson, wanted, |name| text.hides(line, name), text.long_names);
     match line == LessonLine::Room && text.mark_rooms && length > 0 {
         // the pin takes up about as much as a character and a half
-        true => (length + 2, html! { <><i class="bi bi-geo-alt-fill lesson-room-pin"></i>{ names }</> }),
+        true => (length + 2, html! { <><i class="bi bi-geo-alt-fill lesson-room-pin" role="img" aria-label="Room"></i>{ names }</> }),
         false => (length, names),
     }
 }
@@ -218,18 +214,18 @@ fn render_entities(lesson: &LessonBlock, wanted: fn(&Entity) -> bool, hidden: im
         .into_iter()
         .enumerate()
         .map(|(index, (entity, name))| {
-            let style = match entity.status {
-                ChangeStatus::Removed => "background: #ffcccc; color: #b30000; padding: 0 2px;",
-                ChangeStatus::New => "background: #ccffcc; color: #006600; padding: 0 2px;",
-                ChangeStatus::Changed => "background: #ffffcc; color: #8a6d3b; padding: 0 2px;",
-                ChangeStatus::Regular => "",
+            let class = match entity.status {
+                ChangeStatus::Removed => Some("entity-removed"),
+                ChangeStatus::New => Some("entity-new"),
+                ChangeStatus::Changed => Some("entity-changed"),
+                ChangeStatus::Regular => None,
             };
             let space = if index > 0 { " " } else { "" };
 
             if entity.status == ChangeStatus::Removed {
-                html! { <>{ space }<del style={style}>{ name }</del></> }
+                html! { <>{ space }<del class={class}>{ name }</del></> }
             } else {
-                html! { <>{ space }<span style={style}>{ name }</span></> }
+                html! { <>{ space }<span class={class}>{ name }</span></> }
             }
         })
         .collect::<Html>();

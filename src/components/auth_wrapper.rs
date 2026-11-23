@@ -86,11 +86,11 @@ pub fn auth_wrapper(props: &AuthWrapperProps) -> Html {
     };
 
     html! {
-        <div class="d-flex align-items-center justify-content-center vh-100 bg-dark">
-            <div class="card bg-dark border-primary shadow-lg" style="max-width: 400px;">
+        <div class="d-flex flex-grow-1 align-items-center justify-content-center bg-dark p-3">
+            <div class="card bg-dark border-primary shadow-lg auth-card">
                 <div class="card-body text-center p-5">
                     <div class="mb-4">
-                        <i class="bi bi-shield-lock text-warning" style="font-size: 3rem;"></i>
+                        <i class="bi bi-shield-lock text-warning auth-icon" aria-hidden="true"></i>
                     </div>
 
                     <h4 class="card-title text-white mb-3">{"Authentication Required"}</h4>

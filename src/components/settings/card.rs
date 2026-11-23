@@ -1,4 +1,4 @@
-use web_sys::MouseEvent;
+use crate::components::modal::use_modal_dialog;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -30,7 +30,7 @@ pub fn divider() -> Html {
 /// Tells that a card's settings are stored as they are changed, without a button to press
 pub fn autosaved_badge() -> Html {
     html! {
-        <span class="badge rounded-pill bg-success opacity-75" style="font-size: 0.7rem;">
+        <span class="badge rounded-pill bg-success opacity-75 autosave-badge">
             {"Settings autosaved"}
         </span>
     }
@@ -39,28 +39,31 @@ pub fn autosaved_badge() -> Html {
 #[derive(Properties, PartialEq)]
 pub struct SettingsModalProps {
     pub title: AttrValue,
-    pub on_close: Callback<MouseEvent>,
-    /// keeps the dialog within the screen and scrolls its body instead of the page
+    /// the dialog was closed: by its cross, Esc or the back gesture
+    pub on_close: Callback<()>,
+    /// keeps the dialog within the screen and scrolls its body instead of the whole dialog
     #[prop_or_default]
     pub scrollable: bool,
     /// the dialog's body and footer
     pub children: Children,
 }
 
-/// A dialog of the settings screen
+/// A dialog of the settings screen. Unlike the other dialogs a click beside it doesn't close it:
+/// what is in it is about to change or wipe the settings.
 #[function_component(SettingsModal)]
 pub fn settings_modal(props: &SettingsModalProps) -> Html {
+    let dialog = use_modal_dialog(props.on_close.clone(), false);
+
     html! {
-        <div class="modal d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
-            <div class={classes!("modal-dialog", "modal-dialog-centered", props.scrollable.then_some("modal-dialog-scrollable"))}>
-                <div class="modal-content bg-dark text-white border-primary">
-                    <div class="modal-header">
-                        <h5 class="modal-title">{ &props.title }</h5>
-                        <button type="button" class="btn-close btn-close-white" onclick={&props.on_close}></button>
-                    </div>
-                    { props.children.clone() }
+        <dialog ref={dialog} aria-labelledby="settings-dialog-title"
+                class={classes!("app-dialog", props.scrollable.then_some("app-dialog-scrollable"))}>
+            <div class="modal-content bg-dark text-white border-primary">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settings-dialog-title">{ &props.title }</h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick={props.on_close.reform(|_| ())}></button>
                 </div>
+                { props.children.clone() }
             </div>
-        </div>
+        </dialog>
     }
 }

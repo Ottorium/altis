@@ -77,11 +77,11 @@ pub fn subject_colors(props: &SubjectColorsProps) -> Html {
                     </datalist>
                     <input
                         type="color"
-                        class="form-control form-control-color form-control-sm border-0 p-0"
+                        class="form-control form-control-color form-control-sm border-0 p-0 color-swatch-input"
                         value={(*new_color).clone()}
                         oninput={on_text_input(&new_color)}
                         title="Choose colour"
-                        style="cursor: pointer; width: 38px; height: 32px; background: transparent; flex-shrink: 0;"
+                        aria-label="Colour"
                     />
                     <button
                         type="button"
@@ -113,8 +113,8 @@ fn render_override(subject: &str, color: &str, props: &SubjectColorsProps) -> Ht
         <div class="d-flex align-items-center justify-content-between p-2 rounded bg-dark border border-secondary border-opacity-25" key={subject.to_string()}>
             <div class="d-flex align-items-center gap-2">
                 <span
-                    class={classes!("badge", "fs-6", "fw-bold", text_class)}
-                    style={format!("background-color: {color}; min-width: 50px; text-align: center; border: 1px solid rgba(255,255,255,0.15);")}
+                    class={classes!("badge", "fs-6", "fw-bold", "subject-color-badge", text_class)}
+                    style={format!("--subject-color: {color};")}
                 >
                     { subject }
                 </span>
@@ -123,11 +123,11 @@ fn render_override(subject: &str, color: &str, props: &SubjectColorsProps) -> Ht
             <div class="d-flex align-items-center gap-2">
                 <input
                     type="color"
-                    class="form-control form-control-color form-control-sm border-0 p-0"
+                    class="form-control form-control-color form-control-sm border-0 p-0 color-swatch-input"
                     value={color.to_string()}
                     oninput={on_color_input}
                     title={format!("Change colour for {subject}")}
-                    style="cursor: pointer; width: 36px; height: 32px; background: transparent;"
+                    aria-label={format!("Colour of {subject}")}
                 />
                 <button
                     type="button"

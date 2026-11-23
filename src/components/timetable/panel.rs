@@ -143,7 +143,7 @@ pub fn resolve(loaded: &LoadedWeeks, week: &Week, selection: &Selection) -> Reso
 /// A week's panel on the track, `left` being where on it: the week on screen, or one beside it
 pub fn render_panel(week: &Week, left: &str, panel: Panel, visual: &VisualSettings, on_entity_select: Callback<Entity>) -> Html {
     html! {
-        <div key={week.start.to_string()} class="d-flex flex-column position-absolute top-0 h-100 w-100" style={format!("left: {left}; overflow-y: auto;")}>
+        <div key={week.start.to_string()} class="d-flex flex-column position-absolute top-0 h-100 w-100 overflow-y-auto" style={format!("left: {left};")}>
             { match panel {
                 Panel::Loading => html! { <Loading /> },
                 Panel::Error(err) => html! { <div class="alert alert-danger m-3">{ err }</div> },

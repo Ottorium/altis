@@ -27,8 +27,7 @@ pub fn navbar(props: &NavProps) -> Html {
 
     html! {
         <>
-            <nav class="d-none d-md-flex vh-100 shadow p-4 flex-column justify-content-between sticky-top"
-                 style="min-width: 240px; width: 240px; background-color: #1a1a1a; border-right: 1px solid #1e1e1e;">
+            <nav class="d-none d-md-flex shadow p-4 flex-column justify-content-between sticky-top side-nav" aria-label="Main">
                 <div class="d-flex flex-column">
                     <div class="mb-3">
                         <span class="fs-3 fw-bold text-primary px-2">{"Altis"}</span>
@@ -43,7 +42,7 @@ pub fn navbar(props: &NavProps) -> Html {
                 </div>
             </nav>
 
-            <nav class="d-md-none order-last px-2 shadow-lg bottom-nav">
+            <nav class="d-md-none order-last px-2 shadow-lg bottom-nav" aria-label="Main">
                 <div class="d-flex justify-content-around py-2">
                     { for props.tabs.iter().map(|tab| render_bottom_bar_item(*tab, props)) }
                 </div>
@@ -62,10 +61,10 @@ fn render_sidebar_item(tab: Tab, props: &NavProps) -> Html {
         <li class="nav-item">
             <button
                 onclick={props.on_change.reform(move |_| tab)}
-                class={classes!("nav-link", "py-3", "text-start", "d-flex", "align-items-center", active_class)}
-                style="border: none; background: transparent; width: 100%; transition: all 0.25s;"
+                class={classes!("nav-link", "side-nav-item", "py-3", "text-start", "d-flex", "align-items-center", active_class)}
+                aria-current={(props.active_tab == tab).then_some("page")}
             >
-                <i class={classes!("bi", icon(tab), "me-3", "fs-5")}></i>
+                <i class={classes!("bi", icon(tab), "me-3", "fs-5")} aria-hidden="true"></i>
                 <span class="fw-semibold">{ tab.label() }</span>
             </button>
         </li>
@@ -81,12 +80,12 @@ fn render_bottom_bar_item(tab: Tab, props: &NavProps) -> Html {
     html! {
         <button
             onclick={props.on_change.reform(move |_| tab)}
-            class={classes!("btn", "border-0", "p-0", "flex-grow-1", active_class)}
-            style="background: transparent; transition: color 0.2s ease;"
+            class={classes!("btn", "border-0", "p-0", "flex-grow-1", "bottom-nav-item", active_class)}
+            aria-current={(props.active_tab == tab).then_some("page")}
         >
             <div class="d-flex flex-column align-items-center justify-content-center py-2">
-                <i class={classes!("bi", icon(tab))} style="font-size: 1.6rem; line-height: 1;"></i>
-                <span style="font-size: 0.7rem; letter-spacing: 0.03rem; margin-top: 4px;" class="text-uppercase">
+                <i class={classes!("bi", icon(tab))} aria-hidden="true"></i>
+                <span class="text-uppercase bottom-nav-label">
                     { tab.label() }
                 </span>
             </div>
